@@ -181,10 +181,12 @@ public static class Cmd
         public override IReadOnlyList<Expectation> Expectations => [new("frunk_open", B(true))];
     }
 
-    public sealed record ToggleTrunk : VehicleCommand
+    /// <summary>Bagagerummet kan kun "skiftes". Kender vi retningen (HA's åbn/luk), forventer vi den.</summary>
+    public sealed record ToggleTrunk(bool? Open = null) : VehicleCommand
     {
         public override string FleetEndpoint => "actuate_trunk";
         public override JsonObject FleetBody => new() { ["which_trunk"] = "rear" };
+        public override IReadOnlyList<Expectation> Expectations => Open is { } o ? [new("trunk_open", B(o))] : [];
     }
 
     public sealed record VentWindows(double Lat, double Lon) : VehicleCommand

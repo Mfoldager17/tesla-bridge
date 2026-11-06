@@ -50,7 +50,13 @@ public static class CommandParser
             "charge_port_open" => new Cmd.OpenChargePort(),
             "charge_port_close" => new Cmd.CloseChargePort(),
             "frunk" => new Cmd.OpenFrunk(),
-            "trunk" => new Cmd.ToggleTrunk(),
+            "trunk" => p.ToUpperInvariant() switch
+            {
+                // Bagagerummet skiftes: åbn ikke et åbent / luk ikke et lukket (så det ikke går den forkerte vej).
+                "OPEN" => IsTrue(state, "trunk_open") ? null : new Cmd.ToggleTrunk(true),
+                "CLOSE" => IsFalse(state, "trunk_open") ? null : new Cmd.ToggleTrunk(false),
+                _ => new Cmd.ToggleTrunk(),
+            },
             "vent_windows" => Location(state) is var (lat, lon) ? new Cmd.VentWindows(lat, lon) : new Cmd.VentWindows(0, 0),
             "close_windows" => Location(state) is var (lat2, lon2) ? new Cmd.CloseWindows(lat2, lon2) : new Cmd.CloseWindows(0, 0),
             "auto_seat_climate_left" => OnOff(p) is { } al ? new Cmd.SetAutoSeatClimate(1, al) : null,
@@ -107,6 +113,12 @@ public static class CommandParser
         if (s == "on") return 1;
         return Num(p) is { } n && n is >= 0 and <= 3 ? (int)n : null;
     }
+
+    private static bool IsTrue(Func<string, FieldValue?> state, string key) =>
+        state(key)?.Value is JsonValue v && v.TryGetValue(out bool b) && b;
+
+    private static bool IsFalse(Func<string, FieldValue?> state, string key) =>
+        state(key)?.Value is JsonValue v && v.TryGetValue(out bool b) && !b;
 
     private static bool? OnOff(string p) => p.ToLowerInvariant() switch
     {

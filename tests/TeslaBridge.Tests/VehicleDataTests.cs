@@ -41,3 +41,28 @@ public class VehicleDataTests
     [Fact]
     public void Missing_sections_give_nothing() => Assert.Empty(Map("{}"));
 }
+
+public class MotionTests
+{
+    private static System.Text.Json.Nodes.JsonNode B(bool b) => System.Text.Json.Nodes.JsonValue.Create(b);
+
+    [Fact]
+    public void Lock_and_cover_show_intermediate_state_while_command_is_pending()
+    {
+        Assert.Equal("UNLOCKING", TeslaBridge.Publishing.StatePublisher.Motion("locked", pending: true, B(false), B(true)));
+        Assert.Equal("UNLOCKED", TeslaBridge.Publishing.StatePublisher.Motion("locked", pending: false, B(false), B(false)));
+        Assert.Equal("opening", TeslaBridge.Publishing.StatePublisher.Motion("frunk_open", pending: true, B(true), B(false)));
+        Assert.Equal("closed", TeslaBridge.Publishing.StatePublisher.Motion("windows_open", pending: false, B(false), B(false)));
+        Assert.Null(TeslaBridge.Publishing.StatePublisher.Motion("trunk_open", pending: false, null, null));
+        // Forventet = allerede bekræftet → ingen mellemtilstand
+        Assert.Equal("LOCKED", TeslaBridge.Publishing.StatePublisher.Motion("locked", pending: true, B(true), B(true)));
+    }
+
+    [Fact]
+    public void Trunk_open_is_ignored_when_already_open()
+    {
+        TeslaBridge.State.FieldValue? Open(string k) => k == "trunk_open" ? new(B(true), DateTimeOffset.UtcNow, TeslaBridge.State.ValueSource.Stream) : null;
+        Assert.Null(TeslaBridge.Commands.CommandParser.Parse("trunk", "OPEN", Open));
+        Assert.Equal(new TeslaBridge.Commands.Cmd.ToggleTrunk(false), TeslaBridge.Commands.CommandParser.Parse("trunk", "CLOSE", Open));
+    }
+}

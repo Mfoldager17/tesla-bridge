@@ -52,7 +52,39 @@ public sealed class StatePublisher(
     private void OnChanged(StateChange change)
     {
         _ = PublishFieldAsync(change.Vin, change.Key, change.Effective, force: false, CancellationToken.None);
+        if (Transitions.ContainsKey(change.Key))
+            _ = PublishMotionAsync(change.Vin, change.Key, force: false, CancellationToken.None);
         _dirtySnapshots[change.Vin] = 0;
+    }
+
+    /// <summary>
+    /// Låse og covers får en "{key}_motion"-tilstand med mellemtrin, mens en kommando venter på bilen
+    /// (LOCKING/UNLOCKING, opening/closing) – ligesom Teslemetry viser i HA.
+    /// </summary>
+    internal static readonly Dictionary<string, (string True, string False, string ToTrue, string ToFalse)> Transitions = new()
+    {
+        ["locked"] = ("LOCKED", "UNLOCKED", "LOCKING", "UNLOCKING"),
+        ["charge_cable_locked"] = ("LOCKED", "UNLOCKED", "LOCKING", "UNLOCKING"),
+        ["frunk_open"] = ("open", "closed", "opening", "closing"),
+        ["trunk_open"] = ("open", "closed", "opening", "closing"),
+        ["charge_port_open"] = ("open", "closed", "opening", "closing"),
+        ["windows_open"] = ("open", "closed", "opening", "closing"),
+    };
+
+    internal static string? Motion(string key, bool pending, JsonNode? effective, JsonNode? confirmed)
+    {
+        var t = Transitions[key];
+        static bool? AsBool(JsonNode? n) => n is JsonValue v && v.TryGetValue(out bool b) ? b : null;
+        if (pending && AsBool(effective) is { } target && AsBool(confirmed) != target)
+            return target ? t.ToTrue : t.ToFalse;
+        return AsBool(effective) switch { true => t.True, false => t.False, _ => null };
+    }
+
+    private Task PublishMotionAsync(string vin, string key, bool force, CancellationToken ct)
+    {
+        var motion = Motion(key, store.HasPending(vin, key), store.Get(vin, key)?.Value, store.GetConfirmed(vin, key)?.Value);
+        var value = new FieldValue(motion is null ? null : JsonValue.Create(motion), DateTimeOffset.UtcNow, ValueSource.Bridge);
+        return PublishFieldAsync(vin, key + "_motion", value, force, ct);
     }
 
     private async Task RepublishAllAsync(CancellationToken ct)
@@ -61,7 +93,10 @@ public sealed class StatePublisher(
         foreach (var vin in store.Vins)
         {
             foreach (var (key, value) in store.Snapshot(vin))
+            {
                 await PublishFieldAsync(vin, key, value, force: true, ct);
+                if (Transitions.ContainsKey(key)) await PublishMotionAsync(vin, key, force: true, ct);
+            }
             await PublishSnapshotAsync(vin, ct);
         }
     }

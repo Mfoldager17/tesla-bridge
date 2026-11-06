@@ -357,8 +357,8 @@ public sealed class HomeAssistantDiscovery(
         void Lock(string key, string name, string stateKey, string? icon)
         {
             var c = Base(key, name);
-            c["state_topic"] = state(stateKey);
-            c["value_template"] = "{% if value_json is none %}None{% elif value_json %}LOCKED{% else %}UNLOCKED{% endif %}";
+            c["state_topic"] = state(stateKey + "_motion");          // LOCKED/UNLOCKED/LOCKING/UNLOCKING
+            c["value_template"] = "{{ value_json if value_json is not none else None }}";
             c["command_topic"] = cmd(key);
             c["payload_lock"] = "LOCK";
             c["payload_unlock"] = "UNLOCK";
@@ -391,10 +391,12 @@ public sealed class HomeAssistantDiscovery(
         void Cover(string key, string name, string stateKey, string deviceClass, bool canClose, string? icon = null)
         {
             var c = Base(key, name);
-            c["state_topic"] = state(stateKey);
-            c["value_template"] = "{% if value_json is none %}None{% elif value_json %}open{% else %}closed{% endif %}";
+            c["state_topic"] = state(stateKey + "_motion");          // open/closed/opening/closing
+            c["value_template"] = "{{ value_json if value_json is not none else None }}";
             c["state_open"] = "open";
             c["state_closed"] = "closed";
+            c["state_opening"] = "opening";
+            c["state_closing"] = "closing";
             c["command_topic"] = cmd(key);
             c["payload_open"] = "OPEN";
             c["payload_close"] = canClose ? "CLOSE" : null;
