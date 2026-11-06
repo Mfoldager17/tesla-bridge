@@ -67,6 +67,20 @@ if (cliCommand is not null)
     return await CliCommands.RunAsync(cliCommand, cliHost.Services);
 }
 
+// Nøgler, intern TLS og fleet-telemetrys config laves, hvis de mangler (i Docker gør init-containeren det først).
+{
+    var bootOpts = new BridgeOptions();
+    builder.Configuration.GetSection(BridgeOptions.Section).Bind(bootOpts);
+    bootOpts.Vehicles.RemoveAll(v => string.IsNullOrWhiteSpace(v.Vin));
+    try
+    {
+        var r = TeslaBridge.Setup.Bootstrap.Run(bootOpts);
+        foreach (var c in r.Created) Console.WriteLine($"✓ Lavede {c}");
+        foreach (var w in r.Warnings) Console.WriteLine($"⚠ {w}");
+    }
+    catch (Exception ex) { Console.WriteLine($"⚠ Kunne ikke forberede filer: {ex.Message}"); }
+}
+
 // Kørende services. Rækkefølgen betyder noget: state indlæses og evt. broker starter før MQTT forbinder.
 services.AddHostedService<StatePersistenceService>();
 services.AddHostedService<EmbeddedBroker>();

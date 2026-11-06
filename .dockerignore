@@ -1,6 +1,8 @@
 **/bin
 **/obj
 data
-config
+config/*
+!config/bridge
 tests
 .env
+.git

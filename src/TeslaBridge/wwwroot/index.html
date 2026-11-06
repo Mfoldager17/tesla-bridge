@@ -462,7 +462,7 @@
         state: st.key.present ? "done" : "bad",
         d: st.key.present
           ? `Fingeraftryk <code>${esc(st.key.fingerprint)}</code>. Vises offentligt på <a href="${esc(st.public_key_url)}" target="_blank" rel="noopener">${esc(st.public_key_url)}</a>`
-          : `Ingen nøgle i <code>${esc(st.key.file)}</code>${st.key.error ? " – " + esc(st.key.error) : ""}. Kør <code>./scripts/setup.sh</code>.`,
+          : `Ingen nøgle i <code>${esc(st.key.file)}</code>${st.key.error ? " – " + esc(st.key.error) : ""}. Genstart bridgen, så laves den automatisk.`,
       },
       {
         t: "App-oplysninger i .env",

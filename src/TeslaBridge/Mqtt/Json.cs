@@ -7,4 +7,6 @@ internal static class Json
 {
     /// <summary>Læsbar JSON på MQTT: ingen ° for ° eller + for +.</summary>
     public static readonly JsonSerializerOptions Relaxed = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    public static readonly JsonSerializerOptions Pretty = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, WriteIndented = true };
 }

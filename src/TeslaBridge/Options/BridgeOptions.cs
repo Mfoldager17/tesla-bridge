@@ -57,7 +57,10 @@ public sealed class TeslaOptions
     public string ProxyUrl { get; set; } = "https://tesla-proxy:4443";
     public string ProxyCertFile { get; set; } = "/config/tesla-proxy/tls-cert.pem";
 
-    /// <summary>Appens private nøgle (samme fil som tesla-proxy signerer med). Laves af scripts/setup.sh.</summary>
+    /// <summary>Privatnøgle til den interne TLS mellem bridge og tesla-proxy. Laves automatisk.</summary>
+    public string ProxyKeyFile { get; set; } = "/config/tesla-proxy/tls-key.pem";
+
+    /// <summary>Appens private nøgle (samme fil som tesla-proxy signerer med). Laves automatisk, hvis den mangler.</summary>
     public string FleetKeyFile { get; set; } = "/config/tesla-proxy/fleet-key.pem";
 
     /// <summary>Tom = samme som Telemetry:Hostname. Sæt kun hvis appen er registreret på et andet domæne.</summary>
@@ -92,8 +95,17 @@ public sealed class TelemetryOptions
     public int Port { get; set; } = 4443;
 
     /// <summary>PEM-bundle bilen validerer serverens certifikat mod (fx Let's Encrypt-rødder).</summary>
-    public string CaFile { get; set; } = "/config/bridge/vehicle-trust-ca.pem";
-    public string FieldsFile { get; set; } = "/config/bridge/telemetry-fields.json";
+    public string CaFile { get; set; } = "/app/defaults/vehicle-trust-ca.pem";
+
+    /// <summary>Felter + intervaller. Standard følger med imaget; peg på din egen fil for at ændre dem.</summary>
+    public string FieldsFile { get; set; } = "/app/defaults/telemetry-fields.json";
+
+    /// <summary>fleet-telemetrys egen config.json. Skrives af bridgen ud fra MQTT-indstillingerne.</summary>
+    public string ServerConfigFile { get; set; } = "/config/fleet-telemetry/config.json";
+
+    /// <summary>MQTT-bruger som fleet-telemetry logger ind på brokeren med.</summary>
+    public string MqttUsername { get; set; } = "fleet-telemetry";
+    public string MqttPassword { get; set; } = "";
     public int ConfigLifetimeDays { get; set; } = 30;
     public int RenewWhenDaysLeft { get; set; } = 23;
     public bool AutoPush { get; set; } = true;

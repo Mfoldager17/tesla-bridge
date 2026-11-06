@@ -1,6 +1,9 @@
-# Byg bridgen lokalt i stedet for at hente den fra ghcr.io:
+# Byg bridgen lokalt i stedet for at hente den fra ghcr.io (kræver repoet):
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 services:
+  tesla-init:
+    build: .
+    image: tesla-bridge:local
   tesla-bridge:
     build: .
     image: tesla-bridge:local

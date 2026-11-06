@@ -15,4 +15,6 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080 8091
 WORKDIR /app
 COPY --from=build /app .
+# Standardfelter/intervaller og de rodcertifikater bilen skal stole på. Opdateres med imaget.
+COPY config/bridge/ /app/defaults/
 ENTRYPOINT ["dotnet", "TeslaBridge.dll"]

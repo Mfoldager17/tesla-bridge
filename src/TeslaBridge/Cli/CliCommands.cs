@@ -9,10 +9,10 @@ using TeslaBridge.Telemetry;
 
 namespace TeslaBridge.Cli;
 
-/// <summary>Engangs-værktøjer: docker compose run --rm -it tesla-bridge &lt;kommando&gt;</summary>
+/// <summary>Engangs-værktøjer: docker compose exec tesla-bridge dotnet TeslaBridge.dll &lt;kommando&gt;</summary>
 public static class CliCommands
 {
-    public static readonly string[] Names = ["auth", "register", "public-key", "push-config", "telemetry-status", "telemetry-errors", "help"];
+    public static readonly string[] Names = ["init", "auth", "register", "public-key", "push-config", "telemetry-status", "telemetry-errors", "help"];
 
     private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true };
 
@@ -24,13 +24,22 @@ public static class CliCommands
         {
             switch (command)
             {
+                case "init":
+                {
+                    var r = TeslaBridge.Setup.Bootstrap.Run(opts);
+                    foreach (var c in r.Created) Console.WriteLine($"✓ Lavede {c}");
+                    Console.WriteLine($"✓ Skrev {opts.Telemetry.ServerConfigFile} (broker {opts.Mqtt.Host}:{opts.Mqtt.Port})");
+                    foreach (var w in r.Warnings) Console.WriteLine($"⚠ {w}");
+                    return 0;
+                }
+
                 case "auth":
                     return await AuthAsync(sp.GetRequiredService<TeslaTokenProvider>(), opts, ct);
 
                 case "public-key":
                 {
                     var key = sp.GetRequiredService<TeslaKey>().Public;
-                    if (key is null) { Console.Error.WriteLine($"Ingen nøgle i {opts.Tesla.FleetKeyFile}. Kør scripts/setup.sh."); return 1; }
+                    if (key is null) { Console.Error.WriteLine($"Ingen nøgle i {opts.Tesla.FleetKeyFile}. Kør: docker compose run --rm tesla-init"); return 1; }
                     Console.Write(key.Pem);
                     Console.WriteLine($"\nFingeraftryk: {key.Fingerprint}\nSkal kunne hentes på: {opts.PublicKeyUrl}");
                     return 0;
@@ -74,6 +83,7 @@ public static class CliCommands
                         Brug: tesla-bridge [kommando]
 
                           (ingen)            Kør bridgen
+                          init               Lav nøgler, intern TLS og fleet-telemetrys config (sker også automatisk)
                           auth               Log ind hos Tesla i terminalen (alternativ til dashboardets knap)
                           public-key         Vis den offentlige nøgle og hvor den skal kunne hentes
                           register           Registrér partnerdomænet hos Tesla
