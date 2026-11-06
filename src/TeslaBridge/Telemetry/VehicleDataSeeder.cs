@@ -30,6 +30,7 @@ public sealed class VehicleDataSeeder(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         store.Changed += OnChanged;
+        _ = Task.Run(() => CheckSleepStateAsync(stoppingToken), stoppingToken);
         try
         {
             await foreach (var vin in _queue.Reader.ReadAllAsync(stoppingToken))
@@ -43,6 +44,32 @@ public sealed class VehicleDataSeeder(
         }
         catch (OperationCanceledException) { }
         finally { store.Changed -= OnChanged; }
+    }
+
+    /// <summary>
+    /// Ved opstart: spørg Tesla om bilen sover (GET /vehicles/{vin}, vækker den ikke), så dashboard og HA
+    /// kan vise "sover" i stedet for "venter på signal". Telemetrien overtager, så snart bilen sender noget.
+    /// </summary>
+    private async Task CheckSleepStateAsync(CancellationToken ct)
+    {
+        try { await Task.Delay(TimeSpan.FromSeconds(15), ct); } catch (OperationCanceledException) { return; }
+        foreach (var v in options.Value.Vehicles)
+        {
+            if (store.GetConfirmed(v.Vin, "online") is not null) continue;   // streamen nåede først
+            try
+            {
+                var (status, body, _) = await proxy.SendAsync(HttpMethod.Get, $"/api/1/vehicles/{v.Vin}", null, ct);
+                var state = body?["response"]?["state"]?.ToString();
+                if ((int)status >= 300 || state is null) continue;
+                if (store.GetConfirmed(v.Vin, "online") is not null) continue;
+                store.Apply(v.Vin, "online", JsonValue.Create(state == "online"), time.GetUtcNow(), ValueSource.Snapshot);
+                log.LogInformation("{Vin} er {State} ifølge Tesla", v.Vin, state);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                log.LogInformation("Kunne ikke spørge Tesla om {Vin} sover: {Error}", v.Vin, ex.Message);
+            }
+        }
     }
 
     private void OnChanged(StateChange c)
