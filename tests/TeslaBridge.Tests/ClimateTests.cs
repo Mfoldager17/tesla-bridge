@@ -77,8 +77,8 @@ public class ClimateTests
         Assert.Equal("tesla/VIN1/cmd/climate", c["mode_command_topic"]!.GetValue<string>());
         Assert.Equal("tesla/VIN1/cmd/driver_temp", c["temperature_command_topic"]!.GetValue<string>());
         Assert.Equal("tesla/VIN1/state/inside_temp", c["current_temperature_topic"]!.GetValue<string>());
-        Assert.Equal(["Normal", "Keep mode", "Dog mode", "Camp mode"], c["preset_modes"]!.AsArray().Select(n => n!.GetValue<string>()));
-        Assert.Contains("'off': 'Normal'", c["preset_mode_value_template"]!.GetValue<string>());
+        Assert.Equal(["off", "keep", "dog", "camp"], c["preset_modes"]!.AsArray().Select(n => n!.GetValue<string>()));
+        Assert.Contains("'dog': 'dog'", c["preset_mode_value_template"]!.GetValue<string>());
     }
 
     /// <summary>Samme entiteter (domæne + navn) som Teslemetrys "Controls" i Mathias' HA.</summary>

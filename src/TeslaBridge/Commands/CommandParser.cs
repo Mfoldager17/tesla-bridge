@@ -100,14 +100,14 @@ public static class CommandParser
         ["seat_heater_front_right"] = "seat_heater_right",
     };
 
-    /// <summary>HA-presets som i Teslemetry (Normal = ingen klimatilstand) og rå navne/tal.</summary>
+    /// <summary>HA-presets med samme værdier som Teslemetry (off = normal) – dashboards kan oversætte dem.</summary>
     public static readonly (string Preset, string Key)[] KeeperPresets =
-        [("Normal", "off"), ("Keep mode", "keep"), ("Dog mode", "dog"), ("Camp mode", "camp")];
+        [("off", "off"), ("keep", "keep"), ("dog", "dog"), ("camp", "camp")];
 
     private static int? KeeperMode(string p)
     {
-        var s = p.ToLowerInvariant();
-        if (s is "none" or "off" or "fra" or "0") return 0;
+        var s = p.ToLowerInvariant().Replace(" mode", "");          // "Dog mode" → "dog"
+        if (s is "none" or "off" or "normal" or "fra" or "0") return 0;
         foreach (var (preset, key) in KeeperPresets)
             if (s == preset.ToLowerInvariant() || s == key) return Array.IndexOf(Cmd.SetClimateKeeper.Names, key);
         if (s == "on") return 1;

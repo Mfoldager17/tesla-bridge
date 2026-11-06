@@ -189,6 +189,9 @@
     },
     "ExpectedEnergyPercentAtTripArrival": {
       "interval_seconds": 60
+    },
+    "DestinationLocation": {
+      "interval_seconds": 1
     }
   }
 }

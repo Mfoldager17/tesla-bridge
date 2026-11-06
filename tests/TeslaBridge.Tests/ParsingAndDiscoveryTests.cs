@@ -92,7 +92,7 @@ public class ParsingAndDiscoveryTests
         // Klima-kortenes egne topics
         foreach (var (_, p) in configs)
         {
-            foreach (var (topicKey, payload) in new[] { ("mode_command_topic", "on"), ("temperature_command_topic", "35"), ("preset_mode_command_topic", "Dog mode") })
+            foreach (var (topicKey, payload) in new[] { ("mode_command_topic", "on"), ("temperature_command_topic", "35"), ("preset_mode_command_topic", "dog") })
                 if (p[topicKey]?.GetValue<string>() is { } t)
                     Assert.NotNull(CommandParser.Parse(t.Split('/')[^1], payload, AtHome));
         }

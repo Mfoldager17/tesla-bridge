@@ -181,6 +181,7 @@ public static class SignalMapper
             }
             case "MinutesToArrival": yield return ("minutes_to_arrival", Round(Num(raw), 0)); break;
             case "MilesToArrival": yield return ("km_to_arrival", Round(Num(raw) * KmPerMile, 1)); break;
+            case "DestinationLocation": yield return ("destination_location", MapLocation(raw)); break;
             case "ExpectedEnergyPercentAtTripArrival": yield return ("soc_at_arrival", Round(Num(raw), 0)); break;
 
             case "Version": yield return ("software_version", Str(StrOf(raw))); break;

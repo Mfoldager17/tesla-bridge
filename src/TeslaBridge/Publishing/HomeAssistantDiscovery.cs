@@ -87,7 +87,7 @@ public sealed class HomeAssistantDiscovery(
         new("time_to_full_charge", "Time to full charge", "h", "duration", null),
         new("energy_remaining", "Energy remaining", "kWh", "energy_storage", "measurement"),
         new("estimate_battery_range", "Estimate battery range", "km", "distance", "measurement"),
-        new("ideal_battery_range", "Ideal battery range", "km", "distance", "measurement", Enabled: false),
+        new("ideal_battery_range", "Ideal battery range", "km", "distance", "measurement"),
         new("rated_range", "Rated range", "km", "distance", "measurement", Enabled: false),
         new("speed", "Speed", "km/h", "speed", "measurement"),
         new("shift_state", "Shift state", Icon: "mdi:car-shift-pattern"),
@@ -104,7 +104,7 @@ public sealed class HomeAssistantDiscovery(
         new("hvac_power_state", "HVAC power state", Icon: "mdi:fan", Category: "diagnostic"),
         new("sentry_mode", "Sentry mode", Icon: "mdi:cctv", Category: "diagnostic"),
         new("destination", "Destination", Icon: "mdi:map-marker"),
-        new("time_to_arrival", "Time to arrival", "min", "duration", null),
+        new("time_to_arrival", "Time to arrival", null, "timestamp", null),   // tidspunkt, som Teslemetry
         new("distance_to_arrival", "Distance to arrival", "km", "distance", null),
         new("state_of_charge_at_arrival", "State of charge at arrival", "%", "battery", null),
         new("version", "Version", Icon: "mdi:update", Category: "diagnostic"),
@@ -287,7 +287,9 @@ public sealed class HomeAssistantDiscovery(
         {
             var c = Base(s.Key, s.Name);
             c["state_topic"] = state(StateKey(s.Key));
-            c["value_template"] = Num;
+            c["value_template"] = s.Key == "time_to_arrival"
+                ? "{{ (now() + timedelta(minutes=value_json | float)).isoformat() if value_json is not none else None }}"
+                : Num;
             if (s.Unit is not null) c["unit_of_measurement"] = s.Unit;
             if (s.DeviceClass is not null) c["device_class"] = s.DeviceClass;
             if (s.StateClass is not null) c["state_class"] = s.StateClass;
@@ -503,13 +505,18 @@ public sealed class HomeAssistantDiscovery(
         Button("play_fart", "Play fart", "mdi:volume-high");
         Button("homelink", "Homelink", "mdi:garage");
 
+        void Tracker(string key, string name, string stateKey, string icon)
         {
-            var c = Base("location", "Location");
-            c["json_attributes_topic"] = state("location");
+            var c = Base(key, name);
+            c["json_attributes_topic"] = state(stateKey);
+            c["json_attributes_template"] = "{{ (value_json if value_json is mapping else {}) | tojson }}";
             c["source_type"] = "gps";
-            c["icon"] = "mdi:car";
-            Add("device_tracker", "location", c);
+            c["icon"] = icon;
+            Add("device_tracker", key, c);
         }
+
+        Tracker("location", "Location", "location", "mdi:car");
+        Tracker("route", "Route", "destination_location", "mdi:routes");
 
         return list;
     }
