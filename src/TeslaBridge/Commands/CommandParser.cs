@@ -16,6 +16,7 @@ public static class CommandParser
     public static VehicleCommand? Parse(string name, string payload, Func<string, FieldValue?> state)
     {
         var p = payload.Trim().Trim('"');
+        name = Aliases.TryGetValue(name, out var alias) ? alias : name;
         return name switch
         {
             "climate" => OnOff(p) switch { true => new Cmd.ClimateOn(), false => new Cmd.ClimateOff(), _ => null },
@@ -52,6 +53,30 @@ public static class CommandParser
             "trunk" => new Cmd.ToggleTrunk(),
             "vent_windows" => Location(state) is var (lat, lon) ? new Cmd.VentWindows(lat, lon) : new Cmd.VentWindows(0, 0),
             "close_windows" => Location(state) is var (lat2, lon2) ? new Cmd.CloseWindows(lat2, lon2) : new Cmd.CloseWindows(0, 0),
+            "auto_seat_climate_left" => OnOff(p) is { } al ? new Cmd.SetAutoSeatClimate(1, al) : null,
+            "auto_seat_climate_right" => OnOff(p) is { } ar ? new Cmd.SetAutoSeatClimate(2, ar) : null,
+            "auto_steering_wheel_heater" => OnOff(p) is { } aw ? new Cmd.SetAutoSteeringWheelHeat(aw) : null,
+            "steering_wheel_heater" => p.ToLowerInvariant() switch
+            {
+                "off" or "0" => new Cmd.SetSteeringWheelHeatLevel(0),
+                "low" or "1" => new Cmd.SetSteeringWheelHeatLevel(1),
+                "high" or "3" => new Cmd.SetSteeringWheelHeatLevel(3),
+                _ => null,
+            },
+            "guest_mode" => OnOff(p) is { } g ? new Cmd.SetGuestMode(g) : null,
+            "valet_mode" => OnOff(p) is { } va ? new Cmd.SetValetMode(va) : null,
+            "cop_temp" => Num(p) is { } ct ? new Cmd.SetCopTemp((int)Math.Round(ct)) : null,
+            "windows" => p.ToUpperInvariant() switch
+            {
+                "OPEN" or "VENT" => Location(state) is var (wl, wo) ? new Cmd.VentWindows(wl, wo) : new Cmd.VentWindows(0, 0),
+                "CLOSE" => Location(state) is var (cl2, co2) ? new Cmd.CloseWindows(cl2, co2) : new Cmd.CloseWindows(0, 0),
+                _ => null,
+            },
+            "charge_port_door" => p.ToUpperInvariant() switch { "OPEN" => new Cmd.OpenChargePort(), "CLOSE" => new Cmd.CloseChargePort(), _ => null },
+            "charge_cable_lock" => p.ToUpperInvariant() switch { "UNLOCK" => new Cmd.OpenChargePort(), "LOCK" => new Cmd.CloseChargePort(), _ => null },
+            "homelink" => Location(state) is var (hl, ho) ? new Cmd.TriggerHomelink(hl, ho) : null,
+            "keyless_driving" => new Cmd.RemoteStartDrive(),
+            "play_fart" => new Cmd.PlayFart(),
             "flash_lights" => new Cmd.FlashLights(),
             "honk_horn" => new Cmd.HonkHorn(),
             "wake" => new Cmd.Wake(),
@@ -59,8 +84,19 @@ public static class CommandParser
         };
     }
 
-    /// <summary>HA-presets (Hold/Hund/Camp/none) og rå navne/tal.</summary>
-    public static readonly (string Preset, string Key)[] KeeperPresets = [("Hold", "keep"), ("Hund", "dog"), ("Camp", "camp")];
+    /// <summary>Teslemetry-navne på entiteter → bridgens kommandonavne (begge virker).</summary>
+    private static readonly Dictionary<string, string> Aliases = new()
+    {
+        ["charge"] = "charging",
+        ["sentry_mode"] = "sentry",
+        ["charge_current"] = "charging_amps",
+        ["seat_heater_front_left"] = "seat_heater_left",
+        ["seat_heater_front_right"] = "seat_heater_right",
+    };
+
+    /// <summary>HA-presets som i Teslemetry (Normal = ingen klimatilstand) og rå navne/tal.</summary>
+    public static readonly (string Preset, string Key)[] KeeperPresets =
+        [("Normal", "off"), ("Keep mode", "keep"), ("Dog mode", "dog"), ("Camp mode", "camp")];
 
     private static int? KeeperMode(string p)
     {

@@ -52,8 +52,14 @@ public sealed class TelemetryIngestService(
         usage.CountSignal(field);
         events.Publish("raw", vin, new JsonObject { ["field"] = field, ["value"] = raw?.DeepClone() });
 
+        var windows = false;
         foreach (var (key, value) in SignalMapper.Map(field, raw))
+        {
             store.Apply(vin, key, value, now);
+            windows |= key.StartsWith("window_", StringComparison.Ordinal);
+        }
+        if (windows)
+            store.Apply(vin, "windows_open", SignalMapper.WindowsOpen(k => store.GetConfirmed(vin, k)?.Value), now);
 
         // Data betyder at bilen er vågen og forbundet.
         MarkSeen(vin, now);

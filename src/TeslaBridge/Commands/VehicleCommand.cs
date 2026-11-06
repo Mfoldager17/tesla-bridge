@@ -191,12 +191,77 @@ public static class Cmd
     {
         public override string FleetEndpoint => "window_control";
         public override JsonObject FleetBody => new() { ["command"] = "vent", ["lat"] = Lat, ["lon"] = Lon };
+        public override IReadOnlyList<Expectation> Expectations => [new("windows_open", B(true))];
     }
 
     public sealed record CloseWindows(double Lat, double Lon) : VehicleCommand
     {
         public override string FleetEndpoint => "window_control";
         public override JsonObject FleetBody => new() { ["command"] = "close", ["lat"] = Lat, ["lon"] = Lon };
+        public override IReadOnlyList<Expectation> Expectations => [new("windows_open", B(false))];
+    }
+
+    /// <summary>Automatisk sædeklima: position 1 = fører, 2 = passager.</summary>
+    public sealed record SetAutoSeatClimate(int Position, bool On) : VehicleCommand
+    {
+        public override string FleetEndpoint => "remote_auto_seat_climate_request";
+        public override JsonObject FleetBody => new() { ["auto_seat_position"] = Position, ["auto_climate_on"] = On };
+        public override IReadOnlyList<Expectation> Expectations =>
+            [new(Position == 1 ? "auto_seat_climate_left" : "auto_seat_climate_right", B(On))];
+    }
+
+    public sealed record SetAutoSteeringWheelHeat(bool On) : VehicleCommand
+    {
+        public override string FleetEndpoint => "remote_auto_steering_wheel_heat_climate_request";
+        public override JsonObject FleetBody => new() { ["on"] = On };
+        public override IReadOnlyList<Expectation> Expectations => [new("auto_steering_wheel_heat", B(On))];
+    }
+
+    /// <summary>Rattvarme: 0 = fra, 1 = lav, 3 = høj (Teslas niveauer).</summary>
+    public sealed record SetSteeringWheelHeatLevel(int Level) : VehicleCommand
+    {
+        public override string FleetEndpoint => "remote_steering_wheel_heat_level_request";
+        public override JsonObject FleetBody => new() { ["level"] = Level };
+        public override IReadOnlyList<Expectation> Expectations => [new("steering_wheel_heat_level", N(Level), Near(Level, 0.1))];
+    }
+
+    public sealed record SetGuestMode(bool On) : VehicleCommand
+    {
+        public override string FleetEndpoint => "guest_mode";
+        public override JsonObject FleetBody => new() { ["enable"] = On };
+        public override IReadOnlyList<Expectation> Expectations => [new("guest_mode", B(On))];
+    }
+
+    public sealed record SetValetMode(bool On) : VehicleCommand
+    {
+        public override string FleetEndpoint => "set_valet_mode";
+        public override JsonObject FleetBody => new() { ["on"] = On };
+        public override IReadOnlyList<Expectation> Expectations => [new("valet_mode", B(On))];
+    }
+
+    /// <summary>Overophedningsbeskyttelsens grænse: 30, 35 eller 40 °C.</summary>
+    public sealed record SetCopTemp(int Celsius) : VehicleCommand
+    {
+        public override string FleetEndpoint => "set_cop_temp";
+        public override JsonObject FleetBody => new() { ["cop_temp"] = Celsius switch { <= 30 => 0, <= 35 => 1, _ => 2 } };
+        public override IReadOnlyList<Expectation> Expectations => [new("cop_temp_limit", N(Celsius))];
+    }
+
+    public sealed record TriggerHomelink(double Lat, double Lon) : VehicleCommand
+    {
+        public override string FleetEndpoint => "trigger_homelink";
+        public override JsonObject FleetBody => new() { ["lat"] = Lat, ["lon"] = Lon };
+    }
+
+    public sealed record RemoteStartDrive : VehicleCommand
+    {
+        public override string FleetEndpoint => "remote_start_drive";
+    }
+
+    public sealed record PlayFart : VehicleCommand
+    {
+        public override string FleetEndpoint => "remote_boombox";
+        public override JsonObject FleetBody => new() { ["sound"] = 0 };
     }
 
     public sealed record FlashLights : VehicleCommand

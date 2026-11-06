@@ -46,10 +46,20 @@ public sealed class HomeAssistantDiscovery(
         foreach (var v in _opts.Vehicles)
         {
             var configs = Build(v, _opts.Mqtt.BridgeTopicBase, _opts.Mqtt.DiscoveryPrefix, mqtt.StatusTopic);
+            foreach (var topic in LegacyTopics(v, _opts.Mqtt.DiscoveryPrefix, configs))
+                await mqtt.PublishAsync(topic, "", retain: true, ct);
             foreach (var (topic, payload) in configs)
                 await mqtt.PublishAsync(topic, payload.ToJsonString(Json.Relaxed), retain: true, ct);
             log.LogInformation("Udgav {Count} HA-entiteter for {Name} ({Vin})", configs.Count, v.Name, v.Vin);
         }
+    }
+
+    /// <summary>Config-topics fra tidligere versioner, der ikke længere bruges (tømmes, så HA fjerner entiteten).</summary>
+    internal static IEnumerable<string> LegacyTopics(VehicleOptions v, string prefix, List<(string Topic, JsonObject Payload)> current)
+    {
+        var id = $"tesla_bridge_{v.Vin.ToLowerInvariant()}";
+        var live = current.Select(c => c.Topic).ToHashSet();
+        return Legacy.Select(l => $"{prefix}/{l.Component}/{id}/{l.Key}/config").Where(t => !live.Contains(t));
     }
 
     // ---------- entitetsdefinitioner ----------
@@ -62,51 +72,120 @@ public sealed class HomeAssistantDiscovery(
 
     private sealed record Binary(string Key, string Name, string? DeviceClass = null, string? Icon = null, string? Category = null);
 
+    // Navne og typer følger Teslemetry-integrationen, så dashboards kan flyttes 1:1
+    // (sensor.tesla_battery_level → sensor.model_y_battery_level).
     private static readonly Sensor[] Sensors =
     [
-        new("battery_level", "Batteri", "%", "battery", "measurement"),
-        new("est_range", "Rækkevidde", "km", "distance", "measurement", "mdi:map-marker-distance"),
-        new("ideal_range", "Ideel rækkevidde", "km", "distance", "measurement", "mdi:map-marker-distance", Enabled: false),
-        new("inside_temp", "Indetemperatur", "°C", "temperature", "measurement"),
-        new("outside_temp", "Udetemperatur", "°C", "temperature", "measurement"),
-        new("driver_temp_setting", "Indstillet temperatur", "°C", "temperature", null, Category: "diagnostic"),
-        new("odometer", "Kilometertæller", "km", "distance", "total_increasing", "mdi:counter"),
-        new("speed", "Hastighed", "km/h", "speed", "measurement"),
-        new("heading", "Kurs", "°", null, "measurement", "mdi:compass", Enabled: false),
-        new("gear", "Gear", Icon: "mdi:car-shift-pattern"),
-        new("charging_state", "Ladestatus", Icon: "mdi:ev-station"),
-        new("charge_limit", "Ladegrænse", "%", null, null, "mdi:battery-charging-high", "diagnostic"),
-        new("ac_charging_power", "Ladeeffekt AC", "kW", "power", "measurement"),
-        new("dc_charging_power", "Ladeeffekt DC", "kW", "power", "measurement"),
-        new("charger_current", "Ladestrøm", "A", "current", "measurement"),
-        new("charger_voltage", "Ladespænding", "V", "voltage", "measurement"),
-        new("ac_charging_energy_in", "Energi tilført (AC)", "kWh", "energy", null),
-        new("dc_charging_energy_in", "Energi tilført (DC)", "kWh", "energy", null, Enabled: false),
-        new("time_to_full_charge", "Tid til fuld", "h", "duration", null),
+        new("battery_level", "Battery level", "%", "battery", "measurement"),
+        new("charging", "Charging", Icon: "mdi:ev-station"),
+        new("charge_energy_added", "Charge energy added", "kWh", "energy", "total_increasing"),
+        new("charger_power", "Charger power", "kW", "power", "measurement"),
+        new("charger_voltage", "Charger voltage", "V", "voltage", "measurement"),
+        new("charger_current", "Charger current", "A", "current", "measurement"),
+        new("dc_charging_power", "DC charging power", "kW", "power", "measurement"),
+        new("dc_charging_energy_in", "DC charging energy in", "kWh", "energy", "total_increasing", Enabled: false),
+        new("time_to_full_charge", "Time to full charge", "h", "duration", null),
+        new("energy_remaining", "Energy remaining", "kWh", "energy_storage", "measurement"),
+        new("estimate_battery_range", "Estimate battery range", "km", "distance", "measurement"),
+        new("ideal_battery_range", "Ideal battery range", "km", "distance", "measurement", Enabled: false),
+        new("rated_range", "Rated range", "km", "distance", "measurement", Enabled: false),
+        new("speed", "Speed", "km/h", "speed", "measurement"),
+        new("shift_state", "Shift state", Icon: "mdi:car-shift-pattern"),
+        new("odometer", "Odometer", "km", "distance", "total_increasing"),
+        new("gps_heading", "GPS heading", "°", null, "measurement", "mdi:compass", Enabled: false),
+        new("tire_pressure_front_left", "Tire pressure front left", "bar", "pressure", "measurement"),
+        new("tire_pressure_front_right", "Tire pressure front right", "bar", "pressure", "measurement"),
+        new("tire_pressure_rear_left", "Tire pressure rear left", "bar", "pressure", "measurement"),
+        new("tire_pressure_rear_right", "Tire pressure rear right", "bar", "pressure", "measurement"),
+        new("inside_temperature", "Inside temperature", "°C", "temperature", "measurement"),
+        new("outside_temperature", "Outside temperature", "°C", "temperature", "measurement"),
+        new("left_temperature_request", "Left temperature request", "°C", "temperature", null, Enabled: false),
+        new("right_temperature_request", "Right temperature request", "°C", "temperature", null, Enabled: false),
+        new("hvac_power_state", "HVAC power state", Icon: "mdi:fan", Category: "diagnostic"),
+        new("sentry_mode", "Sentry mode", Icon: "mdi:cctv", Category: "diagnostic"),
         new("destination", "Destination", Icon: "mdi:map-marker"),
-        new("minutes_to_arrival", "Tid til ankomst", "min", "duration", null),
-        new("km_to_arrival", "Afstand til ankomst", "km", "distance", null),
-        new("software_version", "Softwareversion", Icon: "mdi:update", Category: "diagnostic"),
-        new("hvac_state", "Klimastatus", Icon: "mdi:fan", Category: "diagnostic"),
-        new("sentry_state", "Sentry-status", Icon: "mdi:cctv", Category: "diagnostic"),
+        new("time_to_arrival", "Time to arrival", "min", "duration", null),
+        new("distance_to_arrival", "Distance to arrival", "km", "distance", null),
+        new("state_of_charge_at_arrival", "State of charge at arrival", "%", "battery", null),
+        new("version", "Version", Icon: "mdi:update", Category: "diagnostic"),
     ];
+
+    /// <summary>Teslemetry-nøgle → bridgens tilstandsnøgle, hvor de er forskellige.</summary>
+    private static readonly Dictionary<string, string> StateKeyOf = new()
+    {
+        ["charging"] = "charging_state",
+        ["charge_energy_added"] = "ac_charging_energy_in",
+        ["charger_power"] = "ac_charging_power",
+        ["estimate_battery_range"] = "est_range",
+        ["ideal_battery_range"] = "ideal_range",
+        ["shift_state"] = "gear",
+        ["gps_heading"] = "heading",
+        ["inside_temperature"] = "inside_temp",
+        ["outside_temperature"] = "outside_temp",
+        ["left_temperature_request"] = "driver_temp_setting",
+        ["right_temperature_request"] = "passenger_temp_setting",
+        ["hvac_power_state"] = "hvac_state",
+        ["sentry_mode"] = "sentry_state",
+        ["time_to_arrival"] = "minutes_to_arrival",
+        ["distance_to_arrival"] = "km_to_arrival",
+        ["state_of_charge_at_arrival"] = "soc_at_arrival",
+        ["version"] = "software_version",
+        ["status"] = "online",
+        ["charge_cable"] = "charge_cable_connected",
+        ["front_driver_door"] = "door_driver_front_open",
+        ["front_passenger_door"] = "door_passenger_front_open",
+        ["rear_driver_door"] = "door_driver_rear_open",
+        ["rear_passenger_door"] = "door_passenger_rear_open",
+        ["front_driver_window"] = "window_driver_front_open",
+        ["front_passenger_window"] = "window_passenger_front_open",
+        ["rear_driver_window"] = "window_driver_rear_open",
+        ["rear_passenger_window"] = "window_passenger_rear_open",
+        ["driver_seat_occupied"] = "user_present",
+    };
+
+    private static string StateKey(string key) => StateKeyOf.TryGetValue(key, out var k) ? k : key;
 
     private static readonly Binary[] Binaries =
     [
-        new("online", "Online", "connectivity", Category: "diagnostic"),
-        new("charge_cable_connected", "Ladekabel", "plug"),
-        new("charge_port_open", "Ladeport", "opening"),
-        new("user_present", "Person i bilen", "occupancy"),
-        new("door_driver_front_open", "Fordør fører", "door"),
-        new("door_passenger_front_open", "Fordør passager", "door"),
-        new("door_driver_rear_open", "Bagdør fører", "door"),
-        new("door_passenger_rear_open", "Bagdør passager", "door"),
-        new("frunk_open", "Frunk", "opening", "mdi:car-select"),
-        new("trunk_open", "Bagagerum", "opening", "mdi:car-back"),
-        new("window_driver_front_open", "Rude fører for", "window"),
-        new("window_passenger_front_open", "Rude passager for", "window"),
-        new("window_driver_rear_open", "Rude fører bag", "window"),
-        new("window_passenger_rear_open", "Rude passager bag", "window"),
+        new("status", "Status", "connectivity", Category: "diagnostic"),
+        new("charge_cable", "Charge cable", "connectivity", "mdi:ev-plug-type2"),
+        new("front_driver_door", "Front driver door", "door"),
+        new("front_passenger_door", "Front passenger door", "door"),
+        new("rear_driver_door", "Rear driver door", "door"),
+        new("rear_passenger_door", "Rear passenger door", "door"),
+        new("front_driver_window", "Front driver window", "window"),
+        new("front_passenger_window", "Front passenger window", "window"),
+        new("rear_driver_window", "Rear driver window", "window"),
+        new("rear_passenger_window", "Rear passenger window", "window"),
+        new("driver_seat_occupied", "Driver seat occupied", "occupancy"),
+        new("driver_seat_belt", "Driver seat belt", null, "mdi:seatbelt", "diagnostic"),
+        new("preconditioning_enabled", "Preconditioning enabled", null, "mdi:heat-wave", "diagnostic"),
+        new("scheduled_charging_pending", "Scheduled charging pending", null, "mdi:calendar-clock", "diagnostic"),
+        new("fast_charger_present", "Fast charger present", "plug", "mdi:ev-station", "diagnostic"),
+    ];
+
+    /// <summary>
+    /// Entiteter fra tidligere versioner af bridgen. Deres discovery-config tømmes, så HA fjerner dem
+    /// (de nye har Teslemetrys navne). Kun nøgler, der ikke længere findes, ryddes.
+    /// </summary>
+    private static readonly (string Component, string Key)[] Legacy =
+    [
+        ("sensor", "est_range"), ("sensor", "ideal_range"), ("sensor", "inside_temp"), ("sensor", "outside_temp"),
+        ("sensor", "driver_temp_setting"), ("sensor", "heading"), ("sensor", "gear"), ("sensor", "charging_state"),
+        ("sensor", "charge_limit"), ("sensor", "ac_charging_power"), ("sensor", "ac_charging_energy_in"),
+        ("sensor", "minutes_to_arrival"), ("sensor", "km_to_arrival"), ("sensor", "software_version"),
+        ("sensor", "hvac_state"), ("sensor", "sentry_state"),
+        ("binary_sensor", "online"), ("binary_sensor", "charge_cable_connected"), ("binary_sensor", "charge_port_open"),
+        ("binary_sensor", "user_present"), ("binary_sensor", "door_driver_front_open"), ("binary_sensor", "door_passenger_front_open"),
+        ("binary_sensor", "door_driver_rear_open"), ("binary_sensor", "door_passenger_rear_open"), ("binary_sensor", "frunk_open"),
+        ("binary_sensor", "trunk_open"), ("binary_sensor", "window_driver_front_open"), ("binary_sensor", "window_passenger_front_open"),
+        ("binary_sensor", "window_driver_rear_open"), ("binary_sensor", "window_passenger_rear_open"),
+        ("switch", "climate"), ("switch", "steering_wheel_heat"), ("switch", "sentry"), ("switch", "charging"),
+        ("number", "charge_limit_set"), ("number", "charging_amps_set"), ("number", "driver_temp_set"),
+        ("select", "cabin_overheat_protection_set"), ("select", "seat_heater_left_set"), ("select", "seat_heater_right_set"),
+        ("select", "seat_heater_rear_left_set"), ("select", "seat_heater_rear_center_set"), ("select", "seat_heater_rear_right_set"),
+        ("button", "open_frunk"), ("button", "toggle_trunk"), ("button", "vent_windows"), ("button", "close_windows"),
+        ("button", "open_charge_port"), ("button", "close_charge_port"),
     ];
 
     /// <summary>"Model Y" → "model_y". Kun a-z, 0-9 og _ (gyldigt i et entity id).</summary>
@@ -207,7 +286,7 @@ public sealed class HomeAssistantDiscovery(
         foreach (var s in Sensors)
         {
             var c = Base(s.Key, s.Name);
-            c["state_topic"] = state(s.Key);
+            c["state_topic"] = state(StateKey(s.Key));
             c["value_template"] = Num;
             if (s.Unit is not null) c["unit_of_measurement"] = s.Unit;
             if (s.DeviceClass is not null) c["device_class"] = s.DeviceClass;
@@ -215,11 +294,12 @@ public sealed class HomeAssistantDiscovery(
             if (s.Icon is not null) c["icon"] = s.Icon;
             if (s.Category is not null) c["entity_category"] = s.Category;
             if (!s.Enabled) c["enabled_by_default"] = false;
+            if (s.Key == "sentry_mode") c["unique_id"] = $"{id}_sentry_state";   // kontakten hedder også sentry_mode
             Add("sensor", s.Key, c);
         }
 
         {
-            var c = Base("last_seen", "Sidst set");
+            var c = Base("last_seen", "Last seen");
             c["state_topic"] = state("last_seen");
             c["value_template"] = Num;
             c["device_class"] = "timestamp";
@@ -228,7 +308,7 @@ public sealed class HomeAssistantDiscovery(
         }
 
         {
-            var c = Base("command_status", "Kommandostatus");
+            var c = Base("command_status", "Command status");
             c["state_topic"] = $"{bridgeBase}/{vin}/command/status";
             c["value_template"] = "{{ value_json.status }}";
             c["json_attributes_topic"] = $"{bridgeBase}/{vin}/command/status";
@@ -240,7 +320,7 @@ public sealed class HomeAssistantDiscovery(
         foreach (var b in Binaries)
         {
             var c = Base(b.Key, b.Name);
-            c["state_topic"] = state(b.Key);
+            c["state_topic"] = state(StateKey(b.Key));
             c["value_template"] = BoolOnOff;
             if (b.DeviceClass is not null) c["device_class"] = b.DeviceClass;
             if (b.Icon is not null) c["icon"] = b.Icon;
@@ -248,24 +328,14 @@ public sealed class HomeAssistantDiscovery(
             Add("binary_sensor", b.Key, c);
         }
 
-        // Lås
-        {
-            var c = Base("lock", "Lås");
-            c["state_topic"] = state("locked");
-            c["value_template"] = "{% if value_json is none %}None{% elif value_json %}LOCKED{% else %}UNLOCKED{% endif %}";
-            c["command_topic"] = cmd("lock");
-            c["payload_lock"] = "LOCK";
-            c["payload_unlock"] = "UNLOCK";
-            Add("lock", "lock", c);
-        }
+        // ---------- Controls (samme som Teslemetry) ----------
 
-        // Kontakter
-        void Switch(string key, string name, string stateKey, string cmdName, string icon, string? template = null)
+        void Switch(string key, string name, string stateKey, string icon, string? template = null)
         {
             var c = Base(key, name);
             c["state_topic"] = state(stateKey);
             c["value_template"] = template ?? BoolOnOff;
-            c["command_topic"] = cmd(cmdName);
+            c["command_topic"] = cmd(key);
             c["payload_on"] = "on";
             c["payload_off"] = "off";
             c["state_on"] = "ON";
@@ -274,37 +344,75 @@ public sealed class HomeAssistantDiscovery(
             Add("switch", key, c);
         }
 
-        Switch("climate", "Klima", "climate_on", "climate", "mdi:fan");
-        Switch("defrost", "Afrimning", "defrost", "defrost", "mdi:car-defrost-front");
-        Switch("steering_wheel_heat", "Rattvarme", "steering_wheel_heat", "steering_wheel_heat", "mdi:steering");
-        Switch("sentry", "Sentry", "sentry_mode", "sentry", "mdi:cctv");
-        Switch("charging", "Opladning", "charging_state", "charging", "mdi:ev-station",
+        Switch("auto_seat_climate_left", "Auto seat climate left", "auto_seat_climate_left", "mdi:car-seat-heater");
+        Switch("auto_seat_climate_right", "Auto seat climate right", "auto_seat_climate_right", "mdi:car-seat-heater");
+        Switch("auto_steering_wheel_heater", "Auto steering wheel heater", "auto_steering_wheel_heat", "mdi:steering");
+        Switch("charge", "Charge", "charging_state", "mdi:ev-station",
             "{{ 'ON' if value_json in ['charging', 'starting'] else 'OFF' }}");
+        Switch("defrost", "Defrost", "defrost", "mdi:snowflake-melt");
+        Switch("guest_mode", "Guest mode", "guest_mode", "mdi:account-group");
+        Switch("sentry_mode", "Sentry mode", "sentry_mode", "mdi:shield-car");
+        Switch("valet_mode", "Valet mode", "valet_mode", "mdi:speedometer-slow");
 
-        // Tal
-        void Number(string key, string name, string stateKey, string cmdName, double min, double max, double step, string unit, string icon)
+        void Lock(string key, string name, string stateKey, string icon)
+        {
+            var c = Base(key, name);
+            c["state_topic"] = state(stateKey);
+            c["value_template"] = "{% if value_json is none %}None{% elif value_json %}LOCKED{% else %}UNLOCKED{% endif %}";
+            c["command_topic"] = cmd(key);
+            c["payload_lock"] = "LOCK";
+            c["payload_unlock"] = "UNLOCK";
+            c["icon"] = icon;
+            Add("lock", key, c);
+        }
+
+        Lock("lock", "Lock", "locked", "mdi:car-door-lock");
+        Lock("charge_cable_lock", "Charge cable lock", "charge_cable_locked", "mdi:ev-plug-ccs2");
+
+        void Number(string key, string name, string stateKey, double min, double max, string unit, string icon)
         {
             var c = Base(key, name);
             c["state_topic"] = state(stateKey);
             c["value_template"] = Num;
-            c["command_topic"] = cmd(cmdName);
+            c["command_topic"] = cmd(key);
             c["min"] = min;
             c["max"] = max;
-            c["step"] = step;
+            c["step"] = 1;
             c["unit_of_measurement"] = unit;
             c["mode"] = "slider";
             c["icon"] = icon;
             Add("number", key, c);
         }
 
-        Number("charge_limit_set", "Ladegrænse", "charge_limit", "charge_limit", 50, 100, 1, "%", "mdi:battery-charging-high");
-        Number("charging_amps_set", "Ladestrøm (ønsket)", "charge_current_request", "charging_amps", 5, 32, 1, "A", "mdi:current-ac");
-        Number("driver_temp_set", "Temperatur", "driver_temp_setting", "driver_temp", 15, 28, 0.5, "°C", "mdi:thermometer");
+        Number("charge_current", "Charge current", "charge_current_request", 5, 32, "A", "mdi:current-ac");
+        Number("charge_limit", "Charge limit", "charge_limit", 50, 100, "%", "mdi:battery-charging-high");
 
-        // Klima-kort (termostat) som i Teslemetry: tænd/sluk, temperatur, kabintemperatur og klimatilstande.
+        // cover: state_topic giver true/false → open/closed
+        void Cover(string key, string name, string stateKey, string deviceClass, bool canClose, string? icon = null)
         {
-            var c = Base("climate", "Klima");
-            c["unique_id"] = $"{id}_climate_entity";      // "_climate" bruges allerede af kontakten
+            var c = Base(key, name);
+            c["state_topic"] = state(stateKey);
+            c["value_template"] = "{% if value_json is none %}None{% elif value_json %}open{% else %}closed{% endif %}";
+            c["state_open"] = "open";
+            c["state_closed"] = "closed";
+            c["command_topic"] = cmd(key);
+            c["payload_open"] = "OPEN";
+            c["payload_close"] = canClose ? "CLOSE" : null;
+            c["payload_stop"] = null;
+            c["device_class"] = deviceClass;
+            if (icon is not null) c["icon"] = icon;
+            Add("cover", key, c);
+        }
+
+        Cover("charge_port_door", "Charge port door", "charge_port_open", "door", canClose: true, "mdi:ev-plug-type2");
+        Cover("frunk", "Frunk", "frunk_open", "door", canClose: false);
+        Cover("trunk", "Trunk", "trunk_open", "door", canClose: true);
+        Cover("windows", "Windows", "windows_open", "window", canClose: true);
+
+        // Klima-kortet: tænd/sluk, temperatur, kabintemperatur og klimatilstande (Normal/Keep/Dog/Camp).
+        {
+            var c = Base("climate", "Climate");
+            c["unique_id"] = $"{id}_climate_entity";
             c["modes"] = new JsonArray("off", "heat_cool");
             c["mode_state_topic"] = state("climate_on");
             c["mode_state_template"] = "{{ 'heat_cool' if value_json else 'off' }}";
@@ -325,62 +433,77 @@ public sealed class HomeAssistantDiscovery(
             c["preset_mode_value_template"] =
                 "{% set m = {" + string.Join(", ", CommandParser.KeeperPresets.Select(k => $"'{k.Key}': '{k.Preset}'")) + "} %}{{ m.get(value_json, 'none') }}";
             c["preset_mode_command_topic"] = cmd("climate_keeper");
-            c["icon"] = "mdi:car-defrost-front";
+            c["icon"] = "mdi:thermostat";
             Add("climate", "climate", c);
         }
 
+        // Overophedningsbeskyttelse som klima-kort: fra / køl / kun blæser + grænse 30/35/40 °C.
         {
-            var c = Base("cabin_overheat_protection_set", "Overophedningsbeskyttelse");
-            c["state_topic"] = state("cabin_overheat_protection");
-            c["value_template"] = "{{ value_json if value_json is not none else None }}";
-            c["command_topic"] = cmd("cabin_overheat_protection");
-            c["options"] = new JsonArray("off", "on", "fan_only");
+            var c = Base("cabin_overheat_protection", "Cabin overheat protection");
+            c["modes"] = new JsonArray("off", "cool", "fan_only");
+            c["mode_state_topic"] = state("cabin_overheat_protection");
+            c["mode_state_template"] = "{{ {'on': 'cool', 'fan_only': 'fan_only'}.get(value_json, 'off') }}";
+            c["mode_command_topic"] = cmd("cabin_overheat_protection");
+            c["mode_command_template"] = "{{ {'cool': 'on', 'fan_only': 'fan_only'}.get(value, 'off') }}";
+            c["temperature_state_topic"] = state("cop_temp_limit");
+            c["temperature_state_template"] = Num;
+            c["temperature_command_topic"] = cmd("cop_temp");
+            c["current_temperature_topic"] = state("inside_temp");
+            c["current_temperature_template"] = Num;
+            c["min_temp"] = 30;
+            c["max_temp"] = 40;
+            c["temp_step"] = 5;
+            c["precision"] = 1.0;
+            c["temperature_unit"] = "C";
             c["icon"] = "mdi:sun-thermometer";
-            Add("select", "cabin_overheat_protection_set", c);
+            Add("climate", "cabin_overheat_protection", c);
         }
 
-        // Sædevarme
-        foreach (var (key, name, stateKey, cmdName) in new[]
-                 {
-                     ("seat_heater_left_set", "Sædevarme fører", "seat_heater_left", "seat_heater_left"),
-                     ("seat_heater_right_set", "Sædevarme passager", "seat_heater_right", "seat_heater_right"),
-                     ("seat_heater_rear_left_set", "Sædevarme bag venstre", "seat_heater_rear_left", "seat_heater_rear_left"),
-                     ("seat_heater_rear_center_set", "Sædevarme bag midt", "seat_heater_rear_center", "seat_heater_rear_center"),
-                     ("seat_heater_rear_right_set", "Sædevarme bag højre", "seat_heater_rear_right", "seat_heater_rear_right"),
-                 })
+        // Sædevarme og rattvarme
+        void Select(string key, string name, string stateKey, string[] options, string template, string icon)
         {
             var c = Base(key, name);
             c["state_topic"] = state(stateKey);
-            c["value_template"] = "{% set l = ['off','low','medium','high'] %}{{ l[value_json | int(0)] if value_json is not none else None }}";
-            c["command_topic"] = cmd(cmdName);
-            c["options"] = new JsonArray(CommandParser.SeatLevels.Select(s => (JsonNode?)JsonValue.Create(s)).ToArray());
-            c["icon"] = "mdi:car-seat-heater";
+            c["value_template"] = template;
+            c["command_topic"] = cmd(key);
+            c["options"] = new JsonArray(options.Select(o => (JsonNode?)JsonValue.Create(o)).ToArray());
+            c["icon"] = icon;
             Add("select", key, c);
         }
 
-        // Knapper
-        void Button(string key, string name, string cmdName, string icon)
+        const string SeatTemplate = "{% set l = ['off','low','medium','high'] %}{{ l[value_json | int(0)] if value_json is not none else None }}";
+        foreach (var (key, name, stateKey) in new[]
+                 {
+                     ("seat_heater_front_left", "Seat heater front left", "seat_heater_left"),
+                     ("seat_heater_front_right", "Seat heater front right", "seat_heater_right"),
+                     ("seat_heater_rear_left", "Seat heater rear left", "seat_heater_rear_left"),
+                     ("seat_heater_rear_center", "Seat heater rear center", "seat_heater_rear_center"),
+                     ("seat_heater_rear_right", "Seat heater rear right", "seat_heater_rear_right"),
+                 })
+            Select(key, name, stateKey, CommandParser.SeatLevels, SeatTemplate, "mdi:car-seat-heater");
+
+        Select("steering_wheel_heater", "Steering wheel heater", "steering_wheel_heat_level", ["off", "low", "high"],
+            "{% if value_json is none %}None{% elif value_json | int == 0 %}off{% elif value_json | int >= 2 %}high{% else %}low{% endif %}",
+            "mdi:steering");
+
+        void Button(string key, string name, string icon)
         {
             var c = Base(key, name);
-            c["command_topic"] = cmd(cmdName);
+            c["command_topic"] = cmd(key);
             c["payload_press"] = "PRESS";
             c["icon"] = icon;
             Add("button", key, c);
         }
 
-        Button("wake", "Væk bilen", "wake", "mdi:sleep-off");
-        Button("flash_lights", "Blink lys", "flash_lights", "mdi:car-light-high");
-        Button("honk_horn", "Dyt", "honk_horn", "mdi:bullhorn");
-        Button("open_frunk", "Åbn frunk", "frunk", "mdi:car-select");
-        Button("toggle_trunk", "Bagagerum", "trunk", "mdi:car-back");
-        Button("vent_windows", "Luft ud (ruder)", "vent_windows", "mdi:car-door");
-        Button("close_windows", "Luk ruder", "close_windows", "mdi:car-door-lock");
-        Button("open_charge_port", "Åbn ladeport", "charge_port_open", "mdi:ev-plug-type2");
-        Button("close_charge_port", "Luk ladeport", "charge_port_close", "mdi:ev-plug-type2");
+        Button("wake", "Wake", "mdi:sleep-off");
+        Button("flash_lights", "Flash lights", "mdi:flashlight");
+        Button("honk_horn", "Honk horn", "mdi:bullhorn");
+        Button("keyless_driving", "Keyless driving", "mdi:car-key");
+        Button("play_fart", "Play fart", "mdi:volume-high");
+        Button("homelink", "Homelink", "mdi:garage");
 
-        // Position
         {
-            var c = Base("location", "Position");
+            var c = Base("location", "Location");
             c["json_attributes_topic"] = state("location");
             c["source_type"] = "gps";
             c["icon"] = "mdi:car";

@@ -65,8 +65,9 @@ public class SignalMapperTests
     [Fact]
     public void Unknown_fields_pass_through_as_snake_case()
     {
-        var m = Map("TpmsPressureFl", "2.9");
-        Assert.Equal(2.9, m["tpms_pressure_fl"]!.GetValue<double>());
+        var m = Map("LateralAcceleration", "0.3");
+        Assert.Equal(0.3, m["lateral_acceleration"]!.GetValue<double>());
+        Assert.Equal(2.9, Map("TpmsPressureFl", "2.9")["tire_pressure_front_left"]!.GetValue<double>());
     }
 
     [Fact]

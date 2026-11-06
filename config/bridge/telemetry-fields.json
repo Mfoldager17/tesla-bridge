@@ -132,6 +132,63 @@
     },
     "CabinOverheatProtectionMode": {
       "interval_seconds": 1
+    },
+    "AutoSeatClimateLeft": {
+      "interval_seconds": 1
+    },
+    "AutoSeatClimateRight": {
+      "interval_seconds": 1
+    },
+    "HvacSteeringWheelHeatAuto": {
+      "interval_seconds": 1
+    },
+    "ChargePortLatch": {
+      "interval_seconds": 1
+    },
+    "GuestModeEnabled": {
+      "interval_seconds": 1
+    },
+    "ValetModeEnabled": {
+      "interval_seconds": 1
+    },
+    "CabinOverheatProtectionTemperatureLimit": {
+      "interval_seconds": 1
+    },
+    "HvacRightTemperatureRequest": {
+      "interval_seconds": 1
+    },
+    "TpmsPressureFl": {
+      "interval_seconds": 300
+    },
+    "TpmsPressureFr": {
+      "interval_seconds": 300
+    },
+    "TpmsPressureRl": {
+      "interval_seconds": 300
+    },
+    "TpmsPressureRr": {
+      "interval_seconds": 300
+    },
+    "DriverSeatBelt": {
+      "interval_seconds": 1
+    },
+    "PreconditioningEnabled": {
+      "interval_seconds": 1
+    },
+    "ScheduledChargingPending": {
+      "interval_seconds": 1
+    },
+    "FastChargerPresent": {
+      "interval_seconds": 1
+    },
+    "EnergyRemaining": {
+      "interval_seconds": 60
+    },
+    "RatedRange": {
+      "interval_seconds": 60
+    },
+    "ExpectedEnergyPercentAtTripArrival": {
+      "interval_seconds": 60
     }
   }
 }

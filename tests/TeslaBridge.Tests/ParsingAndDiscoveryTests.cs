@@ -84,10 +84,23 @@ public class ParsingAndDiscoveryTests
             if (p["command_topic"]?.GetValue<string>() is not { } topic) continue;
             var name = topic.Split('/')[^1];
             var payload = p["payload_press"]?.GetValue<string>() ?? p["payload_on"]?.GetValue<string>()
-                ?? p["payload_lock"]?.GetValue<string>() ?? (p["options"] is JsonArray o ? o[1]!.GetValue<string>() : "60");
-            Assert.NotNull(CommandParser.Parse(name, payload, NoState));
+                ?? p["payload_lock"]?.GetValue<string>() ?? p["payload_open"]?.GetValue<string>()
+                ?? (p["options"] is JsonArray o ? o[1]!.GetValue<string>() : "60");
+            Assert.True(CommandParser.Parse(name, payload, AtHome) is not null, $"{name} {payload}");
+        }
+
+        // Klima-kortenes egne topics
+        foreach (var (_, p) in configs)
+        {
+            foreach (var (topicKey, payload) in new[] { ("mode_command_topic", "on"), ("temperature_command_topic", "35"), ("preset_mode_command_topic", "Dog mode") })
+                if (p[topicKey]?.GetValue<string>() is { } t)
+                    Assert.NotNull(CommandParser.Parse(t.Split('/')[^1], payload, AtHome));
         }
     }
+
+    private static TeslaBridge.State.FieldValue? AtHome(string key) => key == "location"
+        ? new(new JsonObject { ["latitude"] = 56.1, ["longitude"] = 10.1 }, DateTimeOffset.UtcNow, TeslaBridge.State.ValueSource.Stream)
+        : null;
 
     [Theory]
     [InlineData("Model Y", "model_y")]

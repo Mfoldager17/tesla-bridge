@@ -52,6 +52,25 @@ public static class SignalMapper
             case "DCChargingEnergyIn": yield return ("dc_charging_energy_in", Round(Num(raw), 2)); break;
             case "ChargeAmps": yield return ("charger_current", Round(Num(raw), 0)); break;
             case "ChargerVoltage": yield return ("charger_voltage", Round(Num(raw), 0)); break;
+            case "ChargePortLatch":
+            {
+                var state = EnumTail(raw, "ChargePortLatch");
+                yield return ("charge_port_latch", Str(state));
+                yield return ("charge_cable_locked", state switch
+                {
+                    "engaged" => JsonValue.Create(true),
+                    "disengaged" => JsonValue.Create(false),
+                    _ => null,
+                });
+                break;
+            }
+            case "ScheduledChargingPending": yield return ("scheduled_charging_pending", Bool(raw)); break;
+            case "FastChargerPresent": yield return ("fast_charger_present", Bool(raw)); break;
+            case "EnergyRemaining": yield return ("energy_remaining", Round(Num(raw), 2)); break;
+            case "TpmsPressureFl": yield return ("tire_pressure_front_left", Round(Num(raw), 2)); break;
+            case "TpmsPressureFr": yield return ("tire_pressure_front_right", Round(Num(raw), 2)); break;
+            case "TpmsPressureRl": yield return ("tire_pressure_rear_left", Round(Num(raw), 2)); break;
+            case "TpmsPressureRr": yield return ("tire_pressure_rear_right", Round(Num(raw), 2)); break;
             case "TimeToFullCharge": yield return ("time_to_full_charge", Round(Num(raw), 2)); break;
 
             // --- sikkerhed / karosseri ---
@@ -71,6 +90,19 @@ public static class SignalMapper
                 break;
             }
             case "DriverSeatOccupied": yield return ("user_present", Bool(raw)); break;
+            case "DriverSeatBelt":
+            {
+                var state = EnumTail(raw, "BuckleStatus");
+                yield return ("driver_seat_belt", state switch
+                {
+                    "latched" => JsonValue.Create(true),
+                    "unlatched" => JsonValue.Create(false),
+                    _ => Bool(raw),
+                });
+                break;
+            }
+            case "GuestModeEnabled": yield return ("guest_mode", Bool(raw)); break;
+            case "ValetModeEnabled": yield return ("valet_mode", Bool(raw)); break;
 
             // --- klima ---
             case "HvacPower":
@@ -123,6 +155,20 @@ public static class SignalMapper
                 yield return ("steering_wheel_heat", level is null ? null : JsonValue.Create(level > 0));
                 break;
             }
+            case "HvacRightTemperatureRequest": yield return ("passenger_temp_setting", Round(Num(raw), 1)); break;
+            case "AutoSeatClimateLeft": yield return ("auto_seat_climate_left", Bool(raw)); break;
+            case "AutoSeatClimateRight": yield return ("auto_seat_climate_right", Bool(raw)); break;
+            case "HvacSteeringWheelHeatAuto": yield return ("auto_steering_wheel_heat", Bool(raw)); break;
+            case "CabinOverheatProtectionTemperatureLimit":
+                yield return ("cop_temp_limit", EnumTail(raw, "ClimateOverheatProtectionTempLimit") switch
+                {
+                    "high" => JsonValue.Create(40),
+                    "medium" => JsonValue.Create(35),
+                    "low" => JsonValue.Create(30),
+                    _ => null,
+                });
+                break;
+            case "PreconditioningEnabled": yield return ("preconditioning_enabled", Bool(raw)); break;
             case "InsideTemp": yield return ("inside_temp", Round(Num(raw), 1)); break;
             case "OutsideTemp": yield return ("outside_temp", Round(Num(raw), 1)); break;
 
@@ -135,6 +181,7 @@ public static class SignalMapper
             }
             case "MinutesToArrival": yield return ("minutes_to_arrival", Round(Num(raw), 0)); break;
             case "MilesToArrival": yield return ("km_to_arrival", Round(Num(raw) * KmPerMile, 1)); break;
+            case "ExpectedEnergyPercentAtTripArrival": yield return ("soc_at_arrival", Round(Num(raw), 0)); break;
 
             case "Version": yield return ("software_version", Str(StrOf(raw))); break;
 
@@ -143,6 +190,16 @@ public static class SignalMapper
                 yield return (ToSnake(field), raw?.DeepClone());
                 break;
         }
+    }
+
+    public static readonly string[] WindowKeys =
+        ["window_driver_front_open", "window_passenger_front_open", "window_driver_rear_open", "window_passenger_rear_open"];
+
+    /// <summary>Samlet rudestatus til HA's "Windows"-cover: true hvis én rude er åben, null hvis ingen er kendt.</summary>
+    public static JsonNode? WindowsOpen(Func<string, JsonNode?> get)
+    {
+        var known = WindowKeys.Select(get).Where(v => v is JsonValue).Select(v => v!.GetValue<bool>()).ToList();
+        return known.Count == 0 ? null : JsonValue.Create(known.Any(x => x));
     }
 
     // ---------- felttyper ----------
