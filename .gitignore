@@ -1,0 +1,12 @@
+bin/
+obj/
+data/
+.env
+config/mosquitto/passwd
+config/tesla-proxy/*.pem
+config/fleet-telemetry/certs/*.pem
+config/fleet-telemetry/config.json
+.DS_Store
+*.swp
+.idea/
+.vscode/

@@ -1,0 +1,122 @@
+{
+  "_comment": "interval_seconds er et MINIMUM mellem to sendinger; bilen sender kun ved ændring. Kun felter der ændrer sig konstant under kørsel/opladning koster reelt noget. Budget: ca. $4-5/md ved 3 t kørsel + 2 t opladning om dagen (worst case).",
+  "fields": {
+    "Location": {
+      "interval_seconds": 2
+    },
+    "GpsHeading": {
+      "interval_seconds": 2
+    },
+    "VehicleSpeed": {
+      "interval_seconds": 2
+    },
+    "Gear": {
+      "interval_seconds": 1
+    },
+    "Odometer": {
+      "interval_seconds": 30
+    },
+    "BatteryLevel": {
+      "interval_seconds": 30
+    },
+    "EstBatteryRange": {
+      "interval_seconds": 60
+    },
+    "IdealBatteryRange": {
+      "interval_seconds": 60
+    },
+    "DetailedChargeState": {
+      "interval_seconds": 1
+    },
+    "ChargeLimitSoc": {
+      "interval_seconds": 1
+    },
+    "ChargeCurrentRequest": {
+      "interval_seconds": 1
+    },
+    "ChargePortDoorOpen": {
+      "interval_seconds": 1
+    },
+    "ACChargingPower": {
+      "interval_seconds": 10
+    },
+    "DCChargingPower": {
+      "interval_seconds": 10
+    },
+    "ACChargingEnergyIn": {
+      "interval_seconds": 30
+    },
+    "DCChargingEnergyIn": {
+      "interval_seconds": 30
+    },
+    "ChargeAmps": {
+      "interval_seconds": 10
+    },
+    "ChargerVoltage": {
+      "interval_seconds": 30
+    },
+    "TimeToFullCharge": {
+      "interval_seconds": 60
+    },
+    "Locked": {
+      "interval_seconds": 1
+    },
+    "DoorState": {
+      "interval_seconds": 1
+    },
+    "FdWindow": {
+      "interval_seconds": 1
+    },
+    "FpWindow": {
+      "interval_seconds": 1
+    },
+    "RdWindow": {
+      "interval_seconds": 1
+    },
+    "RpWindow": {
+      "interval_seconds": 1
+    },
+    "SentryMode": {
+      "interval_seconds": 1
+    },
+    "DriverSeatOccupied": {
+      "interval_seconds": 5
+    },
+    "HvacPower": {
+      "interval_seconds": 1
+    },
+    "HvacLeftTemperatureRequest": {
+      "interval_seconds": 1
+    },
+    "DefrostMode": {
+      "interval_seconds": 1
+    },
+    "SeatHeaterLeft": {
+      "interval_seconds": 1
+    },
+    "SeatHeaterRight": {
+      "interval_seconds": 1
+    },
+    "HvacSteeringWheelHeatLevel": {
+      "interval_seconds": 1
+    },
+    "InsideTemp": {
+      "interval_seconds": 60
+    },
+    "OutsideTemp": {
+      "interval_seconds": 120
+    },
+    "DestinationName": {
+      "interval_seconds": 1
+    },
+    "MinutesToArrival": {
+      "interval_seconds": 15
+    },
+    "MilesToArrival": {
+      "interval_seconds": 15
+    },
+    "Version": {
+      "interval_seconds": 3600
+    }
+  }
+}
