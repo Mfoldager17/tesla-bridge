@@ -354,7 +354,7 @@ public sealed class HomeAssistantDiscovery(
         Switch("sentry_mode", "Sentry mode", "sentry_mode", "mdi:shield-car");
         Switch("valet_mode", "Valet mode", "valet_mode", "mdi:speedometer-slow");
 
-        void Lock(string key, string name, string stateKey, string icon)
+        void Lock(string key, string name, string stateKey, string? icon)
         {
             var c = Base(key, name);
             c["state_topic"] = state(stateKey);
@@ -362,12 +362,12 @@ public sealed class HomeAssistantDiscovery(
             c["command_topic"] = cmd(key);
             c["payload_lock"] = "LOCK";
             c["payload_unlock"] = "UNLOCK";
-            c["icon"] = icon;
+            if (icon is not null) c["icon"] = icon;
             Add("lock", key, c);
         }
 
-        Lock("lock", "Lock", "locked", "mdi:car-door-lock");
-        Lock("charge_cable_lock", "Charge cable lock", "charge_cable_locked", "mdi:ev-plug-ccs2");
+        Lock("lock", "Lock", "locked", null);
+        Lock("charge_cable_lock", "Charge cable lock", "charge_cable_locked", "mdi:ev-plug-type2");
 
         void Number(string key, string name, string stateKey, double min, double max, string unit, string icon)
         {
@@ -404,7 +404,7 @@ public sealed class HomeAssistantDiscovery(
             Add("cover", key, c);
         }
 
-        Cover("charge_port_door", "Charge port door", "charge_port_open", "door", canClose: true, "mdi:ev-plug-type2");
+        Cover("charge_port_door", "Charge port door", "charge_port_open", "door", canClose: true);
         Cover("frunk", "Frunk", "frunk_open", "door", canClose: false);
         Cover("trunk", "Trunk", "trunk_open", "door", canClose: true);
         Cover("windows", "Windows", "windows_open", "window", canClose: true);
@@ -413,7 +413,7 @@ public sealed class HomeAssistantDiscovery(
         {
             var c = Base("climate", "Climate");
             c["unique_id"] = $"{id}_climate_entity";
-            c["modes"] = new JsonArray("off", "heat_cool");
+            c["modes"] = new JsonArray("heat_cool", "off");
             c["mode_state_topic"] = state("climate_on");
             c["mode_state_template"] = "{{ 'heat_cool' if value_json else 'off' }}";
             c["mode_command_topic"] = cmd("climate");
@@ -433,7 +433,6 @@ public sealed class HomeAssistantDiscovery(
             c["preset_mode_value_template"] =
                 "{% set m = {" + string.Join(", ", CommandParser.KeeperPresets.Select(k => $"'{k.Key}': '{k.Preset}'")) + "} %}{{ m.get(value_json, 'none') }}";
             c["preset_mode_command_topic"] = cmd("climate_keeper");
-            c["icon"] = "mdi:thermostat";
             Add("climate", "climate", c);
         }
 
