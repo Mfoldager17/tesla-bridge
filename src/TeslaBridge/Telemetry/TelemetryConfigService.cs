@@ -64,6 +64,7 @@ public sealed class TelemetryConfigService(
             : !string.Equals(host, _opts.Telemetry.Hostname, StringComparison.OrdinalIgnoreCase) ? $"bilen sender til '{host}'"
             : exp is null ? "ukendt udløb"
             : exp.Value - time.GetUtcNow() < TimeSpan.FromDays(_opts.Telemetry.RenewWhenDaysLeft) ? $"udløber {exp:yyyy-MM-dd}"
+            : FieldsDiffer(cfg?["fields"] as JsonObject, BuildRequest([vin])["config"]?["fields"] as JsonObject) is { } diff ? diff
             : null;
 
         if (reason is null)
@@ -75,6 +76,22 @@ public sealed class TelemetryConfigService(
 
         log.LogInformation("Sender telemetri-konfiguration til {Vin}: {Reason}", vin, reason);
         await PushAsync([vin], ct);
+    }
+
+    /// <summary>Er felterne/intervallerne på bilen andre end dem, bridgen vil have (fx efter en opdatering)?</summary>
+    internal static string? FieldsDiffer(JsonObject? onCar, JsonObject? wanted)
+    {
+        if (onCar is null || wanted is null) return null;      // Tesla returnerede ikke felterne – rør det ikke
+        static int Interval(JsonNode? n) => n?["interval_seconds"] is JsonValue v && v.TryGetValue(out int i) ? i : -1;
+        var missing = wanted.Where(kv => !onCar.ContainsKey(kv.Key)).Select(kv => kv.Key).ToList();
+        var changed = wanted.Where(kv => onCar.ContainsKey(kv.Key) && Interval(onCar[kv.Key]) != Interval(kv.Value)).Select(kv => kv.Key).ToList();
+        var extra = onCar.Where(kv => !wanted.ContainsKey(kv.Key)).Select(kv => kv.Key).ToList();
+        if (missing.Count + changed.Count + extra.Count == 0) return null;
+        var parts = new List<string>();
+        if (missing.Count > 0) parts.Add($"nye felter: {string.Join(", ", missing)}");
+        if (changed.Count > 0) parts.Add($"nye intervaller: {string.Join(", ", changed)}");
+        if (extra.Count > 0) parts.Add($"fjernede felter: {string.Join(", ", extra)}");
+        return string.Join("; ", parts);
     }
 
     public async Task<JsonNode?> PushAsync(IReadOnlyList<string> vins, CancellationToken ct)

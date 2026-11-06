@@ -94,6 +94,28 @@ public static class SignalMapper
             }
             case "SeatHeaterLeft": yield return ("seat_heater_left", Round(Num(raw), 0)); break;
             case "SeatHeaterRight": yield return ("seat_heater_right", Round(Num(raw), 0)); break;
+            case "SeatHeaterRearLeft": yield return ("seat_heater_rear_left", Round(Num(raw), 0)); break;
+            case "SeatHeaterRearCenter": yield return ("seat_heater_rear_center", Round(Num(raw), 0)); break;
+            case "SeatHeaterRearRight": yield return ("seat_heater_rear_right", Round(Num(raw), 0)); break;
+            case "ClimateKeeperMode":
+            {
+                // off / keep / dog / camp (Tesla kalder camp for "Party" internt)
+                var state = EnumTail(raw, "ClimateKeeperModeState");
+                yield return ("climate_keeper_mode", Str(state switch
+                {
+                    null or "unknown" => null,
+                    "on" => "keep",
+                    "party" => "camp",
+                    var s => s,
+                }));
+                break;
+            }
+            case "CabinOverheatProtectionMode":
+            {
+                var state = EnumTail(raw, "CabinOverheatProtectionModeState");
+                yield return ("cabin_overheat_protection", Str(state is null or "unknown" ? null : state));
+                break;
+            }
             case "HvacSteeringWheelHeatLevel":
             {
                 var level = SteeringLevel(raw);

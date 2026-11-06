@@ -7,7 +7,7 @@ namespace TeslaBridge.Commands;
 /// <summary>
 /// Oversætter MQTT-kommandoer ({bridge}/{vin}/cmd/{navn} + payload) til VehicleCommand.
 /// Payloads er bevidst simple, så de virker fra HA, ESP32-paneler og mosquitto_pub:
-///   climate on|off · lock LOCK|UNLOCK · charge_limit 80 · seat_heater_left off|low|medium|high|0-3 · wake PRESS
+///   climate on|off · climate_keeper none|keep|dog|camp · lock LOCK|UNLOCK · charge_limit 80 · seat_heater_left off|low|medium|high|0-3 · wake PRESS
 /// </summary>
 public static class CommandParser
 {
@@ -23,6 +23,17 @@ public static class CommandParser
             "defrost" => OnOff(p) is { } d ? new Cmd.SetDefrost(d) : null,
             "seat_heater_left" => Level(p) is { } l ? new Cmd.SetSeatHeater(Seat.FrontLeft, l) : null,
             "seat_heater_right" => Level(p) is { } r ? new Cmd.SetSeatHeater(Seat.FrontRight, r) : null,
+            "seat_heater_rear_left" => Level(p) is { } rl ? new Cmd.SetSeatHeater(Seat.RearLeft, rl) : null,
+            "seat_heater_rear_center" => Level(p) is { } rc ? new Cmd.SetSeatHeater(Seat.RearCenter, rc) : null,
+            "seat_heater_rear_right" => Level(p) is { } rr ? new Cmd.SetSeatHeater(Seat.RearRight, rr) : null,
+            "climate_keeper" => KeeperMode(p) is { } k ? new Cmd.SetClimateKeeper(k) : null,
+            "cabin_overheat_protection" => p.ToLowerInvariant() switch
+            {
+                "off" or "fra" => new Cmd.SetCabinOverheatProtection("off"),
+                "on" or "til" => new Cmd.SetCabinOverheatProtection("on"),
+                "fan_only" or "kun blæser" => new Cmd.SetCabinOverheatProtection("fan_only"),
+                _ => null,
+            },
             "steering_wheel_heat" => OnOff(p) is { } s ? new Cmd.SetSteeringWheelHeat(s) : null,
             "lock" => p.ToUpperInvariant() switch
             {
@@ -46,6 +57,19 @@ public static class CommandParser
             "wake" => new Cmd.Wake(),
             _ => null,
         };
+    }
+
+    /// <summary>HA-presets (Hold/Hund/Camp/none) og rå navne/tal.</summary>
+    public static readonly (string Preset, string Key)[] KeeperPresets = [("Hold", "keep"), ("Hund", "dog"), ("Camp", "camp")];
+
+    private static int? KeeperMode(string p)
+    {
+        var s = p.ToLowerInvariant();
+        if (s is "none" or "off" or "fra" or "0") return 0;
+        foreach (var (preset, key) in KeeperPresets)
+            if (s == preset.ToLowerInvariant() || s == key) return Array.IndexOf(Cmd.SetClimateKeeper.Names, key);
+        if (s == "on") return 1;
+        return Num(p) is { } n && n is >= 0 and <= 3 ? (int)n : null;
     }
 
     private static bool? OnOff(string p) => p.ToLowerInvariant() switch

@@ -26,7 +26,8 @@ public abstract record VehicleCommand
     public sealed override string ToString() => Name;
 }
 
-public enum Seat { FrontLeft = 0, FrontRight = 1 }
+/// <summary>Teslas seat_position-numre.</summary>
+public enum Seat { FrontLeft = 0, FrontRight = 1, RearLeft = 2, RearCenter = 4, RearRight = 5 }
 
 public static class Cmd
 {
@@ -74,7 +75,36 @@ public static class Cmd
         public override string FleetEndpoint => "remote_seat_heater_request";
         public override JsonObject FleetBody => new() { ["seat_position"] = (int)Seat, ["level"] = Level };
         public override IReadOnlyList<Expectation> Expectations =>
-            [new(Seat == Seat.FrontLeft ? "seat_heater_left" : "seat_heater_right", N(Level), Near(Level, 0.1))];
+            [new(StateKey(Seat), N(Level), Near(Level, 0.1))];
+
+        public static string StateKey(Seat seat) => seat switch
+        {
+            Seat.FrontLeft => "seat_heater_left",
+            Seat.FrontRight => "seat_heater_right",
+            Seat.RearLeft => "seat_heater_rear_left",
+            Seat.RearCenter => "seat_heater_rear_center",
+            _ => "seat_heater_rear_right",
+        };
+    }
+
+    /// <summary>Klimatilstand: 0 = fra, 1 = hold, 2 = hund, 3 = camp.</summary>
+    public sealed record SetClimateKeeper(int Mode) : VehicleCommand
+    {
+        public static readonly string[] Names = ["off", "keep", "dog", "camp"];
+        public override string FleetEndpoint => "set_climate_keeper_mode";
+        public override JsonObject FleetBody => new() { ["climate_keeper_mode"] = Mode };
+        public override IReadOnlyList<Expectation> Expectations =>
+            Mode == 0
+                ? [new("climate_keeper_mode", JsonValue.Create("off"))]
+                : [new("climate_keeper_mode", JsonValue.Create(Names[Mode])), new("climate_on", B(true))];
+    }
+
+    /// <summary>Beskyttelse mod overophedning af kabinen: off / on / fan_only.</summary>
+    public sealed record SetCabinOverheatProtection(string Mode) : VehicleCommand
+    {
+        public override string FleetEndpoint => "set_cabin_overheat_protection";
+        public override JsonObject FleetBody => new() { ["on"] = Mode != "off", ["fan_only"] = Mode == "fan_only" };
+        public override IReadOnlyList<Expectation> Expectations => [new("cabin_overheat_protection", JsonValue.Create(Mode))];
     }
 
     public sealed record SetSteeringWheelHeat(bool On) : VehicleCommand

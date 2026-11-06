@@ -1,5 +1,5 @@
 {
-  "_comment": "interval_seconds er et MINIMUM mellem to sendinger; bilen sender kun ved ændring. Kun felter der ændrer sig konstant under kørsel/opladning koster reelt noget. Budget: ca. $4-5/md ved 3 t kørsel + 2 t opladning om dagen (worst case).",
+  "_comment": "interval_seconds er et MINIMUM mellem to sendinger; bilen sender kun ved \u00e6ndring. Kun felter der \u00e6ndrer sig konstant under k\u00f8rsel/opladning koster reelt noget. Budget: ca. $4-5/md ved 3 t k\u00f8rsel + 2 t opladning om dagen (worst case).",
   "fields": {
     "Location": {
       "interval_seconds": 2
@@ -117,6 +117,21 @@
     },
     "Version": {
       "interval_seconds": 3600
+    },
+    "SeatHeaterRearLeft": {
+      "interval_seconds": 1
+    },
+    "SeatHeaterRearCenter": {
+      "interval_seconds": 1
+    },
+    "SeatHeaterRearRight": {
+      "interval_seconds": 1
+    },
+    "ClimateKeeperMode": {
+      "interval_seconds": 1
+    },
+    "CabinOverheatProtectionMode": {
+      "interval_seconds": 1
     }
   }
 }

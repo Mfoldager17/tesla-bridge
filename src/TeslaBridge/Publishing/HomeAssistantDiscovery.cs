@@ -301,11 +301,52 @@ public sealed class HomeAssistantDiscovery(
         Number("charging_amps_set", "Ladestrøm (ønsket)", "charge_current_request", "charging_amps", 5, 32, 1, "A", "mdi:current-ac");
         Number("driver_temp_set", "Temperatur", "driver_temp_setting", "driver_temp", 15, 28, 0.5, "°C", "mdi:thermometer");
 
+        // Klima-kort (termostat) som i Teslemetry: tænd/sluk, temperatur, kabintemperatur og klimatilstande.
+        {
+            var c = Base("climate", "Klima");
+            c["unique_id"] = $"{id}_climate_entity";      // "_climate" bruges allerede af kontakten
+            c["modes"] = new JsonArray("off", "heat_cool");
+            c["mode_state_topic"] = state("climate_on");
+            c["mode_state_template"] = "{{ 'heat_cool' if value_json else 'off' }}";
+            c["mode_command_topic"] = cmd("climate");
+            c["mode_command_template"] = "{{ 'off' if value == 'off' else 'on' }}";
+            c["temperature_state_topic"] = state("driver_temp_setting");
+            c["temperature_state_template"] = Num;
+            c["temperature_command_topic"] = cmd("driver_temp");
+            c["current_temperature_topic"] = state("inside_temp");
+            c["current_temperature_template"] = Num;
+            c["min_temp"] = 15;
+            c["max_temp"] = 28;
+            c["temp_step"] = 0.5;
+            c["precision"] = 0.5;
+            c["temperature_unit"] = "C";
+            c["preset_modes"] = new JsonArray(CommandParser.KeeperPresets.Select(k => (JsonNode?)JsonValue.Create(k.Preset)).ToArray());
+            c["preset_mode_state_topic"] = state("climate_keeper_mode");
+            c["preset_mode_value_template"] =
+                "{% set m = {" + string.Join(", ", CommandParser.KeeperPresets.Select(k => $"'{k.Key}': '{k.Preset}'")) + "} %}{{ m.get(value_json, 'none') }}";
+            c["preset_mode_command_topic"] = cmd("climate_keeper");
+            c["icon"] = "mdi:car-defrost-front";
+            Add("climate", "climate", c);
+        }
+
+        {
+            var c = Base("cabin_overheat_protection_set", "Overophedningsbeskyttelse");
+            c["state_topic"] = state("cabin_overheat_protection");
+            c["value_template"] = "{{ value_json if value_json is not none else None }}";
+            c["command_topic"] = cmd("cabin_overheat_protection");
+            c["options"] = new JsonArray("off", "on", "fan_only");
+            c["icon"] = "mdi:sun-thermometer";
+            Add("select", "cabin_overheat_protection_set", c);
+        }
+
         // Sædevarme
         foreach (var (key, name, stateKey, cmdName) in new[]
                  {
                      ("seat_heater_left_set", "Sædevarme fører", "seat_heater_left", "seat_heater_left"),
                      ("seat_heater_right_set", "Sædevarme passager", "seat_heater_right", "seat_heater_right"),
+                     ("seat_heater_rear_left_set", "Sædevarme bag venstre", "seat_heater_rear_left", "seat_heater_rear_left"),
+                     ("seat_heater_rear_center_set", "Sædevarme bag midt", "seat_heater_rear_center", "seat_heater_rear_center"),
+                     ("seat_heater_rear_right_set", "Sædevarme bag højre", "seat_heater_rear_right", "seat_heater_rear_right"),
                  })
         {
             var c = Base(key, name);
