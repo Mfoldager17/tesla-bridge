@@ -45,7 +45,7 @@ services:
         condition: service_completed_successfully
 
   tesla-proxy:
-    image: tesla/vehicle-command:v0.4.1
+    image: tesla/vehicle-command:0.4.1
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
     # Ingen ports: kun bridgen taler med den på det interne docker-netværk.
