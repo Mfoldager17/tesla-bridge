@@ -14,6 +14,8 @@ public enum ValueSource
     Restored,
     /// <summary>Afledt eller sat af bridgen selv (fx online/last_seen).</summary>
     Bridge,
+    /// <summary>Hentet med vehicle_data, fordi streamen endnu ikke havde sendt feltet.</summary>
+    Snapshot,
     // Senere: Ble
 }
 

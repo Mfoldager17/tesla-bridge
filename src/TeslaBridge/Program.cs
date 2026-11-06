@@ -89,6 +89,7 @@ services.AddHostedService(sp => sp.GetRequiredService<MqttConnection>());
 services.AddHostedService<TelemetryIngestService>();
 services.AddHostedService<StatePublisher>();
 services.AddHostedService<HomeAssistantDiscovery>();
+services.AddHostedService<TeslaBridge.Telemetry.VehicleDataSeeder>();
 services.AddHostedService<CommandListener>();
 services.AddHostedService<OptimisticExpiryService>();
 services.AddHostedService<UsageService>();
