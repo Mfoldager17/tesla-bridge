@@ -12,6 +12,21 @@ Data kan komme ud i Home Assistant ad **to veje**. Vælg den, der passer dig:
 | Andre klienter (ESP32, Node-RED, egne dashboards) | læser og skriver MQTT-topics | bruger HTTP-API'et |
 | Entiteter | ~80 under én enhed pr. bil | præcis de samme navne, typer og entity id'er |
 
+> **Om eksemplerne i denne guide**
+> Alle konkrete værdier herunder er **eksempler**, som du skal erstatte med dine egne:
+>
+> | Eksempel | Erstat med |
+> |---|---|
+> | `bil.eksempel.dk` | dit eget (sub)domæne. Navnet er frit valgt (`car.`, `bil.`, `tlm.` …), det må bare ikke indeholde "tesla" |
+> | `Model Y` / `model_y_` | det navn, du giver bilen i `.env` (se nedenfor) |
+> | `<server-IP>`, `192.168.0.x` | IP-adressen på din server og din MQTT-broker |
+> | `mosquitto` | navnet på *din* Mosquitto-container (`docker ps`) |
+> | `~/docker-services/…` | hvor du nu har dine docker-projekter |
+> | `npm-<nr>` | certifikatets nummer i din Nginx Proxy Manager |
+> | `<VIN>`, `<kode 1>`, `<kode 2>`, `<token>` | dit VIN og dine egne kodeord/token |
+>
+> Tekst i `<spidse parenteser>` skal altid udskiftes – parenteserne skal ikke med.
+
 Bilen hedder i HA det, du selv skriver i `Bridge__Vehicles__0__Name` i `.env` (fx "Model Y", "Bilen" eller "Elsa"), og navnet bliver til prefixet i alle entity id'er: "Model Y" → `sensor.model_y_battery_level`, "Bilen" → `sensor.bilen_battery_level`. I eksemplerne her hedder bilen "Model Y".
 
 De to veje giver **identiske entiteter** (`sensor.<bil>_battery_level`, `climate.<bil>_climate`, `lock.<bil>_lock` …), fordi integrationen henter de samme definitioner fra bridgen, som MQTT discovery bruger. Du kan skifte vej senere uden at ændre dashboards eller automationer. Navnene følger Teslemetry, så et skifte derfra kræver kun at entity id'et ændres (`sensor.tesla_battery_level` → `sensor.model_y_battery_level`). Vil du helt undgå det, så giv bilen samme navn, som den har i Teslemetry.
@@ -81,11 +96,11 @@ Bil ──mTLS:4443──▶ fleet-telemetry ──MQTT──▶ tesla-bridge (i
 Fælles for begge veje:
 
 - **En server med Docker**, fx en Raspberry Pi 4/5 (arm64) eller en x86-maskine. Imaget bygges til begge.
-- **Et (sub)domæne**, der peger på din offentlige IP, fx `car.ditdomaene.dk`.
-  - Tesla tillader **ikke** ordet "tesla" i domænet eller appnavnet. Brug fx `car.` eller `bil.`.
+- **Et (sub)domæne**, der peger på din offentlige IP, fx `bil.eksempel.dk` (eksempel – navnet er frit valgt).
+  - Tesla tillader **ikke** ordet "tesla" i domænet eller appnavnet, så `tesla.ditdomaene.dk` bliver afvist. Ellers kan subdomænet hedde hvad som helst.
   - Hos Cloudflare: **DNS only** (grå sky), ikke proxied. Bilen skal tale direkte med din server.
 - **Et gyldigt certifikat** til domænet (Let's Encrypt, fx fra Nginx Proxy Manager).
-- **En reverse proxy** (NPM eller lignende), der sender `https://car.ditdomaene.dk` videre til `<server>:8091`. Den port svarer *kun* på den offentlige nøgle og login-callback, aldrig på dashboardet.
+- **En reverse proxy** (NPM eller lignende), der sender `https://<dit domæne>` videre til `<server-IP>:8091`. Den port svarer *kun* på den offentlige nøgle og login-callback, aldrig på dashboardet.
 - **Port forward 4443** (TCP) fra routeren til serveren. Bilen sender data hertil. NPM og dine eksisterende hosts på 443 påvirkes ikke.
   - Cloudflare Tunnel og ngrok (HTTP) virker **ikke**: de afslutter TLS og bryder dermed bilens mTLS. Skal du bruge en tunnel, skal den være rå TCP (fx Tailscale Funnel i TCP-tilstand eller en VPS med WireGuard).
 - **En ny app** på [developer.tesla.com](https://developer.tesla.com) (trin 1).
@@ -106,17 +121,17 @@ På [developer.tesla.com](https://developer.tesla.com) → *Create application*:
 
 | Felt | Værdi |
 |---|---|
-| Navn | hvad som helst *uden* "tesla", fx `Foldager Car` |
-| Allowed Origin | `https://car.ditdomaene.dk` |
-| Allowed Redirect URI | `https://car.ditdomaene.dk/auth/callback` |
+| Navn | frit valgt, bare *uden* "tesla", fx `Min Bil` |
+| Allowed Origin | `https://<dit domæne>` (fx `https://bil.eksempel.dk`) |
+| Allowed Redirect URI | `https://<dit domæne>/auth/callback` |
 | Scopes | Vehicle Information, Vehicle Location, Vehicle Commands, Vehicle Charging Management |
 
-Notér **Client ID** og **Client Secret**. Du skal *ikke* selv lave nøgler: bridgen laver nøgleparret og viser den offentlige nøgle på `https://car.ditdomaene.dk/.well-known/appspecific/com.tesla.3p.public-key.pem`.
+Notér **Client ID** og **Client Secret**. Du skal *ikke* selv lave nøgler: bridgen laver nøgleparret og viser den offentlige nøgle på `https://<dit domæne>/.well-known/appspecific/com.tesla.3p.public-key.pem`.
 
 ### 2. Domæne, certifikat og reverse proxy
 
-1. Lav DNS-recorden `car.ditdomaene.dk` → din offentlige IP (DNS only).
-2. I NPM: ny proxy host `car.ditdomaene.dk` → `http://<server-IP>:8091`, med Let's Encrypt-certifikat og *Force SSL*.
+1. Lav en DNS-record for dit domæne (fx `bil.eksempel.dk`) → din offentlige IP (DNS only).
+2. I NPM: ny proxy host `<dit domæne>` → `http://<server-IP>:8091`, med Let's Encrypt-certifikat og *Force SSL*.
 3. Port forward **TCP 4443** fra routeren til serveren.
 
 ### 3. Hent compose-filen og lav `.env`
@@ -131,18 +146,18 @@ chmod 600 .env
 nano .env
 ```
 
-Udfyld de fælles værdier:
+Udfyld de fælles værdier (alle værdier er eksempler):
 
 ```ini
 TZ=Europe/Copenhagen
 PUID=1000                                  # fra `id`
 PGID=1000
-Bridge__Telemetry__Hostname=car.ditdomaene.dk
-Bridge__Vehicles__0__Vin=XP7Y...           # VIN fra Tesla-appen
-Bridge__Vehicles__0__Name=Model Y          # dit eget navn til bilen → enhed "Model Y", entity id'er model_y_*
-Bridge__Tesla__ClientId=...
-Bridge__Tesla__ClientSecret=...
-Bridge__Web__Token=<lang tilfældig streng> # fx: openssl rand -hex 24
+Bridge__Telemetry__Hostname=bil.eksempel.dk     # DIT domæne fra trin 2
+Bridge__Vehicles__0__Vin=<VIN>               # 17 tegn, står i Tesla-appen under Software
+Bridge__Vehicles__0__Name=Model Y           # frit valgt navn → enhed "Model Y", entity id'er model_y_*
+Bridge__Tesla__ClientId=<Client ID fra trin 1>
+Bridge__Tesla__ClientSecret=<Client Secret fra trin 1>
+Bridge__Web__Token=<token>                  # lang tilfældig streng, fx: openssl rand -hex 24
 ```
 
 Udfyld derefter **enten A eller B**:
@@ -153,7 +168,7 @@ Udfyld derefter **enten A eller B**:
 
 ```ini
 Bridge__Mqtt__EmbeddedBroker=false
-Bridge__Mqtt__Host=192.168.0.x   # brokerens IP
+Bridge__Mqtt__Host=192.168.0.x   # DIN brokers IP
 Bridge__Mqtt__Port=1883
 Bridge__Mqtt__Username=tesla-bridge
 Bridge__Mqtt__Password=<kode 1>
@@ -178,7 +193,7 @@ Resten af MQTT-felterne kan stå tomme. Bridgen starter selv en lille broker, so
 
 ### 4. MQTT-brugere (kun A)
 
-Bridgen og fleet-telemetry logger ind på din broker med hver sin bruger. Med Mosquitto i en container:
+Bridgen og fleet-telemetry logger ind på din broker med hver sin bruger. Brugernavnene `tesla-bridge` og `fleet-telemetry` er forslag – brug gerne andre, bare de står ens her og i `.env`. Med Mosquitto i en container (udskift `mosquitto` med navnet på din container):
 
 ```bash
 docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd tesla-bridge     # <kode 1>
@@ -194,11 +209,11 @@ docker restart mosquitto
 
 Bilen taler direkte med fleet-telemetry på port 4443, så den skal have domænets certifikat. Læg `fullchain.pem` og `privkey.pem` i `config/fleet-telemetry/certs/`.
 
-Fra NPM (find nummeret under *SSL Certificates*, fx `npm-21`):
+Fra Nginx Proxy Manager. Ret stien til hvor din NPM ligger, og `npm-<nr>` til dit certifikats nummer (se under *SSL Certificates* i NPM, eller `ls <npm-mappe>/letsencrypt/live/`):
 
 ```bash
 mkdir -p config/fleet-telemetry/certs
-NPM=~/docker-services/nginx-proxy-manager/letsencrypt/live/npm-21
+NPM=~/docker-services/nginx-proxy-manager/letsencrypt/live/npm-<nr>   # eksempel – ret til din
 sudo cp -L $NPM/fullchain.pem $NPM/privkey.pem config/fleet-telemetry/certs/
 sudo chown -R $(id -u):$(id -g) config/fleet-telemetry/certs
 ```
@@ -221,9 +236,9 @@ docker compose logs -f tesla-bridge     # A: "Forbundet til MQTT 192.168.0.x"   
 
 Åbn `http://<server>:8090` (kun på dit lokale net) og log ind med `Bridge__Web__Token`. Panelet **Opsætning** fører dig igennem:
 
-1. **Registrér domænet hos Tesla** (partner-registrering). Kræver at `https://car.ditdomaene.dk` virker fra internettet.
+1. **Registrér domænet hos Tesla** (partner-registrering). Kræver at `https://<dit domæne>` virker fra internettet.
 2. **Log ind med Tesla**.
-3. **Par nøglen med bilen**: scan QR-koden med telefonen (åbner `tesla.com/_ak/car.ditdomaene.dk`) og godkend i Tesla-appen, mens du er ved bilen.
+3. **Par nøglen med bilen**: scan QR-koden med telefonen (åbner `tesla.com/_ak/<dit domæne>`) og godkend i Tesla-appen, mens du er ved bilen.
 4. **Send telemetri-konfigurationen** til bilen. Det sker også automatisk ved første start, og den fornyes selv (den udløber efter 30 dage).
 
 Åbn Tesla-appen for at vække bilen. Data bør dukke op inden for et minut. Tjek status fra terminalen:
