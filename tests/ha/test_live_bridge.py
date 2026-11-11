@@ -31,7 +31,8 @@ async def test_entities_follow_the_bridge(hass: HomeAssistant, socket_enabled) -
         assert e in ids, e
 
     async with aiohttp.ClientSession() as s:
-        await s.post(f"{URL}/api/vehicles/{VIN}/simulate")
+        async with s.post(f"{URL}/api/vehicles/{VIN}/simulate") as r:
+            await r.read()
     for _ in range(40):
         await asyncio.sleep(0.1)
         await hass.async_block_till_done()
