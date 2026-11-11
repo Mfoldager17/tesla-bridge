@@ -74,3 +74,27 @@ public class IntegrationApiTests
         Assert.True(EmbeddedBroker.Allowed(users, null, null, new IPEndPoint(IPAddress.Loopback, 1)));   // bridgen selv
     }
 }
+
+public class ParkedCarTests
+{
+    private static Dictionary<string, System.Text.Json.Nodes.JsonNode?> Map(string field, string json) =>
+        TeslaBridge.Telemetry.SignalMapper.Map(field, System.Text.Json.Nodes.JsonNode.Parse(json)).ToDictionary(x => x.Key, x => x.Value);
+
+    [Theory]
+    [InlineData("\"ShiftStateD\"", "D")]
+    [InlineData("\"ShiftStateR\"", "R")]
+    [InlineData("\"ShiftStateP\"", "P")]
+    [InlineData("\"ShiftStateInvalid\"", "P")]
+    [InlineData("\"ShiftStateSNA\"", "P")]
+    [InlineData("null", "P")]
+    public void Invalid_gear_means_parked(string raw, string expected) =>
+        Assert.Equal(expected, Map("Gear", raw)["gear"]!.GetValue<string>());
+
+    [Fact]
+    public void Invalid_speed_is_zero_and_invalid_range_is_ignored()
+    {
+        Assert.Equal(0, Map("VehicleSpeed", "null")["speed"]!.GetValue<double>());
+        Assert.Empty(Map("EstBatteryRange", "null"));
+        Assert.Equal(161, Map("EstBatteryRange", "100")["est_range"]!.GetValue<double>());
+    }
+}

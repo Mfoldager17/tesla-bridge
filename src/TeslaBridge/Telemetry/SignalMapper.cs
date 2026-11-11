@@ -23,16 +23,19 @@ public static class SignalMapper
                 yield return ("location", MapLocation(raw));
                 break;
             case "GpsHeading": yield return ("heading", Round(Num(raw), 0)); break;
-            case "VehicleSpeed": yield return ("speed", Round(Num(raw) * KmPerMile, 0)); break;
-            case "Gear": yield return ("gear", Str(EnumTail(raw, "ShiftState")?.ToUpperInvariant())); break;
+            // Parkeret bil sender hastighed og gear som "invalid" (null). Som Tesla-appen: 0 km/h og P.
+            // Ellers bliver de "unknown" i HA, og en automation på D → P udløses aldrig.
+            case "VehicleSpeed": yield return ("speed", Round((Num(raw) ?? 0) * KmPerMile, 0)); break;
+            case "Gear": yield return ("gear", Str(GearOf(raw))); break;
             case "Odometer": yield return ("odometer", Round(Num(raw) * KmPerMile, 1)); break;
 
             // --- batteri ---
             case "BatteryLevel": yield return ("battery_level", Round(Num(raw), 1)); break;
             case "Soc": yield return ("soc", Round(Num(raw), 1)); break;
-            case "EstBatteryRange": yield return ("est_range", Round(Num(raw) * KmPerMile, 0)); break;
-            case "IdealBatteryRange": yield return ("ideal_range", Round(Num(raw) * KmPerMile, 0)); break;
-            case "RatedRange": yield return ("rated_range", Round(Num(raw) * KmPerMile, 0)); break;
+            // Rækkevidde: et ugyldigt signal (null) overskriver ikke den sidst kendte værdi.
+            case "EstBatteryRange": if (Num(raw) is { } er) yield return ("est_range", Round(er * KmPerMile, 0)); break;
+            case "IdealBatteryRange": if (Num(raw) is { } ir) yield return ("ideal_range", Round(ir * KmPerMile, 0)); break;
+            case "RatedRange": if (Num(raw) is { } rr) yield return ("rated_range", Round(rr * KmPerMile, 0)); break;
 
             // --- opladning ---
             case "DetailedChargeState":
@@ -297,6 +300,10 @@ public static class SignalMapper
         d is null ? null : JsonValue.Create(Math.Round(d.Value, digits));
 
     /// <summary>"DetailedChargeStateNoPower" → "no_power". Accepterer også værdier uden præfiks.</summary>
+    /// <summary>"ShiftStateD" → "D". Ugyldig/ukendt (bilen holder parkeret) → "P".</summary>
+    internal static string GearOf(JsonNode? raw) =>
+        EnumTail(raw, "ShiftState")?.ToUpperInvariant() is { } g && g is "P" or "D" or "R" or "N" ? g : "P";
+
     internal static string? EnumTail(JsonNode? raw, string prefix)
     {
         var s = StrOf(raw);
