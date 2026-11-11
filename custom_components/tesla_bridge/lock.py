@@ -1,4 +1,4 @@
-"""Låse (bilen og ladekablet) – med LOCKING/UNLOCKING mens bilen svarer."""
+"""Locks (the car and the charge cable) – with LOCKING/UNLOCKING while the car responds."""
 
 from __future__ import annotations
 

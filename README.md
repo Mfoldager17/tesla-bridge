@@ -1,142 +1,142 @@
 # Tesla Bridge
 
-Selvhostet erstatning for Teslemetry. Bilen streamer direkte til din egen server, og du styrer den gennem Teslas officielle Fleet API, uden mellemmand og uden abonnement.
+A self-hosted replacement for Teslemetry. Your car streams directly to your own server, and you control it through Tesla's official Fleet API – no middleman, no subscription.
 
-Data kan komme ud i Home Assistant ad **to veje**. Vælg den, der passer dig:
+Data can reach Home Assistant in **two ways**. Pick the one that suits you:
 
-| | **A) MQTT** | **B) HA-integration** |
+| | **A) MQTT** | **B) HA integration** |
 |---|---|---|
-| Til dig, der … | allerede har en MQTT-broker (Mosquitto, fx til Zigbee2MQTT) | ikke har eller ikke vil have en broker |
-| Ekstra software | din broker | intet |
-| I Home Assistant | MQTT-integrationen (discovery, sker automatisk) | **Tesla Bridge** fra HACS |
-| Andre klienter (ESP32, Node-RED, egne dashboards) | læser og skriver MQTT-topics | bruger HTTP-API'et |
-| Entiteter | ~80 under én enhed pr. bil | præcis de samme navne, typer og entity id'er |
+| For you if … | you already run an MQTT broker (Mosquitto, e.g. for Zigbee2MQTT) | you don't have or don't want a broker |
+| Extra software | your broker | none |
+| In Home Assistant | the MQTT integration (discovery, automatic) | **Tesla Bridge** from HACS |
+| Other clients (ESP32, Node-RED, custom dashboards) | read and write MQTT topics | use the HTTP API |
+| Entities | ~80 under one device per car | exactly the same names, types and entity ids |
 
-> **Om eksemplerne i denne guide**
-> Alle konkrete værdier herunder er **eksempler**, som du skal erstatte med dine egne:
+> **About the examples in this guide**
+> Every concrete value below is an **example** that you replace with your own:
 >
-> | Eksempel | Erstat med |
+> | Example | Replace with |
 > |---|---|
-> | `bil.eksempel.dk` | dit eget (sub)domæne. Navnet er frit valgt (`car.`, `bil.`, `tlm.` …), det må bare ikke indeholde "tesla" |
-> | `Model Y` / `model_y_` | det navn, du giver bilen i `.env` (se nedenfor) |
-> | `<server-IP>`, `192.168.0.x` | IP-adressen på din server og din MQTT-broker |
-> | `mosquitto` | navnet på *din* Mosquitto-container (`docker ps`) |
-> | `~/docker-services/…` | hvor du nu har dine docker-projekter |
-> | `npm-<nr>` | certifikatets nummer i din Nginx Proxy Manager |
-> | `<VIN>`, `<kode 1>`, `<kode 2>`, `<token>` | dit VIN og dine egne kodeord/token |
+> | `car.example.com` | your own (sub)domain. The name is up to you (`car.`, `ev.`, `tlm.` …) – it just must not contain "tesla" |
+> | `Model Y` / `model_y_` | the name you give your car in `.env` (see below) |
+> | `<server-IP>`, `192.168.0.x` | the IP address of your server and your MQTT broker |
+> | `mosquitto` | the name of *your* Mosquitto container (`docker ps`) |
+> | `~/docker-services/…` | wherever you keep your docker projects |
+> | `npm-<nr>` | the certificate number in your Nginx Proxy Manager |
+> | `<VIN>`, `<password 1>`, `<password 2>`, `<token>` | your VIN and your own passwords/token |
 >
-> Tekst i `<spidse parenteser>` skal altid udskiftes – parenteserne skal ikke med.
+> Text in `<angle brackets>` must always be replaced – the brackets themselves are not included.
 
-Bilen hedder i HA det, du selv skriver i `Bridge__Vehicles__0__Name` i `.env` (fx "Model Y", "Bilen" eller "Elsa"), og navnet bliver til prefixet i alle entity id'er: "Model Y" → `sensor.model_y_battery_level`, "Bilen" → `sensor.bilen_battery_level`. I eksemplerne her hedder bilen "Model Y".
+In HA, the car is called whatever you put in `Bridge__Vehicles__0__Name` in `.env` (e.g. "Model Y", "My Car" or "Elsa"), and that name becomes the prefix of every entity id: "Model Y" → `sensor.model_y_battery_level`, "My Car" → `sensor.my_car_battery_level`. In the examples here, the car is called "Model Y".
 
-De to veje giver **identiske entiteter** (`sensor.<bil>_battery_level`, `climate.<bil>_climate`, `lock.<bil>_lock` …), fordi integrationen henter de samme definitioner fra bridgen, som MQTT discovery bruger. Du kan skifte vej senere uden at ændre dashboards eller automationer. Navnene følger Teslemetry, så et skifte derfra kræver kun at entity id'et ændres (`sensor.tesla_battery_level` → `sensor.model_y_battery_level`). Vil du helt undgå det, så giv bilen samme navn, som den har i Teslemetry.
+Both ways produce **identical entities** (`sensor.<car>_battery_level`, `climate.<car>_climate`, `lock.<car>_lock` …), because the integration fetches the same definitions from the bridge that MQTT discovery uses. You can switch later without touching dashboards or automations. The names follow Teslemetry, so moving from there only means changing the entity id prefix (`sensor.tesla_battery_level` → `sensor.model_y_battery_level`). To avoid even that, give the car the same name it has in Teslemetry.
 
-Prisen er Teslas egen Fleet API-afregning, som for én bil ligger inden for den gratis månedlige rabat ($10). Bridgen tæller forbruget for dig.
-
----
-
-## Indhold
-
-1. [Sådan hænger det sammen](#sådan-hænger-det-sammen)
-2. [Forudsætninger](#forudsætninger)
-3. [Installation](#installation) (trin 1–8, med A og B undervejs)
-4. [Skift mellem MQTT og integration](#skift-mellem-mqtt-og-integration)
-5. [Entiteter i Home Assistant](#entiteter-i-home-assistant)
-6. [Opdatering](#opdatering)
-7. [Fejlsøgning](#fejlsøgning)
-8. [Dashboardet](#dashboardet)
-9. [Felter og intervaller](#felter-og-intervaller)
-10. [MQTT-API](#mqtt-api-vej-a)
-11. [HTTP-API](#http-api-vej-b-og-alt-andet)
-12. [Test lokalt uden bil](#test-lokalt-uden-bil)
-13. [Udvikling](#udvikling)
+The cost is Tesla's own Fleet API billing, which for one car stays within the free monthly credit ($10). The bridge tracks your usage for you.
 
 ---
 
-## Sådan hænger det sammen
+## Contents
 
-**Vej A – med din egen broker**
+1. [How it fits together](#how-it-fits-together)
+2. [Requirements](#requirements)
+3. [Installation](#installation) (steps 1–8, with A and B along the way)
+4. [Switching between MQTT and the integration](#switching-between-mqtt-and-the-integration)
+5. [Entities in Home Assistant](#entities-in-home-assistant)
+6. [Updating](#updating)
+7. [Troubleshooting](#troubleshooting)
+8. [The dashboard](#the-dashboard)
+9. [Fields and intervals](#fields-and-intervals)
+10. [MQTT API](#mqtt-api-way-a)
+11. [HTTP API](#http-api-way-b-and-everything-else)
+12. [Testing locally without a car](#testing-locally-without-a-car)
+13. [Development](#development)
+
+---
+
+## How it fits together
+
+**Way A – with your own broker**
 ```
-Bil ──mTLS:4443──▶ fleet-telemetry ──MQTT──▶ din broker ◀──MQTT──▶ tesla-bridge
-                                                 │                    │
-                                     HA (MQTT discovery),       tesla-proxy ──▶ Tesla Fleet API ──▶ Bil
-                                     ESP32, Node-RED …
+Car ──mTLS:4443──▶ fleet-telemetry ──MQTT──▶ your broker ◀──MQTT──▶ tesla-bridge
+                                                  │                     │
+                                      HA (MQTT discovery),        tesla-proxy ──▶ Tesla Fleet API ──▶ Car
+                                      ESP32, Node-RED …
 ```
 
-**Vej B – uden broker**
+**Way B – without a broker**
 ```
-Bil ──mTLS:4443──▶ fleet-telemetry ──MQTT──▶ tesla-bridge (indbygget broker, kun internt i Docker)
-                                                 │
-                              HTTP + live events (:8090)
-                                                 │
-                                   HA-integrationen "Tesla Bridge"
-                                                 │  kommandoer
-                                                 ▼
-                                   tesla-proxy ──▶ Tesla Fleet API ──▶ Bil
+Car ──mTLS:4443──▶ fleet-telemetry ──MQTT──▶ tesla-bridge (embedded broker, internal to Docker only)
+                                                  │
+                               HTTP + live events (:8090)
+                                                  │
+                                 the "Tesla Bridge" HA integration
+                                                  │  commands
+                                                  ▼
+                                    tesla-proxy ──▶ Tesla Fleet API ──▶ Car
 ```
 
-| Container | Fra | Opgave |
+| Container | From | Job |
 |---|---|---|
-| `fleet-telemetry` | Tesla (officiel) | Modtager bilens stream (mTLS på port 4443) og lægger rå felter på MQTT |
-| `tesla-proxy` | Tesla `vehicle-command` | Signerer kommandoer med din apps nøgle |
-| `tesla-init` | denne kode | Kører ved hver start og stopper igen: laver nøgler og fleet-telemetrys config ud fra `.env` |
-| `tesla-bridge` | denne kode (.NET 10) | Normaliserer data, HA-entiteter, kommandoer, optimistisk tilstand, dashboard, forbrug |
+| `fleet-telemetry` | Tesla (official) | Receives the car's stream (mTLS on port 4443) and puts raw fields on MQTT |
+| `tesla-proxy` | Tesla `vehicle-command` | Signs commands with your app's key |
+| `tesla-init` | this repo | Runs on every start and exits: creates keys and fleet-telemetry's config from `.env` |
+| `tesla-bridge` | this repo (.NET 10) | Normalizes data, HA entities, commands, optimistic state, dashboard, usage |
 
-**Hvad bridgen løser i forhold til Tesla Fleet-integrationen:**
-- **Ingen "off → on"-hop.** Trykker du "klima on", vises "on" med det samme. Bilens gamle snapshot lige efter opvågning overskriver det ikke. Bekræfter bilen ikke inden for 45 s, rulles der tilbage.
-- **Mellemtrin som Teslemetry.** Låse og klapper viser `locking`/`unlocking`/`opening`/`closing`, mens bilen arbejder.
-- **Vækker selv bilen.** Sover bilen, vækkes den, og kommandoen sendes igen, så snart den er online.
-- **Aldrig "unknown" efter genstart.** Sidst kendte værdier gemmes i `data/state.json`. Når bilen vågner, hentes et snapshot (højst én gang i timen) for felter, den ikke har streamet endnu.
-- **Kører uden HA.** Bridgen, dashboardet, login og parring af nøglen virker uden Home Assistant.
+**What the bridge fixes compared to the Tesla Fleet integration:**
+- **No "off → on" flicker.** Press "climate on" and it shows "on" immediately. The car's stale snapshot right after waking does not overwrite it. If the car doesn't confirm within 45 s, it rolls back.
+- **Transition states like Teslemetry.** Locks and covers show `locking`/`unlocking`/`opening`/`closing` while the car works.
+- **Wakes the car itself.** If the car is asleep, it is woken and the command is resent as soon as it's online.
+- **Never "unknown" after a restart.** Last known values are saved in `data/state.json`. When the car wakes, a snapshot is fetched (at most once an hour) for fields it hasn't streamed yet.
+- **Runs without HA.** The bridge, dashboard, login and key pairing all work without Home Assistant.
 
 ---
 
-## Forudsætninger
+## Requirements
 
-Fælles for begge veje:
+For both ways:
 
-- **En server med Docker**, fx en Raspberry Pi 4/5 (arm64) eller en x86-maskine. Imaget bygges til begge.
-- **Et (sub)domæne**, der peger på din offentlige IP, fx `bil.eksempel.dk` (eksempel – navnet er frit valgt).
-  - Tesla tillader **ikke** ordet "tesla" i domænet eller appnavnet, så `tesla.ditdomaene.dk` bliver afvist. Ellers kan subdomænet hedde hvad som helst.
-  - Hos Cloudflare: **DNS only** (grå sky), ikke proxied. Bilen skal tale direkte med din server.
-- **Et gyldigt certifikat** til domænet (Let's Encrypt, fx fra Nginx Proxy Manager).
-- **En reverse proxy** (NPM eller lignende), der sender `https://<dit domæne>` videre til `<server-IP>:8091`. Den port svarer *kun* på den offentlige nøgle og login-callback, aldrig på dashboardet.
-- **Port forward 4443** (TCP) fra routeren til serveren. Bilen sender data hertil. NPM og dine eksisterende hosts på 443 påvirkes ikke.
-  - Cloudflare Tunnel og ngrok (HTTP) virker **ikke**: de afslutter TLS og bryder dermed bilens mTLS. Skal du bruge en tunnel, skal den være rå TCP (fx Tailscale Funnel i TCP-tilstand eller en VPS med WireGuard).
-- **En ny app** på [developer.tesla.com](https://developer.tesla.com) (trin 1).
+- **A server with Docker**, e.g. a Raspberry Pi 4/5 (arm64) or an x86 machine. The image is built for both.
+- **A (sub)domain** pointing to your public IP, e.g. `car.example.com` (example – the name is up to you).
+  - Tesla does **not** allow the word "tesla" in the domain or the app name, so `tesla.example.com` will be rejected. Otherwise the subdomain can be anything.
+  - On Cloudflare: **DNS only** (grey cloud), not proxied. The car must talk directly to your server.
+- **A valid certificate** for the domain (Let's Encrypt, e.g. from Nginx Proxy Manager).
+- **A reverse proxy** (NPM or similar) forwarding `https://<your domain>` to `<server-IP>:8091`. That port *only* answers with the public key and the login callback, never the dashboard.
+- **Port forward 4443** (TCP) from your router to the server. The car sends its data here. NPM and your existing hosts on 443 are not affected.
+  - Cloudflare Tunnel and ngrok (HTTP) do **not** work: they terminate TLS and thereby break the car's mTLS. If you need a tunnel, it must be raw TCP (e.g. Tailscale Funnel in TCP mode or a VPS with WireGuard).
+- **A new app** on [developer.tesla.com](https://developer.tesla.com) (step 1).
 
-Kun vej A:
-- **En MQTT-broker**, som både serveren og HA kan nå. Din eksisterende virker fint.
+Way A only:
+- **An MQTT broker** that both the server and HA can reach. Your existing one works fine.
 
-Kun vej B:
-- **HACS** i Home Assistant (eller kopiér mappen manuelt, se trin 8B).
+Way B only:
+- **HACS** in Home Assistant (or copy the folder manually, see step 8B).
 
 ---
 
 ## Installation
 
-### 1. Opret appen hos Tesla
+### 1. Create the app at Tesla
 
-På [developer.tesla.com](https://developer.tesla.com) → *Create application*:
+On [developer.tesla.com](https://developer.tesla.com) → *Create application*:
 
-| Felt | Værdi |
+| Field | Value |
 |---|---|
-| Navn | frit valgt, bare *uden* "tesla", fx `Min Bil` |
-| Allowed Origin | `https://<dit domæne>` (fx `https://bil.eksempel.dk`) |
-| Allowed Redirect URI | `https://<dit domæne>/auth/callback` |
+| Name | your choice, just *without* "tesla", e.g. `My Car` |
+| Allowed Origin | `https://<your domain>` (e.g. `https://car.example.com`) |
+| Allowed Redirect URI | `https://<your domain>/auth/callback` |
 | Scopes | Vehicle Information, Vehicle Location, Vehicle Commands, Vehicle Charging Management |
 
-Notér **Client ID** og **Client Secret**. Du skal *ikke* selv lave nøgler: bridgen laver nøgleparret og viser den offentlige nøgle på `https://<dit domæne>/.well-known/appspecific/com.tesla.3p.public-key.pem`.
+Note the **Client ID** and **Client Secret**. You do *not* create keys yourself: the bridge generates the key pair and serves the public key at `https://<your domain>/.well-known/appspecific/com.tesla.3p.public-key.pem`.
 
-### 2. Domæne, certifikat og reverse proxy
+### 2. Domain, certificate and reverse proxy
 
-1. Lav en DNS-record for dit domæne (fx `bil.eksempel.dk`) → din offentlige IP (DNS only).
-2. I NPM: ny proxy host `<dit domæne>` → `http://<server-IP>:8091`, med Let's Encrypt-certifikat og *Force SSL*.
-3. Port forward **TCP 4443** fra routeren til serveren.
+1. Create a DNS record for your domain (e.g. `car.example.com`) → your public IP (DNS only).
+2. In NPM: a new proxy host `<your domain>` → `http://<server-IP>:8091`, with a Let's Encrypt certificate and *Force SSL*.
+3. Forward **TCP 4443** from your router to the server.
 
-### 3. Hent compose-filen og lav `.env`
+### 3. Download the compose file and create `.env`
 
-Serveren skal **kun** have to filer. Ingen kildekode, intet `git`. Bridgen hentes færdigbygget fra `ghcr.io`.
+The server **only** needs two files. No source code, no `git`. The bridge is pulled prebuilt from `ghcr.io`.
 
 ```bash
 mkdir -p ~/docker-services/tesla-bridge && cd ~/docker-services/tesla-bridge
@@ -146,38 +146,38 @@ chmod 600 .env
 nano .env
 ```
 
-Udfyld de fælles værdier (alle værdier er eksempler):
+Fill in the common values (all values are examples):
 
 ```ini
 TZ=Europe/Copenhagen
-PUID=1000                                  # fra `id`
+PUID=1000                                   # from `id`
 PGID=1000
-Bridge__Telemetry__Hostname=bil.eksempel.dk     # DIT domæne fra trin 2
-Bridge__Vehicles__0__Vin=<VIN>               # 17 tegn, står i Tesla-appen under Software
-Bridge__Vehicles__0__Name=Model Y           # frit valgt navn → enhed "Model Y", entity id'er model_y_*
-Bridge__Tesla__ClientId=<Client ID fra trin 1>
-Bridge__Tesla__ClientSecret=<Client Secret fra trin 1>
-Bridge__Web__Token=<token>                  # lang tilfældig streng, fx: openssl rand -hex 24
+Bridge__Telemetry__Hostname=car.example.com # YOUR domain from step 2
+Bridge__Vehicles__0__Vin=<VIN>              # 17 characters, in the Tesla app under Software
+Bridge__Vehicles__0__Name=Model Y           # your choice → device "Model Y", entity ids model_y_*
+Bridge__Tesla__ClientId=<Client ID from step 1>
+Bridge__Tesla__ClientSecret=<Client Secret from step 1>
+Bridge__Web__Token=<token>                  # long random string, e.g.: openssl rand -hex 24
 ```
 
-Udfyld derefter **enten A eller B**:
+Then fill in **either A or B**:
 
 <table>
-<tr><th>A) MQTT</th><th>B) Integration (ingen broker)</th></tr>
+<tr><th>A) MQTT</th><th>B) Integration (no broker)</th></tr>
 <tr><td>
 
 ```ini
 Bridge__Mqtt__EmbeddedBroker=false
-Bridge__Mqtt__Host=192.168.0.x   # DIN brokers IP
+Bridge__Mqtt__Host=192.168.0.x   # YOUR broker's IP
 Bridge__Mqtt__Port=1883
 Bridge__Mqtt__Username=tesla-bridge
-Bridge__Mqtt__Password=<kode 1>
+Bridge__Mqtt__Password=<password 1>
 Bridge__Telemetry__MqttUsername=fleet-telemetry
-Bridge__Telemetry__MqttPassword=<kode 2>
+Bridge__Telemetry__MqttPassword=<password 2>
 Bridge__Mqtt__DiscoveryPrefix=homeassistant
 ```
 
-Brug IP'en, **ikke** `localhost`. Bridgen og fleet-telemetry kører i containere og skal kunne nå brokeren.
+Use the IP, **not** `localhost`. The bridge and fleet-telemetry run in containers and must be able to reach the broker.
 
 </td><td>
 
@@ -186,103 +186,104 @@ Bridge__Mqtt__EmbeddedBroker=true
 Bridge__Mqtt__DiscoveryPrefix=
 ```
 
-Resten af MQTT-felterne kan stå tomme. Bridgen starter selv en lille broker, som kun fleet-telemetry taler med over docker-netværket. Den er ikke tilgængelig udefra.
+The other MQTT fields can stay empty. The bridge starts a small broker of its own that only fleet-telemetry talks to over the docker network. It is not reachable from outside.
 
 </td></tr>
 </table>
 
-### 4. MQTT-brugere (kun A)
+### 4. MQTT users (A only)
 
-Bridgen og fleet-telemetry logger ind på din broker med hver sin bruger. Brugernavnene `tesla-bridge` og `fleet-telemetry` er forslag – brug gerne andre, bare de står ens her og i `.env`. Med Mosquitto i en container (udskift `mosquitto` med navnet på din container):
+The bridge and fleet-telemetry log in to your broker with a user each. The usernames `tesla-bridge` and `fleet-telemetry` are suggestions – use others if you like, as long as they match here and in `.env`. With Mosquitto in a container (replace `mosquitto` with your container's name):
 
 ```bash
-docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd tesla-bridge     # <kode 1>
-docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd fleet-telemetry  # <kode 2>
+docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd tesla-bridge     # <password 1>
+docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd fleet-telemetry  # <password 2>
 docker restart mosquitto
 ```
 
-- Advarslen om filrettigheder fra `mosquitto_passwd` kan ignoreres.
-- Er din broker anonym (`allow_anonymous true`), springer du dette over og lader brugernavne og kodeord stå tomme i `.env`.
-- Tjek et login: `docker exec mosquitto mosquitto_sub -u tesla-bridge -P '<kode 1>' -t '$SYS/broker/version' -C 1`. Det skal skrive en version, ikke "not authorised".
+- The file-permission warning from `mosquitto_passwd` can be ignored.
+- If your broker is anonymous (`allow_anonymous true`), skip this and leave usernames and passwords empty in `.env`.
+- Test a login: `docker exec mosquitto mosquitto_sub -u tesla-bridge -P '<password 1>' -t '$SYS/broker/version' -C 1`. It should print a version, not "not authorised".
 
-### 5. Certifikatet til fleet-telemetry
+### 5. The certificate for fleet-telemetry
 
-Bilen taler direkte med fleet-telemetry på port 4443, så den skal have domænets certifikat. Læg `fullchain.pem` og `privkey.pem` i `config/fleet-telemetry/certs/`.
+The car talks directly to fleet-telemetry on port 4443, so it needs your domain's certificate. Put `fullchain.pem` and `privkey.pem` in `config/fleet-telemetry/certs/`.
 
-Fra Nginx Proxy Manager. Ret stien til hvor din NPM ligger, og `npm-<nr>` til dit certifikats nummer (se under *SSL Certificates* i NPM, eller `ls <npm-mappe>/letsencrypt/live/`):
+From Nginx Proxy Manager. Adjust the path to where your NPM lives, and `npm-<nr>` to your certificate's number (see *SSL Certificates* in NPM, or `ls <npm folder>/letsencrypt/live/`):
 
 ```bash
 mkdir -p config/fleet-telemetry/certs
-NPM=~/docker-services/nginx-proxy-manager/letsencrypt/live/npm-<nr>   # eksempel – ret til din
+NPM=~/docker-services/nginx-proxy-manager/letsencrypt/live/npm-<nr>   # example – adjust to yours
 sudo cp -L $NPM/fullchain.pem $NPM/privkey.pem config/fleet-telemetry/certs/
 sudo chown -R $(id -u):$(id -g) config/fleet-telemetry/certs
 ```
 
-Let's Encrypt fornyer hver ~60. dag, så læg de samme linjer i et cron-job (fx ugentligt), efterfulgt af `docker compose restart fleet-telemetry`.
+Let's Encrypt renews roughly every 60 days, so put the same lines in a cron job (e.g. weekly), followed by `docker compose restart fleet-telemetry`.
 
 ### 6. Start
 
 ```bash
 docker compose up -d
-docker compose logs tesla-init          # hvad der blev lavet + advarsler
-docker compose logs -f tesla-bridge     # A: "Forbundet til MQTT 192.168.0.x"   B: "Indbygget MQTT-broker kører"
+docker compose logs tesla-init          # what was created + warnings
+docker compose logs -f tesla-bridge     # A: connected to MQTT 192.168.0.x   B: embedded MQTT broker running
 ```
 
-`tesla-init` kører først ved hver start og stopper igen. Den laver appens nøgle (`config/tesla-proxy/fleet-key.pem`) og den interne TLS, hvis de mangler, og skriver `config/fleet-telemetry/config.json` ud fra `.env`. Eksisterende nøgler røres aldrig.
+`tesla-init` runs first on every start and then exits. It creates the app key (`config/tesla-proxy/fleet-key.pem`) and the internal TLS if they are missing, and writes `config/fleet-telemetry/config.json` from `.env`. Existing keys are never touched.
 
-**Tag `config/` og `data/` med i din backup.** Mister du `fleet-key.pem`, skal nøglen parres med bilen igen.
+**Include `config/` and `data/` in your backup.** If you lose `fleet-key.pem`, the key has to be paired with the car again.
 
-### 7. Login, domæne og parring i dashboardet
+### 7. Login, domain and pairing in the dashboard
 
-Åbn `http://<server>:8090` (kun på dit lokale net) og log ind med `Bridge__Web__Token`. Panelet **Opsætning** fører dig igennem:
+Open `http://<server-IP>:8090` (on your local network only) and sign in with `Bridge__Web__Token`. The **Setup** panel walks you through:
 
-1. **Registrér domænet hos Tesla** (partner-registrering). Kræver at `https://<dit domæne>` virker fra internettet.
-2. **Log ind med Tesla**.
-3. **Par nøglen med bilen**: scan QR-koden med telefonen (åbner `tesla.com/_ak/<dit domæne>`) og godkend i Tesla-appen, mens du er ved bilen.
-4. **Send telemetri-konfigurationen** til bilen. Det sker også automatisk ved første start, og den fornyes selv (den udløber efter 30 dage).
+1. **Register the domain with Tesla** (partner registration). Requires `https://<your domain>` to work from the internet.
+2. **Sign in with Tesla**.
+3. **Pair the key with the car**: scan the QR code with your phone (opens `tesla.com/_ak/<your domain>`) and approve in the Tesla app while you're at the car.
+4. **Send the telemetry configuration** to the car. This also happens automatically on first start, and it renews itself (it expires after 30 days).
 
-Åbn Tesla-appen for at vække bilen. Data bør dukke op inden for et minut. Tjek status fra terminalen:
+Open the Tesla app to wake the car. Data should show up within a minute. Check the status from a terminal:
 
 ```bash
-docker compose exec tesla-bridge dotnet TeslaBridge.dll telemetry-status   # vent på "synced": true
-docker compose exec tesla-bridge dotnet TeslaBridge.dll telemetry-errors   # hvis der ikke kommer data
+docker compose exec tesla-bridge dotnet TeslaBridge.dll telemetry-status   # wait for "synced": true
+docker compose exec tesla-bridge dotnet TeslaBridge.dll telemetry-errors   # if no data arrives
 ```
 
-> Bilen kan streame til flere apps. Bruger du Teslemetry, fortsætter den side om side. Opsig den, når du er tilfreds.
+> The car can stream to several apps. If you use Teslemetry, it keeps working side by side. Cancel it when you're happy.
 
 ### 8A. Home Assistant via MQTT
 
-Er HA allerede koblet på samme broker (fx til Zigbee2MQTT), dukker enhederne **<dit bilnavn>** og **Tesla Bridge** op af sig selv under MQTT. Ellers: *Indstillinger → Enheder og tjenester → Tilføj integration → MQTT*, og peg den på brokeren.
+If HA is already connected to the same broker (e.g. for Zigbee2MQTT), the devices **<your car name>** and **Tesla Bridge** appear under MQTT by themselves. Otherwise: *Settings → Devices & services → Add integration → MQTT*, and point it at the broker.
 
-Kommer der ingen entiteter, så tjek at `Bridge__Mqtt__DiscoveryPrefix=homeassistant`, og at HA's MQTT-integration bruger samme prefix (standard).
+If no entities appear, check that `Bridge__Mqtt__DiscoveryPrefix=homeassistant` and that HA's MQTT integration uses the same prefix (the default).
 
-### 8B. Home Assistant via integrationen
+### 8B. Home Assistant via the integration
 
-**Med HACS:**
-1. HACS → ⋮ (øverst til højre) → **Custom repositories**
+**With HACS:**
+1. HACS → ⋮ (top right) → **Custom repositories**
 2. Repository: `https://github.com/Mfoldager17/tesla-bridge`, type: **Integration** → *Add*
-3. Søg efter **Tesla Bridge** i HACS → *Download*
-4. **Genstart Home Assistant**
-5. *Indstillinger → Enheder og tjenester → Tilføj integration → Tesla Bridge*
-6. URL: `http://<server-IP>:8090`, token: `Bridge__Web__Token` fra `.env`
+3. Search for **Tesla Bridge** in HACS → *Download*
+4. **Restart Home Assistant**
+5. *Settings → Devices & services → Add integration → Tesla Bridge*
+6. URL: `http://<server-IP>:8090`, token: `Bridge__Web__Token` from `.env`
 
-**Uden HACS:** kopiér mappen `custom_components/tesla_bridge` fra dette repo til HA's `config/custom_components/tesla_bridge`, genstart HA, og fortsæt fra punkt 5.
+**Without HACS:** copy the folder `custom_components/tesla_bridge` from this repo to HA's `config/custom_components/tesla_bridge`, restart HA and continue from point 5.
 
-Integrationen:
-- henter entiteterne fra bridgen (`/api/entities`), så nye entiteter i en ny bridge-version kommer med, når integrationen genindlæses
-- får ændringer **live** via Server-Sent Events. Den poller ikke, og den indhenter alt, hvad der er sket, hvis forbindelsen har været væk
-- viser alle entiteter som *ikke tilgængelig*, hvis bridgen er nede, præcis som MQTT gør
-- beder om det nye token (reauth) ved næste genstart, hvis du ændrer `Bridge__Web__Token`
+The integration:
+- fetches the entities from the bridge (`/api/entities`), so new entities in a new bridge version show up when the integration is reloaded
+- receives changes **live** via Server-Sent Events. It doesn't poll, and it catches up on everything that happened if the connection was lost
+- marks all entities *unavailable* if the bridge is down, just like MQTT does
+- asks for the new token (reauth) on the next restart if you change `Bridge__Web__Token`
+- shows its setup dialog in English or Danish, depending on your HA language
 
 ---
 
-## Skift mellem MQTT og integration
+## Switching between MQTT and the integration
 
-Begge veje kan køre **samtidig**, mens du tester. Entiteterne fra den vej, du tilføjer sidst, får så `_2` på deres entity id. Når du vil skifte helt:
+Both ways can run **at the same time** while you test. The entities from the way you add last will then get `_2` in their entity id. To switch completely:
 
-### Fra A (MQTT) til B (integration)
+### From A (MQTT) to B (integration)
 
-1. **Skift `.env`** til B og genstart, så bridgen holder op med at sende til din broker:
+1. **Change `.env`** to B and restart, so the bridge stops publishing to your broker:
    ```ini
    Bridge__Mqtt__EmbeddedBroker=true
    Bridge__Mqtt__DiscoveryPrefix=
@@ -290,238 +291,242 @@ Begge veje kan køre **samtidig**, mens du tester. Entiteterne fra den vej, du t
    ```bash
    docker compose up -d
    ```
-2. **Ryd bridgens gemte beskeder i din broker.** Brokeren husker discovery-configs og sidste værdier (retained). Bliver de liggende, kan HA genskabe MQTT-enheden ved næste genstart. VIN skal stå med **små bogstaver**:
+2. **Clear the bridge's retained messages from your broker.** The broker remembers discovery configs and last values (retained). If they stay, HA may recreate the MQTT device on its next restart. The VIN must be **lowercase**:
    ```bash
-   docker exec mosquitto mosquitto_sub -u tesla-bridge -P '<kode 1>' \
-     -t 'homeassistant/+/tesla_bridge_<vin med små bogstaver>/+/config' \
+   docker exec mosquitto mosquitto_sub -u tesla-bridge -P '<password 1>' \
+     -t 'homeassistant/+/tesla_bridge_<vin in lowercase>/+/config' \
      -t 'homeassistant/sensor/tesla_bridge/+/config' \
      -t 'tesla/#' \
      --remove-retained --retained-only -W 3
    ```
-   Den slutter med "Timed out" efter 3 sekunder. Det er forventet. Når discovery-configs tømmes, fjerner HA selv MQTT-entiteterne. Står der en tom enhed tilbage under MQTT, så slet den.
-   Kun bridgens egne topics ryddes. Zigbee2MQTT og alt andet på brokeren røres ikke.
-3. **(Valgfrit) Fjern MQTT-brugerne.** De gør ingen skade, hvis de bliver:
+   It ends with "Timed out" after 3 seconds. That's expected. When the discovery configs are cleared, HA removes the MQTT entities by itself. If an empty device is left under MQTT, delete it.
+   Only the bridge's own topics are cleared. Zigbee2MQTT and everything else on the broker is untouched.
+3. **(Optional) Remove the MQTT users.** They do no harm if they stay:
    ```bash
    docker exec mosquitto mosquitto_passwd -D /mosquitto/config/passwd tesla-bridge
    docker exec mosquitto mosquitto_passwd -D /mosquitto/config/passwd fleet-telemetry
    docker restart mosquitto
    ```
-4. **Tilføj integrationen** (trin 8B). Entiteterne får de samme entity id'er som før, så dashboards og automationer virker uændret.
+4. **Add the integration** (step 8B). The entities get the same entity ids as before, so dashboards and automations keep working.
 
-### Fra B (integration) til A (MQTT)
+### From B (integration) to A (MQTT)
 
-1. Opret MQTT-brugerne (trin 4).
-2. Skift `.env` til A (trin 3), og kør `docker compose up -d`.
-3. Slet integrationen **Tesla Bridge** i HA (*Indstillinger → Enheder og tjenester*), så entity id'erne bliver ledige.
-4. Genstart bridgen (`docker compose restart tesla-bridge`). Den sender discovery igen, og MQTT-entiteterne dukker op med de samme entity id'er.
+1. Create the MQTT users (step 4).
+2. Change `.env` to A (step 3) and run `docker compose up -d`.
+3. Delete the **Tesla Bridge** integration in HA (*Settings → Devices & services*) so the entity ids are freed.
+4. Restart the bridge (`docker compose restart tesla-bridge`). It sends discovery again, and the MQTT entities appear with the same entity ids.
 
 ---
 
-## Entiteter i Home Assistant
+## Entities in Home Assistant
 
-Samme navne og typer som Teslemetry. Prefixet kommer fra `Bridge__Vehicles__0__Name`: "Model Y" giver `model_y_`, "Bilen" giver `bilen_`. Æ, ø og å bliver til ae, oe og a. Tabellen viser navnene uden prefix.
+Same names and types as Teslemetry. The prefix comes from `Bridge__Vehicles__0__Name`: "Model Y" gives `model_y_`, "My Car" gives `my_car_`. Accented and Nordic letters are simplified (æ → ae, ø → oe, å → a, é → e). The table shows the names without the prefix.
 
-Har du flere biler, så tilføj `Bridge__Vehicles__1__Vin` og `Bridge__Vehicles__1__Name` osv. Hver bil bliver sin egen enhed med sit eget prefix.
+For more cars, add `Bridge__Vehicles__1__Vin` and `Bridge__Vehicles__1__Name` and so on. Each car becomes its own device with its own prefix.
 
-| Type | Entiteter |
+| Type | Entities |
 |---|---|
-| `climate` | `climate` (tænd/sluk, temperatur, preset off/keep/dog/camp), `cabin_overheat_protection` (fra/køl/kun blæser, 30/35/40 °C) |
+| `climate` | `climate` (on/off, temperature, presets off/keep/dog/camp), `cabin_overheat_protection` (off/cool/fan only, 30/35/40 °C) |
 | `lock` | `lock`, `charge_cable_lock` |
-| `cover` | `frunk` (kun åbne), `trunk`, `charge_port_door`, `windows` |
+| `cover` | `frunk` (open only), `trunk`, `charge_port_door`, `windows` |
 | `switch` | `charge`, `sentry_mode`, `defrost`, `guest_mode`, `valet_mode`, `auto_seat_climate_left/right`, `auto_steering_wheel_heater` |
 | `number` | `charge_limit`, `charge_current` |
 | `select` | `seat_heater_front_left/right`, `seat_heater_rear_left/center/right`, `steering_wheel_heater` |
 | `button` | `wake`, `flash_lights`, `honk_horn`, `homelink`, `keyless_driving`, `play_fart` |
 | `sensor` | `battery_level`, `charging`, `charger_power/voltage/current`, `charge_energy_added`, `time_to_full_charge`, `energy_remaining`, `estimate_battery_range`, `ideal_battery_range`, `speed`, `shift_state` (P/D/R/N), `odometer`, `tire_pressure_*`, `inside/outside_temperature`, `destination`, `time_to_arrival`, `distance_to_arrival`, `state_of_charge_at_arrival`, `version`, `last_seen`, `command_status` … |
-| `binary_sensor` | `status` (online), `charge_cable`, døre, vinduer, `driver_seat_occupied`, `driver_seat_belt`, `preconditioning_enabled`, `scheduled_charging_pending`, `fast_charger_present` |
-| `device_tracker` | `location` (bilen), `route` (destination fra navigationen) |
+| `binary_sensor` | `status` (online), `charge_cable`, doors, windows, `driver_seat_occupied`, `driver_seat_belt`, `preconditioning_enabled`, `scheduled_charging_pending`, `fast_charger_present` |
+| `device_tracker` | `location` (the car), `route` (destination from the navigation) |
 
-Desuden enheden **Tesla Bridge** med Fleet API-forbruget: `sensor.tesla_bridge_cost_month`, `…_cost_projected`, `…_credit_left` samt antal signaler, kommandoer, wakes og data-forespørgsler for måneden. Velegnet til en automation, der advarer, hvis det forventede forbrug nærmer sig $10.
+There is also a **Tesla Bridge** device with your Fleet API usage: `sensor.tesla_bridge_cost_month`, `…_cost_projected`, `…_credit_left`, plus counts of signals, commands, wakes and data requests for the month. Handy for an automation that warns you if the projected cost approaches $10.
 
-`sensor.<bil>_command_status` viser den seneste kommando (`pending` → `waking` → `succeeded`/`failed`) med fejlen som attribut.
+`sensor.<car>_command_status` shows the latest command (`pending` → `waking` → `succeeded`/`failed`) with the error as an attribute.
 
 ---
 
-## Opdatering
+## Updating
 
-**Bridgen** (begge veje):
+**The bridge** (both ways):
 ```bash
 cd ~/docker-services/tesla-bridge
 docker compose pull && docker compose up -d
 ```
-Vil du låse en version, så sæt `BRIDGE_TAG=v1.2.0` i `.env`. Rul tilbage ved at sætte en ældre tag.
-Ændringer i selve `docker-compose.yml` (sjældne) hentes med samme `curl` som i trin 3. `.env` overskrives ikke.
+New versions are backwards compatible with your existing `.env`: new settings have defaults that keep the current behaviour.
+To pin a version, set `BRIDGE_TAG=v1.2.0` in `.env`. Roll back by setting an older tag.
+Changes to `docker-compose.yml` itself (rare) are fetched with the same `curl` as in step 3. Your `.env` is not overwritten.
 
-**Integrationen** (vej B): HACS viser en opdatering, når der er nye commits. Installér, og genstart HA. Kommer der nye entiteter i bridgen, dukker de op, når integrationen genindlæses (*⋮ → Genindlæs*).
+**The integration** (way B): HACS shows an update when there are new commits. Install it and restart HA. New entities from the bridge appear when the integration is reloaded (*⋮ → Reload*).
 
 ---
 
-## Fejlsøgning
+## Troubleshooting
 
-| Symptom | Tjek |
+| Symptom | Check |
 |---|---|
-| Ingen data fra bilen | `telemetry-status` skal vise `"synced": true`. Kør `telemetry-errors`. Er port 4443 åben udefra? Ligger certifikatet i `config/fleet-telemetry/certs/`? `docker compose logs fleet-telemetry` |
-| A: "not authorised" i loggen | Bruger/kode i `.env` passer ikke med Mosquittos `passwd`. Test med `mosquitto_sub` (trin 4) |
-| A: Ingen entiteter i HA | `Bridge__Mqtt__DiscoveryPrefix` skal være `homeassistant`, og HA skal være på samme broker |
-| B: "Kan ikke nå bridgen" i HA | Brug serverens IP, ikke `localhost`. Prøv `curl http://<server>:8090/api/info` fra HA-maskinen. `Bridge__Web__Enabled` må ikke være `false` |
-| B: "Forkert token" | Tokenet skal være præcis `Bridge__Web__Token` fra `.env` |
-| Entiteter hedder `_2` | Begge veje kører samtidig. Se [Skift mellem MQTT og integration](#skift-mellem-mqtt-og-integration) |
-| Kommandoer fejler med "Ikke logget ind" | Log ind med Tesla i dashboardet (trin 7) |
-| Kommandoer fejler med "key not paired" | Par nøglen igen via QR-koden (trin 7), mens du er ved bilen |
-| "Bil: venter på signal" | Bilen sover. Bridgen spørger Tesla ved start. Når bilen vågner, kommer der data |
-| Værdier er "unknown" | Bilen sender kun ved ændring. Når den vågner, hentes et snapshot (højst én gang i timen) |
+| No data from the car | `telemetry-status` must show `"synced": true`. Run `telemetry-errors`. Is port 4443 open from outside? Is the certificate in `config/fleet-telemetry/certs/`? `docker compose logs fleet-telemetry` |
+| A: "not authorised" in the log | The user/password in `.env` doesn't match Mosquitto's `passwd`. Test with `mosquitto_sub` (step 4) |
+| A: No entities in HA | `Bridge__Mqtt__DiscoveryPrefix` must be `homeassistant`, and HA must be on the same broker |
+| B: "Cannot reach the bridge" in HA | Use the server's IP, not `localhost`. Try `curl http://<server-IP>:8090/api/info` from the HA machine. `Bridge__Web__Enabled` must not be `false` |
+| B: "Wrong token" | The token must be exactly `Bridge__Web__Token` from `.env` |
+| Entities end in `_2` | Both ways are running at once. See [Switching](#switching-between-mqtt-and-the-integration) |
+| Domain or app name rejected by Tesla | It contains "tesla". Pick another (sub)domain |
+| Commands fail with "not logged in" | Sign in with Tesla in the dashboard (step 7) |
+| Commands fail with "key not paired" | Pair the key again via the QR code (step 7) while you're at the car |
+| "Bil: venter på signal" (car: waiting for signal) | The car is asleep. The bridge asks Tesla on start; when the car wakes, data arrives |
+| Values are "unknown" | The car only sends on change. When it wakes, a snapshot is fetched (at most once an hour) |
 
 ---
 
-## Dashboardet
+## The dashboard
 
-Bridgen har et indbygget dashboard på `http://<server>:8090` (`http://localhost:8080` ved lokal test). Du kan se, at alt virker, før HA kobles på:
+The bridge has a built-in dashboard at `http://<server-IP>:8090` (`http://localhost:8080` when testing locally). You can check that everything works before connecting HA:
 
-- **Opsætning**: domæne, Tesla-login, parring og telemetri-status, trin for trin
-- **Overblik**: batteri, klima, lås, opladning, temperaturer, position. Lilla kant = venter på at bilen bekræfter
-- **Kommandoer**: alle knapper, med en log der viser *sendt → vækker bilen → udført/fejlede*
-- **Alle felter**: hver værdi med kilde (`stream`, `snapshot`, `optimistic`, `restored`, `bridge`) og alder
-- **Rå telemetri**: præcis hvad bilen sendte, før bridgen oversatte det
-- **Forbrug**: månedens signaler, kommandoer, wakes og data-forespørgsler med pris efter Teslas takst og fremskrivning til månedens udgang
+- **Setup**: domain, Tesla login, pairing and telemetry status, step by step
+- **Overview**: battery, climate, lock, charging, temperatures, location. Purple border = waiting for the car to confirm
+- **Commands**: every button, with a log showing *sent → waking car → done/failed*
+- **All fields**: every value with its source (`stream`, `snapshot`, `optimistic`, `restored`, `bridge`) and age
+- **Raw telemetry**: exactly what the car sent before the bridge translated it
+- **Usage**: the month's signals, commands, wakes and data requests, priced at Tesla's rates, with a projection to the end of the month
 
-Dashboardet kan låse bilen op. Sæt derfor altid `Bridge__Web__Token`, og **port-forward aldrig port 8090**. Den offentlige port 8091 svarer kun på den offentlige nøgle og login-callback. `Bridge__Web__Enabled=false` slår dashboardet og HTTP-API'et fra, og så virker vej B ikke.
+The dashboard can unlock your car. Always set `Bridge__Web__Token`, and **never forward port 8090**. The public port 8091 only answers with the public key and the login callback. `Bridge__Web__Enabled=false` turns off the dashboard and the HTTP API – way B then stops working.
 
----
-
-## Felter og intervaller
-
-`config/bridge/telemetry-fields.json` bestemmer, hvilke felter bilen sender, og hvor ofte højst. Bilen sender **kun ved ændring**, så:
-- diskrete felter (lås, døre, klima, ladestatus, gear) står på 1 s og føles live uden at koste noget
-- hurtigt skiftende felter (position, hastighed, batteri) er dem, der koster, og står på 60–600 s
-
-Standardfilen følger med imaget. Vil du have dine egne intervaller, så læg en kopi i `config/bridge/telemetry-fields.json` på serveren, sæt `Bridge__Telemetry__FieldsFile=/config/bridge/telemetry-fields.json` i `.env`, og genstart. Bridgen opdager selv, at felterne er ændret, og sender den nye konfiguration til bilen.
-
-Felter, bridgen ikke kender, kommer igennem uændret som `snake_case` (fx `TpmsPressureFl` → `tpms_pressure_fl`). Gyldige navne står i Teslas [vehicle_data.proto](https://github.com/teslamotors/fleet-telemetry/blob/main/protos/vehicle_data.proto).
+> The dashboard UI and the bridge's log messages are currently in Danish.
 
 ---
 
-## MQTT-API (vej A)
+## Fields and intervals
 
-**Tilstand** (retained, JSON-værdier, metriske enheder):
+`config/bridge/telemetry-fields.json` decides which fields the car sends and how often at most. The car **only sends on change**, so:
+- discrete fields (lock, doors, climate, charging state, gear) are set to 1 s and feel live at no extra cost
+- fast-changing fields (location, speed, battery) are the ones that cost, and are set to 60–600 s
+
+The default file ships with the image. For your own intervals, put a copy in `config/bridge/telemetry-fields.json` on the server, set `Bridge__Telemetry__FieldsFile=/config/bridge/telemetry-fields.json` in `.env` and restart. The bridge notices that the fields changed and sends the new configuration to the car.
+
+Fields the bridge doesn't know pass through unchanged as `snake_case` (e.g. `TpmsPressureFl` → `tpms_pressure_fl`). Valid names are in Tesla's [vehicle_data.proto](https://github.com/teslamotors/fleet-telemetry/blob/main/protos/vehicle_data.proto).
+
+---
+
+## MQTT API (way A)
+
+**State** (retained, JSON values, metric units):
 ```
 tesla/<VIN>/state/battery_level        72.5
 tesla/<VIN>/state/climate_on           true
 tesla/<VIN>/state/charging_state       "charging"
 tesla/<VIN>/state/gear                 "D"
 tesla/<VIN>/state/location             {"latitude":56.1,"longitude":10.1}
-tesla/<VIN>/state/locked_motion        "LOCKING"   (også *_motion for frunk, trunk, ladeport og vinduer)
-tesla/<VIN>/json                       hele snapshot med updated_at og source pr. felt
+tesla/<VIN>/state/locked_motion        "LOCKING"   (also *_motion for frunk, trunk, charge port and windows)
+tesla/<VIN>/json                       full snapshot with updated_at and source per field
 tesla/<VIN>/command/status             {"command":"ClimateOn","status":"waking",...}
-tesla/bridge/usage                     Fleet API-forbrug for måneden
+tesla/bridge/usage                     Fleet API usage for the month
 tesla/bridge/status                    online | offline
 ```
-`source` er `stream` (bekræftet af bilen), `snapshot` (hentet fra Fleet API), `optimistic` (venter på bekræftelse), `restored` (fra disk) eller `bridge`.
+`source` is `stream` (confirmed by the car), `snapshot` (fetched from the Fleet API), `optimistic` (waiting for confirmation), `restored` (from disk) or `bridge`.
 
-**Kommandoer**: publicér på `tesla/<VIN>/cmd/<navn>`:
+**Commands**: publish to `tesla/<VIN>/cmd/<name>`:
 
-| Navn | Payload |
+| Name | Payload |
 |---|---|
 | `climate`, `defrost`, `charge`, `sentry_mode`, `guest_mode`, `valet_mode`, `steering_wheel_heat`, `auto_seat_climate_left/right`, `auto_steering_wheel_heater` | `on` / `off` |
 | `lock` | `LOCK` / `UNLOCK` |
 | `trunk`, `windows`, `charge_port_door` | `OPEN` / `CLOSE` |
 | `frunk` | `OPEN` |
-| `charge_cable_lock` | `UNLOCK` (åbner ladeporten og frigiver kablet) |
+| `charge_cable_lock` | `UNLOCK` (opens the charge port and releases the cable) |
 | `driver_temp` | `21.5` (15–28) |
 | `climate_keeper` | `off` `keep` `dog` `camp` |
 | `cabin_overheat_protection` | `off` `on` `fan_only` |
 | `cop_temp` | `30` `35` `40` |
 | `charge_limit` / `charge_current` | `80` / `16` |
-| `seat_heater_left/right`, `seat_heater_rear_left/center/right` | `off` `low` `medium` `high` eller `0`–`3` |
+| `seat_heater_left/right`, `seat_heater_rear_left/center/right` | `off` `low` `medium` `high` or `0`–`3` |
 | `steering_wheel_heater` | `off` `low` `high` |
-| `wake`, `flash_lights`, `honk_horn`, `homelink`, `keyless_driving`, `play_fart` | hvad som helst |
+| `wake`, `flash_lights`, `honk_horn`, `homelink`, `keyless_driving`, `play_fart` | anything |
 
 ```bash
-mosquitto_pub -u tesla-bridge -P '<kode 1>' -t tesla/<VIN>/cmd/climate -m on
+mosquitto_pub -u tesla-bridge -P '<password 1>' -t tesla/<VIN>/cmd/climate -m on
 ```
 
 ---
 
-## HTTP-API (vej B og alt andet)
+## HTTP API (way B and everything else)
 
-Det er det API, integrationen og dashboardet bruger. Det kører på port 8090 i begge veje, så ESP32-paneler, Node-RED osv. også kan bruge det uden MQTT.
-Token: `Authorization: Bearer <Bridge__Web__Token>` (eller `?token=` i URL'en).
+This is the API the integration and the dashboard use. It runs on port 8090 in both ways, so ESP32 panels, Node-RED etc. can use it without MQTT too.
+Token: `Authorization: Bearer <token>` (or `?token=` in the URL).
 
 | Endpoint | |
 |---|---|
-| `GET /api/info` | starttid, biler, om MQTT er forbundet, om token kræves (kræver ikke selv token) |
-| `GET /api/entities` | alle HA-entiteter: samme definitioner som MQTT discovery, med `state:<felt>` / `cmd:<navn>` i stedet for topics |
-| `GET /api/state` | alle felter pr. bil med værdi, tidspunkt og kilde (inkl. `*_motion`) |
-| `GET /api/events` | Server-Sent Events: `field` (en værdi ændrede sig) og `command` (kommandostatus) live |
-| `POST /api/vehicles/<VIN>/cmd/<navn>` | kommando. Body = samme payload som på MQTT (tom body = `PRESS`) |
-| `GET /api/usage` | Fleet API-forbrug |
+| `GET /api/info` | start time, cars, whether MQTT is connected, whether a token is required (needs no token itself) |
+| `GET /api/entities` | all HA entities: the same definitions as MQTT discovery, with `state:<field>` / `cmd:<name>` instead of topics |
+| `GET /api/state` | all fields per car with value, timestamp and source (including `*_motion`) |
+| `GET /api/events` | Server-Sent Events: `field` (a value changed) and `command` (command status), live |
+| `POST /api/vehicles/<VIN>/cmd/<name>` | a command. Body = the same payload as on MQTT (empty body = `PRESS`) |
+| `GET /api/usage` | Fleet API usage |
 
 ```bash
-T=<Bridge__Web__Token>
-curl -H "Authorization: Bearer $T" http://<server>:8090/api/state
-curl -H "Authorization: Bearer $T" -X POST -d on http://<server>:8090/api/vehicles/<VIN>/cmd/climate
-curl -N -H "Authorization: Bearer $T" http://<server>:8090/api/events      # live
+T=<token>
+curl -H "Authorization: Bearer $T" http://<server-IP>:8090/api/state
+curl -H "Authorization: Bearer $T" -X POST -d on http://<server-IP>:8090/api/vehicles/<VIN>/cmd/climate
+curl -N -H "Authorization: Bearer $T" http://<server-IP>:8090/api/events      # live
 ```
 
 ---
 
-## Test lokalt uden bil
+## Testing locally without a car
 
-Kræver kun [.NET 10 SDK](https://dotnet.microsoft.com/download).
+Only needs the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ```bash
 cd src/TeslaBridge
 dotnet run
 ```
 
-Åbn **http://localhost:8080**, og tryk **Send testdata**. Profilen "Lokal test" (`appsettings.Development.json`) starter den **indbyggede broker** (som vej B) og en **simulator**, der sender falske telemetri-beskeder gennem MQTT præcis som fleet-telemetry. Kommandoer fejler pænt med "Ikke logget ind hos Tesla".
+Open **http://localhost:8080** and press **Send testdata** (send test data). The local test profile (`appsettings.Development.json`) starts the **embedded broker** (like way B) and a **simulator** that sends fake telemetry through MQTT exactly like fleet-telemetry. Commands fail gracefully with "not logged in to Tesla".
 
-Du kan også pege en test-HA med integrationen på `http://<din maskine>:8080`.
+You can also point a test HA with the integration at `http://<your machine>:8080`.
 
-> Optager noget allerede port 1883, så kør `Bridge__Mqtt__Port=1884 dotnet run`.
+> If something already uses port 1883, run `Bridge__Mqtt__Port=1884 dotnet run`.
 
 ---
 
-## Udvikling
+## Development
 
 ```
 tesla-bridge/
-├── docker-compose.yml              det eneste serveren skal have (+ .env)
-├── docker-compose.build.yml        byg bridgen lokalt i stedet for at hente fra ghcr.io
-├── Dockerfile                      amd64 + arm64 (krydskompileret)
-├── .env.example                    alt dit eget: domæne, app, VIN, MQTT/indbygget broker
-├── hacs.json                       gør repoet installerbart fra HACS
-├── custom_components/tesla_bridge/ HA-integrationen (vej B)
-│   ├── __init__.py                 hub: henter entiteter og tilstand, lytter på live events
-│   ├── entity.py                   fælles basis: renderer de samme templates som MQTT
+├── docker-compose.yml              all the server needs (+ .env)
+├── docker-compose.build.yml        build the bridge locally instead of pulling from ghcr.io
+├── Dockerfile                      amd64 + arm64 (cross-compiled)
+├── .env.example                    everything specific to you: domain, app, VIN, MQTT/embedded broker
+├── hacs.json                       makes the repo installable from HACS
+├── custom_components/tesla_bridge/ the HA integration (way B)
+│   ├── __init__.py                 hub: fetches entities and state, listens to live events
+│   ├── entity.py                   common base: renders the same templates as MQTT
 │   ├── config_flow.py              URL + token, reauth
-│   └── sensor.py, climate.py …     én fil pr. platform
-├── config/bridge/                  bygges ind i imaget (/app/defaults)
-│   ├── telemetry-fields.json       felter + intervaller sendt til bilen
-│   └── vehicle-trust-ca.pem        rodcertifikater bilen stoler på
+│   └── sensor.py, climate.py …     one file per platform
+├── config/bridge/                  baked into the image (/app/defaults)
+│   ├── telemetry-fields.json       fields + intervals sent to the car
+│   └── vehicle-trust-ca.pem        root certificates the car trusts
 ├── src/TeslaBridge/
 │   ├── Program.cs                  DI + CLI (init, auth, push-config, telemetry-status/-errors)
-│   ├── Setup/Bootstrap.cs          nøgler, intern TLS, fleet-telemetrys config (tesla-init)
-│   ├── Telemetry/                  SignalMapper (rå → normaliseret), ingest, snapshot, config-push
-│   ├── State/                      VehicleStateStore (bekræftet vs. forventet), persistens
-│   ├── Commands/                   kommandoer, parser, CommandService (optimistisk + væk + retry)
-│   ├── Publishing/                 HomeAssistantDiscovery (entiteterne – bruges af BEGGE veje), StatePublisher
-│   ├── Mqtt/                       forbindelse med genopkobling og Last Will, indbygget broker
-│   ├── Web/                        dashboard, HTTP-API, live events (SSE)
-│   └── Auth/, Usage/               Tesla-login og forbrugstælling
-├── tests/TeslaBridge.Tests/        .NET-tests
-└── tests/ha/                       integrationen mod en kørende bridge (pytest-homeassistant-custom-component)
+│   ├── Setup/Bootstrap.cs          keys, internal TLS, fleet-telemetry's config (tesla-init)
+│   ├── Telemetry/                  SignalMapper (raw → normalized), ingest, snapshot, config push
+│   ├── State/                      VehicleStateStore (confirmed vs. expected), persistence
+│   ├── Commands/                   commands, parser, CommandService (optimistic + wake + retry)
+│   ├── Publishing/                 HomeAssistantDiscovery (the entities – used by BOTH ways), StatePublisher
+│   ├── Mqtt/                       connection with reconnect and Last Will, embedded broker
+│   ├── Web/                        dashboard, HTTP API, live events (SSE)
+│   └── Auth/, Usage/               Tesla login and usage tracking
+├── tests/TeslaBridge.Tests/        .NET tests
+└── tests/ha/                       the integration against a running bridge (pytest-homeassistant-custom-component)
 ```
 
-**Tilføj eller ret en entitet:** gør det i `Publishing/HomeAssistantDiscovery.cs`. Både MQTT discovery og `/api/entities` bygger på den, så integrationen får ændringen automatisk.
+**Adding or changing an entity:** do it in `Publishing/HomeAssistantDiscovery.cs`. Both MQTT discovery and `/api/entities` are built from it, so the integration picks up the change automatically.
 
 **Tests:**
 ```bash
 dotnet test                                              # .NET
-(cd src/TeslaBridge && dotnet run &)                     # bridge med simulator på :8080
+(cd src/TeslaBridge && dotnet run &)                     # bridge with simulator on :8080
 pip install pytest-homeassistant-custom-component
-python -m pytest tests/ha -v                             # integrationen mod bridgen
+python -m pytest tests/ha -v                             # the integration against the bridge
 ```
 
-**Udgivelse:** push til `main` → GitHub Actions kører begge testsæt og bygger `ghcr.io/mfoldager17/tesla-bridge:latest` (amd64 + arm64). Et tag som `v1.2.0` giver også `:v1.2.0` og `:v1.2`.
+**Releases:** pushing to `main` → GitHub Actions runs both test suites and builds `ghcr.io/mfoldager17/tesla-bridge:latest` (amd64 + arm64). A tag like `v1.2.0` also produces `:v1.2.0` and `:v1.2`.
 
-**BLE senere:** lav `BleTransport : ICommandTransport` med `Priority = 0`, og registrér den i `Program.cs`. `CommandRouter` prøver BLE først og falder tilbage til Fleet API.
+**BLE later:** create a `BleTransport : ICommandTransport` with `Priority = 0` and register it in `Program.cs`. `CommandRouter` tries BLE first and falls back to the Fleet API.

@@ -1,4 +1,4 @@
-"""Fælles basis: én entitet = én definition fra /api/entities (samme som MQTT discovery)."""
+"""Common base: one entity = one definition from /api/entities (same as MQTT discovery)."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .const import BRIDGE
 
 
 class BridgeEntity(Entity):
-    """Læser felter fra hub'en og renderer de samme Jinja-templates som MQTT-integrationen."""
+    """Reads fields from the hub and renders the same Jinja templates as the MQTT integration."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
@@ -36,9 +36,9 @@ class BridgeEntity(Entity):
         if cfg.get("enabled_by_default") is False:
             self._attr_entity_registry_enabled_default = False
         if cfg.get("default_entity_id"):
-            self.entity_id = cfg["default_entity_id"]   # forslag: sensor.model_y_battery_level osv.
+            self.entity_id = cfg["default_entity_id"]   # suggested id, e.g. sensor.model_y_battery_level
 
-    # ---------- felter ----------
+    # ---------- fields ----------
 
     def _ref(self, field: str) -> tuple[str, str] | None:
         topic = self.cfg.get(field)
@@ -63,10 +63,10 @@ class BridgeEntity(Entity):
         return self._templates[name]
 
     def render(self, field: str, template: str | None = None) -> str | None:
-        """Felt → tekst, præcis som MQTT gør med value_json. "None"/tom = ukendt."""
+        """Field → text, exactly like MQTT does with value_json. "None"/empty = unknown."""
         value = self.raw(field)
         if value is None:
-            return None   # ukendt – som når et MQTT-topic endnu ikke har en værdi
+            return None   # unknown – like an MQTT topic without a value yet
         tpl = self._template(template) if template else None
         if tpl is None:
             return value if isinstance(value, str) else json.dumps(value)
@@ -83,13 +83,13 @@ class BridgeEntity(Entity):
     async def send(self, field: str, payload: Any) -> None:
         target = self.cfg.get(field)
         if not isinstance(target, str) or not target.startswith("cmd:"):
-            raise HomeAssistantError(f"{self.name} kan ikke styres")
+            raise HomeAssistantError(f"{self.name} cannot be controlled")
         try:
             await self.hub.client.command(self.vin, target[4:], str(payload))
         except BridgeError as err:
             raise HomeAssistantError(f"Tesla Bridge: {err}") from err
 
-    # ---------- livscyklus ----------
+    # ---------- lifecycle ----------
 
     @property
     def available(self) -> bool:

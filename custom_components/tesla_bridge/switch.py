@@ -1,4 +1,4 @@
-"""Kontakter (lading, sentry, afrimning, gæstetilstand …)."""
+"""Switches (charging, sentry, defrost, guest mode …)."""
 
 from __future__ import annotations
 

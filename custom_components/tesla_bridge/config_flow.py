@@ -1,4 +1,4 @@
-"""Opsætning i HA's brugerflade: adresse på bridgen + evt. token."""
+"""Setup in the HA UI: bridge address + optional token."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ class TeslaBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
         client = BridgeClient(async_get_clientsession(self.hass), url, token)
         try:
             info = await client.info()
-            await client.entities()   # kræver token, hvis bridgen har et
+            await client.entities()   # requires the token if the bridge has one
         except BridgeAuthError:
             return {"base": "invalid_auth"}, None
         except BridgeError:

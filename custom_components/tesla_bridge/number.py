@@ -1,4 +1,4 @@
-"""Tal (ladegrænse og ladestrøm)."""
+"""Numbers (charge limit and charge current)."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Binære sensorer (status, døre, vinduer, ladekabel …)."""
+"""Binary sensors (status, doors, windows, charge cable …)."""
 
 from __future__ import annotations
 

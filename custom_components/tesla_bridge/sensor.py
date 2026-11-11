@@ -1,4 +1,4 @@
-"""Sensorer (batteri, rækkevidde, temperaturer, ankomst, forbrug …)."""
+"""Sensors (battery, range, temperatures, arrival, usage …)."""
 
 from __future__ import annotations
 

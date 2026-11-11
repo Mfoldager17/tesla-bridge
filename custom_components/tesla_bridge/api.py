@@ -1,4 +1,4 @@
-"""HTTP-klient til bridgens API (samme som dashboardet bruger)."""
+"""HTTP client for the bridge API (the same one the dashboard uses)."""
 
 from __future__ import annotations
 
@@ -11,15 +11,15 @@ import aiohttp
 
 
 class BridgeError(Exception):
-    """Bridgen kunne ikke nås."""
+    """The bridge could not be reached."""
 
 
 class BridgeAuthError(BridgeError):
-    """Forkert eller manglende token."""
+    """Wrong or missing token."""
 
 
 class BridgeClient:
-    """GET /api/info, /api/entities, /api/state, /api/usage, SSE /api/events og POST kommandoer."""
+    """GET /api/info, /api/entities, /api/state, /api/usage, SSE /api/events and POST commands."""
 
     def __init__(self, session: aiohttp.ClientSession, url: str, token: str | None) -> None:
         self._session = session
@@ -36,7 +36,7 @@ class BridgeClient:
                 f"{self.url}{path}", headers=self._headers, timeout=aiohttp.ClientTimeout(total=15)
             ) as r:
                 if r.status == 401:
-                    raise BridgeAuthError("Forkert token")
+                    raise BridgeAuthError("Wrong token")
                 r.raise_for_status()
                 return await r.json(content_type=None)
         except BridgeAuthError:
@@ -65,21 +65,21 @@ class BridgeClient:
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as r:
                 if r.status == 401:
-                    raise BridgeAuthError("Forkert token")
+                    raise BridgeAuthError("Wrong token")
                 if r.status >= 400:
                     raise BridgeError((await r.text())[:300])
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             raise BridgeError(str(err)) from err
 
     async def events(self) -> AsyncIterator[dict[str, Any]]:
-        """Server-Sent Events. Afslutter når forbindelsen lukker."""
+        """Server-Sent Events. Ends when the connection closes."""
         async with self._session.get(
             f"{self.url}/api/events",
             headers={**self._headers, "Accept": "text/event-stream"},
-            timeout=aiohttp.ClientTimeout(total=None, sock_connect=15, sock_read=60),  # ping hver 15 s
+            timeout=aiohttp.ClientTimeout(total=None, sock_connect=15, sock_read=60),  # the bridge pings every 15 s
         ) as r:
             if r.status == 401:
-                raise BridgeAuthError("Forkert token")
+                raise BridgeAuthError("Wrong token")
             r.raise_for_status()
             data: list[str] = []
             async for raw in r.content:

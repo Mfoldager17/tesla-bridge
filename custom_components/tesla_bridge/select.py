@@ -1,4 +1,4 @@
-"""Valg (sædevarme og rattvarme)."""
+"""Selects (seat heaters and steering wheel heater)."""
 
 from __future__ import annotations
 

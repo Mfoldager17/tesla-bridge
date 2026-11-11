@@ -1,26 +1,26 @@
-# Tesla Bridge – selvhostet erstatning for Teslemetry
+# Tesla Bridge – self-hosted replacement for Teslemetry
 #
-# Serveren skal KUN have denne fil + .env (ingen kildekode):
+# The server ONLY needs this file + .env (no source code):
 #   curl -fsSLO https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/docker-compose.yml
 #   curl -fsSL  https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/.env.example -o .env
 #   nano .env && docker compose up -d
-# Opdatering:  docker compose pull && docker compose up -d
+# Update:  docker compose pull && docker compose up -d
 #
-#   https://<dit domæne> (NPM :443) ──▶ tesla-bridge :8091   (offentlig nøgle + login-callback)
-#   Bil ──mTLS:4443──▶ fleet-telemetry ──MQTT──▶ din broker ◀──▶ tesla-bridge ◀──▶ HA / paneler
-#                      (eller bridgens indbyggede broker: Bridge__Mqtt__EmbeddedBroker=true – så behøves ingen Mosquitto)
-#                                                                    │
-#                                            tesla-proxy (signerer) ◀┘──▶ Tesla Fleet API
+#   https://<your domain> (reverse proxy :443) ──▶ tesla-bridge :8091   (public key + login callback)
+#   Car ──mTLS:4443──▶ fleet-telemetry ──MQTT──▶ your broker ◀──▶ tesla-bridge ◀──▶ Home Assistant / panels
+#                      (or the bridge's embedded broker: Bridge__Mqtt__EmbeddedBroker=true – no Mosquitto needed)
+#                                                                      │
+#                                              tesla-proxy (signs) ◀───┘──▶ Tesla Fleet API
 #
-# Kun port 4443 skal port-forwardes fra routeren (til fleet-telemetry).
-# Mapperne ./config og ./data laves automatisk. Det eneste du selv lægger ind er
-# certifikatet til dit domæne i ./config/fleet-telemetry/certs/ (fullchain.pem + privkey.pem).
+# Only port 4443 needs to be forwarded from your router (to fleet-telemetry).
+# ./config and ./data are created automatically. The only thing you add yourself is
+# your domain's certificate in ./config/fleet-telemetry/certs/ (fullchain.pem + privkey.pem).
 
 x-bridge-image: &bridge-image ghcr.io/mfoldager17/tesla-bridge:${BRIDGE_TAG:-latest}
 
 services:
-  # Kører én gang ved hver start og stopper igen: laver appens nøgle og intern TLS, hvis de mangler,
-  # skriver fleet-telemetrys config.json ud fra .env og giver filerne til PUID:PGID.
+  # Runs once on every start and exits: creates the app key and internal TLS if missing,
+  # writes fleet-telemetry's config.json from .env and hands the files to PUID:PGID.
   tesla-init:
     image: *bridge-image
     command: ["init"]
@@ -35,7 +35,7 @@ services:
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
     ports:
-      - "4443:4443"            # port forward fra routeren hertil
+      - "4443:4443"            # forward this port from your router
     environment:
       SUPPRESS_TLS_HANDSHAKE_ERROR_LOGGING: "true"
     volumes:
@@ -45,20 +45,20 @@ services:
       tesla-init:
         condition: service_completed_successfully
       tesla-bridge:
-        condition: service_started   # med den indbyggede broker skal bridgen køre først
+        condition: service_started   # with the embedded broker the bridge must be running first
 
   tesla-proxy:
     image: tesla/vehicle-command:0.4.1
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
-    # Ingen ports: kun bridgen taler med den på det interne docker-netværk.
+    # No ports: only the bridge talks to it, on the internal docker network.
     environment:
       TESLA_HTTP_PROXY_TLS_CERT: /config/tls-cert.pem
       TESLA_HTTP_PROXY_TLS_KEY: /config/tls-key.pem
       TESLA_HTTP_PROXY_HOST: 0.0.0.0
       TESLA_HTTP_PROXY_PORT: "4443"
       TESLA_HTTP_PROXY_TIMEOUT: 30s
-      TESLA_KEY_FILE: /config/fleet-key.pem   # appens private nøgle
+      TESLA_KEY_FILE: /config/fleet-key.pem   # the app's private key
     security_opt:
       - no-new-privileges:true
     volumes:
@@ -75,9 +75,9 @@ services:
     environment:
       HOME: /data
     ports:
-      - "8090:8080"            # dashboard på http://<server>:8090. Kun LAN – port-forward IKKE.
-      - "8091:8091"            # offentlig: KUN nøgle + login-callback. NPM sender https://<dit domæne> hertil.
-      # - "1884:1883"          # kun hvis andre (fx HA) skal bruge den indbyggede broker – ellers lad den være lukket
+      - "8090:8080"            # dashboard + API on http://<server>:8090. LAN only – do NOT forward this port.
+      - "8091:8091"            # public: ONLY public key + login callback. Your reverse proxy sends https://<your domain> here.
+      # - "1884:1883"          # only if others (e.g. HA) should use the embedded broker – otherwise keep it closed
     volumes:
       - ./config:/config
       - ./data:/data

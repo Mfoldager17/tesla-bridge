@@ -1,4 +1,4 @@
-"""Kører mod en rigtig bridge (dotnet run, Development + simulator) på BRIDGE_URL."""
+"""Runs against a real bridge (dotnet run, Development + simulator) at BRIDGE_URL."""
 
 import asyncio
 import os
@@ -22,7 +22,7 @@ async def test_entities_follow_the_bridge(hass: HomeAssistant, socket_enabled) -
 
     states = hass.states.async_all()
     ids = {s.entity_id for s in states}
-    print(len(ids), "entiteter")
+    print(len(ids), "entities")
     for e in ["sensor.model_y_battery_level", "lock.model_y_lock", "climate.model_y_climate",
               "cover.model_y_frunk", "device_tracker.model_y_location", "select.model_y_seat_heater_front_left",
               "number.model_y_charge_limit", "switch.model_y_charge", "button.model_y_wake",
@@ -55,7 +55,7 @@ async def test_entities_follow_the_bridge(hass: HomeAssistant, socket_enabled) -
     print("cost", hass.states.get("sensor.tesla_bridge_cost_month"))
     assert hass.states.get("sensor.model_y_last_seen").state not in ("unknown", "unavailable")
 
-    # Kommando: lås op → bridgen sætter optimistisk tilstand → UNLOCKING/unlocked via SSE
+    # Command: unlock → the bridge sets an optimistic state → UNLOCKING/unlocked via SSE
     before = hass.states.get("lock.model_y_lock").state
     service = "unlock" if before == "locked" else "lock"
     await hass.services.async_call("lock", service, {"entity_id": "lock.model_y_lock"}, blocking=True)
@@ -84,7 +84,7 @@ async def test_entities_follow_the_bridge(hass: HomeAssistant, socket_enabled) -
     print("cop", hass.states.get("climate.model_y_cabin_overheat_protection").state)
     print("seat", hass.states.get("select.model_y_seat_heater_front_left").state)
     print("limit", hass.states.get("number.model_y_charge_limit").state)
-    # Uden Tesla-login fejler kommandoerne i bridgen; det vigtige her er at de nåede frem.
+    # Without a Tesla login the commands fail in the bridge; what matters here is that they arrived.
     status = hass.states.get("sensor.model_y_command_status")
     print("status", status.state, status.attributes)
     assert status.attributes.get("command") == "SetChargeLimit"

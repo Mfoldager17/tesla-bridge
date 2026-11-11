@@ -1,4 +1,4 @@
-"""Konstanter for Tesla Bridge."""
+"""Constants for Tesla Bridge."""
 
 DOMAIN = "tesla_bridge"
 CONF_URL = "url"
@@ -17,5 +17,5 @@ PLATFORMS = [
     "switch",
 ]
 
-# Nøgle i hub.state for bridgens eget forbrug (ikke en bil)
+# Key in hub.state for the bridge's own usage (not a car)
 BRIDGE = "__bridge__"

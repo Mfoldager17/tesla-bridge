@@ -1,4 +1,4 @@
-"""Knapper (vække, blinke, dytte, homelink …)."""
+"""Buttons (wake, flash lights, honk, homelink …)."""
 
 from __future__ import annotations
 

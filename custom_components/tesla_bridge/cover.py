@@ -1,4 +1,4 @@
-"""Covers (frunk, bagklap, ladeport, vinduer) – med opening/closing mens bilen svarer."""
+"""Covers (frunk, trunk, charge port, windows) – with opening/closing while the car responds."""
 
 from __future__ import annotations
 

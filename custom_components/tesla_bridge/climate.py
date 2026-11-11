@@ -1,4 +1,4 @@
-"""Klima: kabinen (tænd/sluk, temperatur, Keep/Dog/Camp) og overophedningsbeskyttelse."""
+"""Climate: the cabin (on/off, temperature, Keep/Dog/Camp) and cabin overheat protection."""
 
 from __future__ import annotations
 

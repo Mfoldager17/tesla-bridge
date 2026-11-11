@@ -1,10 +1,10 @@
-"""Tesla Bridge – Home Assistant-integration uden MQTT.
+"""Tesla Bridge – Home Assistant integration without MQTT.
 
-Taler direkte med bridgens HTTP-API (samme som dashboardet på :8090):
-  GET  /api/entities   entiteterne (de samme som MQTT discovery – navne, typer og templates)
-  GET  /api/state      alle felter pr. bil
-  GET  /api/events     Server-Sent Events: ændringer live (push, ingen polling)
-  POST /api/vehicles/{vin}/cmd/{navn}   kommandoer
+Talks directly to the bridge's HTTP API (the same one the dashboard on :8090 uses):
+  GET  /api/entities   the entities (same as MQTT discovery – names, types and templates)
+  GET  /api/state      all fields per car
+  GET  /api/events     Server-Sent Events: changes live (push, no polling)
+  POST /api/vehicles/{vin}/cmd/{name}   commands
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ type TeslaBridgeConfigEntry = ConfigEntry[BridgeHub]
 
 
 class BridgeHub:
-    """Holder bridgens tilstand i hukommelsen og giver entiteterne besked, når et felt ændrer sig."""
+    """Keeps the bridge state in memory and notifies entities when a field changes."""
 
     def __init__(self, hass: HomeAssistant, client: BridgeClient) -> None:
         self.hass = hass
@@ -43,7 +43,7 @@ class BridgeHub:
         self._availability: set[Callable[[], None]] = set()
         self._stop = asyncio.Event()
 
-    # ---------- indlæsning ----------
+    # ---------- loading ----------
 
     async def async_load(self) -> None:
         self.definitions = await self.client.entities()
@@ -64,9 +64,9 @@ class BridgeHub:
         try:
             self.set_value(BRIDGE, "usage", await self.client.usage())
         except BridgeError as err:
-            _LOGGER.debug("Kunne ikke hente forbrug: %s", err)
+            _LOGGER.debug("Could not fetch usage: %s", err)
 
-    # ---------- abonnementer ----------
+    # ---------- subscriptions ----------
 
     def get(self, vin: str, key: str) -> Any:
         return self.state.get(vin, {}).get(key)
@@ -100,29 +100,29 @@ class BridgeHub:
         for cb in list(self._availability):
             cb()
 
-    # ---------- live-hændelser ----------
+    # ---------- live events ----------
 
     async def async_run(self) -> None:
-        """Lytter på /api/events og forbinder igen, hvis forbindelsen ryger."""
+        """Listens on /api/events and reconnects if the connection drops."""
         delay = 1
         while not self._stop.is_set():
             try:
-                await self.async_refresh_state()   # indhent alt, der er sket mens vi var væk
+                await self.async_refresh_state()   # catch up on everything that happened while we were away
                 events = self.client.events()
                 self._set_connected(True)
                 delay = 1
                 async for event in events:
                     self._handle(event)
-                raise BridgeError("forbindelsen blev lukket")
+                raise BridgeError("connection closed")
             except asyncio.CancelledError:
                 raise
             except BridgeAuthError:
-                _LOGGER.error("Tesla Bridge afviste token – ret det under integrationen")
+                _LOGGER.error("Tesla Bridge rejected the token – update it under the integration")
                 self._set_connected(False)
                 delay = 60
-            except Exception as err:  # noqa: BLE001 – alt skal give et nyt forsøg
+            except Exception as err:  # noqa: BLE001 – anything should lead to a retry
                 if self.connected:
-                    _LOGGER.warning("Mistede forbindelsen til Tesla Bridge: %s", err)
+                    _LOGGER.warning("Lost connection to Tesla Bridge: %s", err)
                 self._set_connected(False)
             try:
                 await asyncio.wait_for(self._stop.wait(), delay)
@@ -144,10 +144,10 @@ class BridgeHub:
     def stop(self) -> None:
         self._stop.set()
 
-    # ---------- entiteter ----------
+    # ---------- entities ----------
 
     def build(self, platform: str, factory: Callable[..., Any]) -> list[Any]:
-        """Laver alle entiteter af én type ud fra /api/entities."""
+        """Creates all entities of one platform from /api/entities."""
         result = []
         for car in self.definitions.get("vehicles", []):
             device = DeviceInfo(
@@ -182,7 +182,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TeslaBridgeConfigEntry) 
     except BridgeAuthError as err:
         raise ConfigEntryAuthFailed(str(err)) from err
     except BridgeError as err:
-        raise ConfigEntryNotReady(f"Kan ikke nå Tesla Bridge på {client.url}: {err}") from err
+        raise ConfigEntryNotReady(f"Cannot reach Tesla Bridge at {client.url}: {err}") from err
 
     entry.runtime_data = hub
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

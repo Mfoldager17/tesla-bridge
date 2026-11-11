@@ -1,4 +1,4 @@
-"""Position og rute (destination) som device trackers."""
+"""Location and route (destination) as device trackers."""
 
 from __future__ import annotations
 
