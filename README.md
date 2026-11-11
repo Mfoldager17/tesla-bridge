@@ -10,9 +10,11 @@ Data kan komme ud i Home Assistant ad **to veje**. Vælg den, der passer dig:
 | Ekstra software | din broker | intet |
 | I Home Assistant | MQTT-integrationen (discovery, sker automatisk) | **Tesla Bridge** fra HACS |
 | Andre klienter (ESP32, Node-RED, egne dashboards) | læser og skriver MQTT-topics | bruger HTTP-API'et |
-| Entiteter | ~80 under enheden "Model Y" | præcis de samme navne, typer og entity id'er |
+| Entiteter | ~80 under én enhed pr. bil | præcis de samme navne, typer og entity id'er |
 
-De to veje giver **identiske entiteter** (`sensor.model_y_battery_level`, `climate.model_y_climate`, `lock.model_y_lock` …), fordi integrationen henter de samme definitioner fra bridgen, som MQTT discovery bruger. Du kan skifte vej senere uden at ændre dashboards eller automationer. Navnene følger Teslemetry, så et skifte derfra kræver kun at entity id'et ændres (`sensor.tesla_battery_level` → `sensor.model_y_battery_level`).
+Bilen hedder i HA det, du selv skriver i `Bridge__Vehicles__0__Name` i `.env` (fx "Model Y", "Bilen" eller "Elsa"), og navnet bliver til prefixet i alle entity id'er: "Model Y" → `sensor.model_y_battery_level`, "Bilen" → `sensor.bilen_battery_level`. I eksemplerne her hedder bilen "Model Y".
+
+De to veje giver **identiske entiteter** (`sensor.<bil>_battery_level`, `climate.<bil>_climate`, `lock.<bil>_lock` …), fordi integrationen henter de samme definitioner fra bridgen, som MQTT discovery bruger. Du kan skifte vej senere uden at ændre dashboards eller automationer. Navnene følger Teslemetry, så et skifte derfra kræver kun at entity id'et ændres (`sensor.tesla_battery_level` → `sensor.model_y_battery_level`). Vil du helt undgå det, så giv bilen samme navn, som den har i Teslemetry.
 
 Prisen er Teslas egen Fleet API-afregning, som for én bil ligger inden for den gratis månedlige rabat ($10). Bridgen tæller forbruget for dig.
 
@@ -137,7 +139,7 @@ PUID=1000                                  # fra `id`
 PGID=1000
 Bridge__Telemetry__Hostname=car.ditdomaene.dk
 Bridge__Vehicles__0__Vin=XP7Y...           # VIN fra Tesla-appen
-Bridge__Vehicles__0__Name=Model Y          # bliver til entity id'erne: model_y_*
+Bridge__Vehicles__0__Name=Model Y          # dit eget navn til bilen → enhed "Model Y", entity id'er model_y_*
 Bridge__Tesla__ClientId=...
 Bridge__Tesla__ClientSecret=...
 Bridge__Web__Token=<lang tilfældig streng> # fx: openssl rand -hex 24
@@ -235,7 +237,7 @@ docker compose exec tesla-bridge dotnet TeslaBridge.dll telemetry-errors   # hvi
 
 ### 8A. Home Assistant via MQTT
 
-Er HA allerede koblet på samme broker (fx til Zigbee2MQTT), dukker enhederne **Model Y** og **Tesla Bridge** op af sig selv under MQTT. Ellers: *Indstillinger → Enheder og tjenester → Tilføj integration → MQTT*, og peg den på brokeren.
+Er HA allerede koblet på samme broker (fx til Zigbee2MQTT), dukker enhederne **<dit bilnavn>** og **Tesla Bridge** op af sig selv under MQTT. Ellers: *Indstillinger → Enheder og tjenester → Tilføj integration → MQTT*, og peg den på brokeren.
 
 Kommer der ingen entiteter, så tjek at `Bridge__Mqtt__DiscoveryPrefix=homeassistant`, og at HA's MQTT-integration bruger samme prefix (standard).
 
@@ -302,7 +304,9 @@ Begge veje kan køre **samtidig**, mens du tester. Entiteterne fra den vej, du t
 
 ## Entiteter i Home Assistant
 
-Samme navne og typer som Teslemetry. Med `Bridge__Vehicles__0__Name=Model Y` får de prefixet `model_y_`.
+Samme navne og typer som Teslemetry. Prefixet kommer fra `Bridge__Vehicles__0__Name`: "Model Y" giver `model_y_`, "Bilen" giver `bilen_`. Æ, ø og å bliver til ae, oe og a. Tabellen viser navnene uden prefix.
+
+Har du flere biler, så tilføj `Bridge__Vehicles__1__Vin` og `Bridge__Vehicles__1__Name` osv. Hver bil bliver sin egen enhed med sit eget prefix.
 
 | Type | Entiteter |
 |---|---|
@@ -319,7 +323,7 @@ Samme navne og typer som Teslemetry. Med `Bridge__Vehicles__0__Name=Model Y` få
 
 Desuden enheden **Tesla Bridge** med Fleet API-forbruget: `sensor.tesla_bridge_cost_month`, `…_cost_projected`, `…_credit_left` samt antal signaler, kommandoer, wakes og data-forespørgsler for måneden. Velegnet til en automation, der advarer, hvis det forventede forbrug nærmer sig $10.
 
-`sensor.model_y_command_status` viser den seneste kommando (`pending` → `waking` → `succeeded`/`failed`) med fejlen som attribut.
+`sensor.<bil>_command_status` viser den seneste kommando (`pending` → `waking` → `succeeded`/`failed`) med fejlen som attribut.
 
 ---
 
