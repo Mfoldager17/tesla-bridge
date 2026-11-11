@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tesla Bridge",
+        "description": "Adressen på bridgens dashboard, fx http://192.168.0.122:8090. Token = Bridge__Web__Token fra .env (tom hvis den ikke er sat).",
+        "data": {
+          "url": "URL",
+          "token": "Token"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nyt token",
+        "description": "Bridgen afviste tokenet. Skriv Bridge__Web__Token fra .env.",
+        "data": {
+          "token": "Token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan ikke nå bridgen. Tjek adressen, og at dashboardet er slået til (Bridge__Web__Enabled).",
+      "invalid_auth": "Forkert token."
+    },
+    "abort": {
+      "already_configured": "Denne bridge er allerede sat op.",
+      "reauth_successful": "Token opdateret."
+    }
+  }
+}

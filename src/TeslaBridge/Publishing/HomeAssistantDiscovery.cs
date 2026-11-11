@@ -62,6 +62,66 @@ public sealed class HomeAssistantDiscovery(
         return Legacy.Select(l => $"{prefix}/{l.Component}/{id}/{l.Key}/config").Where(t => !live.Contains(t));
     }
 
+    // ---------- samme definitioner til HA-integrationen (uden MQTT) ----------
+
+    private const string ApiBase = "__bridge__";
+
+    /// <summary>
+    /// Entiteterne som JSON til custom_components/tesla_bridge (GET /api/entities). Det er de samme
+    /// discovery-configs som MQTT-vejen bruger, bare med topics byttet til nøgler:
+    /// "state:&lt;nøgle&gt;" (felt i /api/state), "cmd:&lt;navn&gt;" (POST /api/vehicles/{vin}/cmd/&lt;navn&gt;) og "usage".
+    /// Så de to veje kan ikke glide fra hinanden: navne, typer, ikoner og templates er identiske.
+    /// </summary>
+    public static JsonObject ApiDefinitions(BridgeOptions o)
+    {
+        var vehicles = new JsonArray();
+        foreach (var v in o.Vehicles)
+        {
+            var configs = Build(v, ApiBase, "homeassistant", "availability");
+            vehicles.Add(new JsonObject
+            {
+                ["vin"] = v.Vin,
+                ["name"] = v.Name,
+                ["slug"] = Slug(v.Name),
+                ["entities"] = new JsonArray(configs.Select(c => (JsonNode?)ToApi(c.Topic, c.Payload, v.Vin)).ToArray()),
+            });
+        }
+        var usage = BuildUsage(ApiBase, "homeassistant", "availability");
+        return new JsonObject
+        {
+            ["version"] = 1,
+            ["vehicles"] = vehicles,
+            ["bridge"] = new JsonObject
+            {
+                ["entities"] = new JsonArray(usage.Select(c => (JsonNode?)ToApi(c.Topic, c.Payload, null)).ToArray()),
+            },
+        };
+    }
+
+    internal static JsonObject ToApi(string topic, JsonObject payload, string? vin)
+    {
+        var parts = topic.Split('/');        // {prefix}/{component}/{id}/{key}/config
+        var cfg = new JsonObject();
+        foreach (var (name, node) in payload)
+        {
+            if (name is "device" or "availability_topic") continue;
+            if (name.EndsWith("_topic") && node is JsonValue tv && tv.TryGetValue(out string? t))
+            {
+                cfg[name] = t switch
+                {
+                    $"{ApiBase}/bridge/usage" => "usage",
+                    _ when vin is not null && t == $"{ApiBase}/{vin}/command/status" => "state:command_status",
+                    _ when vin is not null && t.StartsWith($"{ApiBase}/{vin}/state/") => "state:" + t[$"{ApiBase}/{vin}/state/".Length..],
+                    _ when vin is not null && t.StartsWith($"{ApiBase}/{vin}/cmd/") => "cmd:" + t[$"{ApiBase}/{vin}/cmd/".Length..],
+                    _ => t,
+                };
+                continue;
+            }
+            cfg[name] = node?.DeepClone();
+        }
+        return new JsonObject { ["platform"] = parts[1], ["key"] = parts[3], ["config"] = cfg };
+    }
+
     // ---------- entitetsdefinitioner ----------
 
     private const string Num = "{{ value_json }}";

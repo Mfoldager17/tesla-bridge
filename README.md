@@ -57,7 +57,7 @@ Sæt `Bridge__Web__Token` i `.env`. Dashboardet kan låse bilen op, så **port-f
 - **Ingen "off → on"-hop.** Når du trykker "klima on", vises "on" med det samme. Bilens gamle snapshot lige efter opvågning overskriver det ikke. Bekræfter bilen ikke inden for 45 s, rulles der tilbage.
 - **Vækker selv bilen.** Svarer Fleet API "sover", vækkes bilen, og kommandoen gentages, så snart streamen melder den online.
 - **Aldrig "unknown" efter genstart.** Sidst kendte værdier gemmes i `data/state.json`.
-- **Én enhed i HA** med cirka 60 entiteter via MQTT discovery, uden custom integration.
+- **Én enhed i HA** med cirka 80 entiteter – enten via MQTT discovery (har du en broker) eller via integrationen `custom_components/tesla_bridge` (ingen broker). Begge veje giver samme navne, typer og entity id'er.
 - **Klar til BLE.** Kommandoer går gennem `ICommandTransport`; en BLE-transport kan tilføjes uden at røre resten.
 
 ---
@@ -71,9 +71,20 @@ Sæt `Bridge__Web__Token` i `.env`. Dashboardet kan låse bilen op, så **port-f
 - **Port forward 4443** fra routeren til maskinen. NPM og dine eksisterende hosts på 443 berøres ikke.
   Porten kan være hvilken som helst. Kun klienter med et certifikat udstedt af Tesla kommer igennem TLS-håndtrykket.
   *Tunnel i stedet?* Cloudflare Tunnel og ngrok (HTTP) virker **ikke**, fordi de afslutter TLS og dermed bryder mTLS. Det kræver en tunnel med rå TCP, fx Tailscale Funnel i TCP-tilstand eller en VPS med WireGuard.
-- En MQTT-broker. Din eksisterende virker fint (topics: `telemetry/…` og `tesla/…`).
+- *Enten* en MQTT-broker (din eksisterende virker fint; topics: `telemetry/…` og `tesla/…`) *eller* ingen – se nedenfor.
 
-### 1. MQTT-brugere
+### MQTT eller integration?
+
+| | **A) MQTT** | **B) Integration (ingen broker)** |
+|---|---|---|
+| Kræver | Mosquitto (eller anden broker) | Intet ekstra |
+| `.env` | `Bridge__Mqtt__Host=<broker-IP>` | `Bridge__Mqtt__EmbeddedBroker=true`, `Bridge__Mqtt__DiscoveryPrefix=` |
+| I HA | MQTT-integrationen (discovery) | **Tesla Bridge** fra HACS |
+| Andre klienter (ESP32, Node-RED …) | Læser `tesla/<vin>/state/*` | Bruger HTTP-API'et på :8090 |
+
+Med B starter bridgen selv en lille broker, som kun fleet-telemetry taler med over docker-netværket. Integrationen taler med bridgens API på `:8090` og får ændringer live (Server-Sent Events) – ingen polling, og låse/covers viser LOCKING/opening ligesom med MQTT.
+
+### 1. MQTT-brugere (kun A)
 Bridgen og fleet-telemetry logger ind på din broker med hver sin bruger. I en Mosquitto-container:
 ```bash
 docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd fleet-telemetry
@@ -122,9 +133,14 @@ docker compose exec tesla-bridge dotnet TeslaBridge.dll telemetry-errors   # hvi
 
 ### 6. Home Assistant
 
-Ud over bilen dukker enheden **Tesla Bridge** op med forbruget: `sensor.tesla_bridge_cost_month`, `…_cost_projected`, `…_credit_left` og antal signaler, kommandoer, wakes og data-forespørgsler for måneden. Velegnet til en automation, der advarer, hvis det forventede forbrug nærmer sig $10.
+**A) MQTT:** Er HA allerede koblet på samme broker (som til Z2M), dukker enheden op af sig selv. Ellers tilføjes MQTT-integrationen i HA og peges på brokeren.
 
-Er HA allerede koblet på samme broker (som til Z2M), dukker enheden **Tesla** op af sig selv. Ellers tilføjes MQTT-integrationen i HA og peges på brokeren.
+**B) Integration:** HACS → ⋮ → *Custom repositories* → `https://github.com/Mfoldager17/tesla-bridge`, type *Integration* → installér **Tesla Bridge** → genstart HA → *Indstillinger → Enheder og tjenester → Tilføj integration → Tesla Bridge*. URL: `http://<server>:8090`, token: `Bridge__Web__Token` fra `.env`.
+(Uden HACS: kopiér mappen `custom_components/tesla_bridge` til HA's `config/custom_components/`.)
+
+Skifter du fra A til B, så tøm `Bridge__Mqtt__DiscoveryPrefix` og slet MQTT-enheden i HA *før* integrationen tilføjes – ellers får de nye entiteter `_2` på navnet. Begge veje kan også køre samtidig.
+
+Ud over bilen dukker enheden **Tesla Bridge** op med forbruget: `sensor.tesla_bridge_cost_month`, `…_cost_projected`, `…_credit_left` og antal signaler, kommandoer, wakes og data-forespørgsler for måneden. Velegnet til en automation, der advarer, hvis det forventede forbrug nærmer sig $10.
 
 > Bilen kan kun sende til ét sted ad gangen pr. app. Kører Teslemetry stadig, bliver deres konfiguration erstattet, når denne pushes. Opsig Teslemetry, når data flyder.
 
@@ -172,6 +188,20 @@ mosquitto_pub -t tesla/<VIN>/cmd/climate -m on
 
 ---
 
+## HTTP-API (det integrationen bruger)
+
+| | |
+|---|---|
+| `GET /api/entities` | alle entiteter – de samme definitioner som MQTT discovery, med `state:<felt>` / `cmd:<navn>` i stedet for topics |
+| `GET /api/state` | alle felter pr. bil (inkl. `*_motion` for låse og covers) |
+| `GET /api/events` | Server-Sent Events: `field` og `command` live |
+| `POST /api/vehicles/<vin>/cmd/<navn>` | kommando; body = samme payload som på MQTT |
+| `GET /api/usage` | Fleet API-forbrug |
+
+Token sendes som `Authorization: Bearer <Bridge__Web__Token>`.
+
+---
+
 ## Projektstruktur
 
 ```
@@ -197,7 +227,10 @@ tesla-bridge/
 │   ├── Mqtt/                       delt forbindelse med genopkobling og Last Will, valgfri indbygget broker
 │   ├── Web/                        dashboard-API, live events (SSE), signaltælling
 │   └── wwwroot/index.html          test-dashboardet
-└── tests/TeslaBridge.Tests/        80 tests
+├── custom_components/tesla_bridge/ HA-integrationen (alternativ til MQTT, installeres via HACS)
+├── hacs.json
+├── tests/TeslaBridge.Tests/        .NET-tests
+└── tests/ha/                       integrationen mod en kørende bridge (pytest-homeassistant-custom-component)
 ```
 
 ---

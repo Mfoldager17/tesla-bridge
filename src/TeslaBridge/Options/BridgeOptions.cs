@@ -33,10 +33,20 @@ public sealed class MqttOptions
     public string ClientId { get; set; } = "tesla-bridge";
 
     /// <summary>
-    /// Start en MQTT-broker inde i bridgen (på Port) i stedet for at bruge en ekstern.
-    /// Til lokal test: "dotnet run" uden Docker eller Mosquitto. Andre klienter kan også forbinde.
+    /// Start en MQTT-broker inde i bridgen (på Port) i stedet for at bruge en ekstern (Mosquitto).
+    /// fleet-telemetry sender så til bridgen direkte, og Host ignoreres (bridgen forbinder til sig selv).
+    /// Til dem uden egen broker – fx sammen med HA-integrationen i custom_components/tesla_bridge.
     /// </summary>
     public bool EmbeddedBroker { get; set; }
+
+    /// <summary>Navnet fleet-telemetry når bridgen på (docker-servicens navn), når EmbeddedBroker er slået til.</summary>
+    public string EmbeddedHostname { get; set; } = "tesla-bridge";
+
+    /// <summary>Hvor bridgen selv forbinder til: sig selv med den indbyggede broker, ellers Host.</summary>
+    public string ConnectHost => EmbeddedBroker ? "127.0.0.1" : Host;
+
+    /// <summary>Hvor fleet-telemetry skal sende rå data hen (skrives i dens config.json).</summary>
+    public string BrokerForTelemetry => EmbeddedBroker ? $"{EmbeddedHostname}:{Port}" : $"{Host}:{Port}";
 
     /// <summary>topic_base fleet-telemetry publicerer rå data på.</summary>
     public string TelemetryTopicBase { get; set; } = "telemetry";

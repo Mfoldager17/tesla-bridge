@@ -74,7 +74,7 @@ public static class Bootstrap
             ["rate_limit"] = new JsonObject { ["enabled"] = true, ["message_interval_time"] = 30, ["message_limit"] = 1000 },
             ["mqtt"] = new JsonObject
             {
-                ["broker"] = $"{o.Mqtt.Host}:{o.Mqtt.Port}",
+                ["broker"] = o.Mqtt.BrokerForTelemetry,
                 ["client_id"] = "fleet-telemetry",
                 ["username"] = o.Telemetry.MqttUsername,
                 ["password"] = o.Telemetry.MqttPassword,

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using TeslaBridge.Commands;
 using TeslaBridge.Mqtt;
 using TeslaBridge.Options;
+using TeslaBridge.Publishing;
 using TeslaBridge.State;
 using TeslaBridge.Telemetry;
 using TeslaBridge.Usage;
@@ -62,12 +63,22 @@ public static class WebApi
             {
                 var fields = new JsonObject();
                 foreach (var (key, fv) in store.Snapshot(vin).OrderBy(kv => kv.Key, StringComparer.Ordinal))
+                {
                     fields[key] = new JsonObject
                     {
                         ["value"] = fv.Value?.DeepClone(),
                         ["updated_at"] = fv.UpdatedAt.ToString("O"),
                         ["source"] = JsonNamingPolicy.SnakeCaseLower.ConvertName(fv.Source.ToString()),
                     };
+                    // Låse/covers: LOCKING/opening osv. mens en kommando venter (samme som MQTT-vejen)
+                    if (StatePublisher.Transitions.ContainsKey(key))
+                        fields[key + "_motion"] = new JsonObject
+                        {
+                            ["value"] = StatePublisher.Motion(key, store.HasPending(vin, key), fv.Value, store.GetConfirmed(vin, key)?.Value),
+                            ["updated_at"] = fv.UpdatedAt.ToString("O"),
+                            ["source"] = "bridge",
+                        };
+                }
                 result.Add(new JsonObject
                 {
                     ["vin"] = vin,
@@ -77,6 +88,10 @@ public static class WebApi
             }
             return Results.Content(result.ToJsonString(Json.Relaxed), "application/json");
         });
+
+        // Entitetsdefinitioner til HA-integrationen (custom_components/tesla_bridge)
+        api.MapGet("/entities", () =>
+            Results.Content(TeslaBridge.Publishing.HomeAssistantDiscovery.ApiDefinitions(opts).ToJsonString(Json.Relaxed), "application/json"));
 
         api.MapGet("/usage", (UsageTracker usage) =>
             Results.Content(UsageService.ToJson(usage.Snapshot()).ToJsonString(Json.Relaxed), "application/json"));

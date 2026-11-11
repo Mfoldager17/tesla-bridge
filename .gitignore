@@ -10,3 +10,5 @@ config/fleet-telemetry/config.json
 *.swp
 .idea/
 .vscode/
+__pycache__/
+.pytest_cache/

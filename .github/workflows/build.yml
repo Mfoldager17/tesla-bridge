@@ -21,6 +21,28 @@ jobs:
           dotnet-version: "10.0.x"
       - run: dotnet test TeslaBridge.sln -c Release
 
+  # HA-integrationen (custom_components/tesla_bridge) mod en rigtig, kørende bridge med simulator
+  ha-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pytest-homeassistant-custom-component
+      - name: Start bridgen (Development, indbygget broker, simulator)
+        working-directory: src/TeslaBridge
+        run: |
+          dotnet build
+          ASPNETCORE_ENVIRONMENT=Development nohup dotnet run --no-build > /tmp/bridge.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8080/api/info && break; sleep 1; done
+      - run: python -m pytest tests/ha -v
+      - if: failure()
+        run: cat /tmp/bridge.log
+
   image:
     needs: test
     if: github.event_name != 'pull_request'

@@ -78,7 +78,7 @@ public sealed class MqttConnection : BackgroundService
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     _log.LogWarning("MQTT-forbindelse til {Host}:{Port} fejlede: {Error}. Prøver igen om 5 s.",
-                        _opts.Host, _opts.Port, ex.Message);
+                        _opts.ConnectHost, _opts.Port, ex.Message);
                 }
             }
 
@@ -90,7 +90,7 @@ public sealed class MqttConnection : BackgroundService
     private async Task ConnectAsync(CancellationToken ct)
     {
         var builder = new MqttClientOptionsBuilder()
-            .WithTcpServer(_opts.Host, _opts.Port)
+            .WithTcpServer(_opts.ConnectHost, _opts.Port)
             .WithClientId(_opts.ClientId)
             .WithCleanSession()
             .WithKeepAlivePeriod(TimeSpan.FromSeconds(30))
@@ -104,7 +104,7 @@ public sealed class MqttConnection : BackgroundService
             builder = builder.WithCredentials(_opts.Username, _opts.Password);
 
         await _client.ConnectAsync(builder.Build(), ct);
-        _log.LogInformation("Forbundet til MQTT {Host}:{Port}", _opts.Host, _opts.Port);
+        _log.LogInformation("Forbundet til MQTT {Host}:{Port}", _opts.ConnectHost, _opts.Port);
 
         await PublishAsync(StatusTopic, "online", retain: true, ct);
 
