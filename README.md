@@ -38,14 +38,35 @@ A self-hosted replacement for Teslemetry. Your car streams directly to your own 
 
 ## Get started
 
-```
-1. Before you start  →  2. Install  →  3. Connect the car  →  4. Home Assistant  →  5. The dashboard
-                        script or by hand                     MQTT or integration
-```
+> **The easy way:** the **[interactive setup guide](https://mfoldager17.github.io/tesla-bridge/)** asks the three questions below and shows only the steps for your setup – with your own domain filled into every command.
 
-**[Start with step 1 →](docs/1-before-you-start.md)**
+### Three choices
 
-Already know what you're doing? On the server:
+Each one is independent – any combination works. If you're unsure, take the first option in each row.
+
+| Choice | Option 1 | Option 2 |
+|---|---|---|
+| **How do you install?** | **Setup script** – one command that asks and does the rest | **By hand** – every step explained |
+| **How does the internet reach your server?** | **Reverse proxy** – port 443 is open to Nginx Proxy Manager, Caddy, Traefik … | **Tunnel** – e.g. Cloudflare Tunnel, port 443 stays closed |
+| **How does Home Assistant get the data?** | **Integration** – from HACS, no broker needed | **MQTT** – through the broker you already run |
+
+Whatever you pick, the car always needs **TCP 4443 forwarded** to your server, and a **certificate** for the name it connects to. Nginx Proxy Manager is *not* required – but you need to know which folder your certificate is in. [Why?](docs/1-before-you-start.md#choice-1-how-the-internet-reaches-you)
+
+### The route
+
+| | Step | What happens | Depends on your choice |
+|:-:|---|---|---|
+| 1 | **[Before you start](docs/1-before-you-start.md)** | What you need and how it fits together | Reverse proxy: one domain · Tunnel: two |
+| 2 | **[Install](docs/2-install.md)** | Tesla app, DNS, `.env`, certificate, start | [Script](docs/2-install.md#with-the-setup-script) · [by hand](docs/2-install.md#by-hand) |
+| 3 | **[Connect the car](docs/3-connect-the-car.md)** | Sign in with Tesla, pair the key at the car | – |
+| 4 | **[Home Assistant](docs/4-home-assistant.md)** | Entities in Home Assistant | [MQTT](docs/4-home-assistant.md#a-mqtt) · [Integration](docs/4-home-assistant.md#b-the-tesla-bridge-integration) |
+| 5 | **[The dashboard](docs/5-the-dashboard.md)** | Controls, intervals per value, the 3D car | – |
+
+Each page ends with a link to the next one.
+
+### Already know what you're doing?
+
+On the server:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/install.sh | bash

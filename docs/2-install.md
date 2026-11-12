@@ -22,17 +22,17 @@ It asks a few questions and does the rest:
 | The script does | You do |
 |---|---|
 | Checks Docker, picks the folder, downloads `docker-compose.yml` | – |
-| Checks your domain (no "tesla" in it, DNS points to you, not Cloudflare-proxied) | Create the DNS record |
+| Asks **reverse proxy or tunnel**, then checks your domain(s): no "tesla", the car's name points to your public IP and isn't Cloudflare-proxied | Create the DNS record(s) |
 | Prints exactly what to type when you create the Tesla app | Create the app at developer.tesla.com and paste the Client ID/Secret |
 | MQTT: uses the built-in broker, **or** finds your Mosquitto container and creates both users with random passwords | Pick one |
 | Writes `.env` (PUID/PGID, dashboard token, everything else) and backs up the old one | – |
-| Finds your domain's certificate in Nginx Proxy Manager, copies it to fleet-telemetry and renews it weekly (root crontab, `renew-cert.sh`) | Create the proxy host in NPM (the script shows the values) |
-| Pulls the images, starts everything, checks that the public key is reachable from outside | Forward TCP 4443 in your router |
+| Certificate: finds it in Nginx Proxy Manager by itself, **or** searches a folder you point to (certbot, Caddy, acme.sh …), **or** gets a new one from Let's Encrypt via Cloudflare DNS. Copies it to fleet-telemetry and keeps it up to date weekly (root crontab, `renew-cert.sh`) | Know where your certificate is – or have a Cloudflare API token ready |
+| Pulls the images, starts everything, checks that the public key and port 4443 are reachable from outside, and prints the proxy host or tunnel hostname to add | Add the proxy host or tunnel hostname; forward TCP 4443 in your router |
 | Prints a link to the dashboard that signs you in | Sign in with Tesla and pair the key at the car (QR code) |
 
 Registering the domain with Tesla happens by itself once the public key is reachable (the bridge retries every 10 minutes, then every 6 hours; turn it off with `Bridge__Tesla__AutoRegister=false`). It never replaces a different key that is already registered.
 
-Run the script again whenever you like – to change an answer, after creating the proxy host, or to update. Your current values are the defaults, so Enter keeps them. `--dry-run` shows what it would do without changing anything; `--dir <folder>` installs somewhere else.
+Run the script again whenever you like – to change an answer, after creating the proxy host or tunnel hostname, or to update. Your current values are the defaults, so Enter keeps them. `--dry-run` shows what it would do without changing anything; `--dir <folder>` installs somewhere else.
 
 When the script is done: **[3. Connect the car →](3-connect-the-car.md)**
 
@@ -45,17 +45,44 @@ On [developer.tesla.com](https://developer.tesla.com) → *Create application*:
 | Field | Value |
 |---|---|
 | Name | your choice, just *without* "tesla", e.g. `My Car` |
-| Allowed Origin | `https://<your domain>` (e.g. `https://car.example.com`) |
+| Allowed Origin | `https://<your domain>` (e.g. `https://car.example.com` – with a tunnel, the name *through the tunnel*) |
 | Allowed Redirect URI | `https://<your domain>/auth/callback` |
 | Scopes | Vehicle Information, Vehicle Location, Vehicle Commands, Vehicle Charging Management |
 
 Note the **Client ID** and **Client Secret**. You do *not* create keys yourself: the bridge generates the key pair and serves the public key at `https://<your domain>/.well-known/appspecific/com.tesla.3p.public-key.pem`.
 
-### Step 2 – Domain, certificate and reverse proxy
+### Step 2 – Domain(s), HTTPS and port 4443
 
-1. Create a DNS record for your domain (e.g. `car.example.com`) → your public IP (DNS only).
-2. In NPM: a new proxy host `<your domain>` → `http://<server-IP>:8091`, with a Let's Encrypt certificate and *Force SSL*.
-3. Forward **TCP 4443** from your router to the server.
+Pick the way that matches how you publish things ([which one?](1-before-you-start.md#choice-1-how-the-internet-reaches-you)). Nginx Proxy Manager is just an example – any reverse proxy works.
+
+<table>
+<tr><th>Reverse proxy</th><th>Tunnel (e.g. Cloudflare Tunnel)</th></tr>
+<tr><td valign="top">
+
+1. DNS: `car.example.com` → your public IP, **DNS only**.
+2. In your reverse proxy: a host `car.example.com` → `http://<server-IP>:8091`, with a Let's Encrypt certificate and HTTPS forced.
+   *NPM:* Hosts → Add Proxy Host. *Caddy:*
+   ```
+   car.example.com {
+       reverse_proxy <server-IP>:8091
+   }
+   ```
+3. Router: forward **TCP 4443** → the server.
+
+</td><td valign="top">
+
+1. In your tunnel: a public hostname `car.example.com` → `http://<server-IP>:8091`.
+   *Cloudflare:* Zero Trust → Networks → Tunnels → Public Hostname, or in `config.yml`:
+   ```yaml
+   ingress:
+     - hostname: car.example.com
+       service: http://<server-IP>:8091
+   ```
+2. DNS: a **second** name, `car-data.example.com` → your public IP, **DNS only** (grey cloud).
+3. Router: forward **TCP 4443** → the server.
+
+</td></tr>
+</table>
 
 ### Step 3 – Download the compose file and create `.env`
 
@@ -75,7 +102,10 @@ Fill in the common values (all values are examples):
 TZ=Europe/Copenhagen
 PUID=1000                                   # from `id`
 PGID=1000
-Bridge__Telemetry__Hostname=car.example.com # YOUR domain from step 2
+Bridge__Telemetry__Hostname=car.example.com # the name the CAR connects to (step 2)
+# Tunnel only – the name through the tunnel; leave it out with a reverse proxy:
+# Bridge__Telemetry__Hostname=car-data.example.com
+# Bridge__Tesla__PartnerDomain=car.example.com
 Bridge__Vehicles__0__Vin=<VIN>              # 17 characters, in the Tesla app under Software
 Bridge__Vehicles__0__Name=Model Y           # your choice → device "Model Y", entity ids model_y_*
 Bridge__Tesla__ClientId=<Client ID from step 1>
@@ -133,22 +163,43 @@ docker kill -s HUP mosquitto                                                    
 
 ### Step 5 – The certificate for fleet-telemetry
 
-The car talks directly to fleet-telemetry on port 4443, so it needs your domain's certificate. Put `fullchain.pem` and `privkey.pem` in `config/fleet-telemetry/certs/`.
-
-**From Nginx Proxy Manager** – find where *your* NPM keeps its certificates (the folder mounted at `/etc/letsencrypt`), then the one for your domain:
+The car talks directly to fleet-telemetry on port 4443, so fleet-telemetry needs a valid certificate for the name the car connects to (`Bridge__Telemetry__Hostname`). **Nginx Proxy Manager is not required** – any Let's Encrypt certificate works. You just need to know which folder it's in. Copy the full chain and the private key to `config/fleet-telemetry/certs/fullchain.pem` and `privkey.pem`:
 
 ```bash
-LE=$(docker inspect <npm container> --format '{{range .Mounts}}{{if eq .Destination "/etc/letsencrypt"}}{{.Source}}{{end}}{{end}}')
-sudo grep -l "<your domain>" "$LE"/renewal/*.conf      # e.g. …/renewal/npm-21.conf → the folder is live/npm-21
-
+SRC=<certificate folder>          # see the table below
 mkdir -p config/fleet-telemetry/certs
-sudo cp -L "$LE"/live/npm-<nr>/fullchain.pem "$LE"/live/npm-<nr>/privkey.pem config/fleet-telemetry/certs/
+sudo cp -L "$SRC"/fullchain.pem config/fleet-telemetry/certs/fullchain.pem
+sudo cp -L "$SRC"/privkey.pem   config/fleet-telemetry/certs/privkey.pem
 sudo chown -R $(id -u):$(id -g) config/fleet-telemetry/certs
 ```
 
-**From anything else** (Caddy, Traefik, certbot, acme.sh …): copy the domain's full chain and private key to `config/fleet-telemetry/certs/fullchain.pem` and `privkey.pem` the same way. The setup script can do this for you too – it asks for the folder.
+| Made by | Folder (`SRC`) | Files |
+|---|---|---|
+| Nginx Proxy Manager | `<letsencrypt>/live/npm-<nr>` – see below | `fullchain.pem`, `privkey.pem` |
+| certbot | `/etc/letsencrypt/live/<domain>` | `fullchain.pem`, `privkey.pem` |
+| Caddy | `<caddy data>/caddy/certificates/<ca>/<domain>` | `<domain>.crt` → fullchain.pem, `<domain>.key` → privkey.pem |
+| acme.sh | `~/.acme.sh/<domain>` (or `<domain>_ecc`) | `fullchain.cer` → fullchain.pem, `<domain>.key` → privkey.pem |
+| Traefik | inside `acme.json` | export with e.g. `traefik-certs-dumper` first |
 
-Let's Encrypt renews roughly every 60 days, so put the same lines in a cron job (e.g. weekly), followed by `docker compose restart fleet-telemetry`.
+**Finding it in Nginx Proxy Manager** – the folder mounted at `/etc/letsencrypt` in *your* NPM container, and in it the one for your domain:
+
+```bash
+LE=$(docker inspect <npm container> --format '{{range .Mounts}}{{if eq .Destination "/etc/letsencrypt"}}{{.Source}}{{end}}{{end}}')
+sudo grep -l "<your domain>" "$LE"/renewal/*.conf      # e.g. …/renewal/npm-21.conf → SRC=$LE/live/npm-21
+```
+
+**No certificate yet** (typical with a tunnel, because nothing has asked for one for `car-data.example.com`)? Get one with certbot and a Cloudflare API token (*Edit zone DNS*) – no port 80 needed:
+
+```bash
+sudo mkdir -p config/letsencrypt
+echo "dns_cloudflare_api_token = <token>" | sudo tee config/letsencrypt/cloudflare.ini >/dev/null
+sudo chmod 600 config/letsencrypt/cloudflare.ini
+sudo docker run --rm -v "$PWD/config/letsencrypt:/etc/letsencrypt" certbot/dns-cloudflare certonly -n --agree-tos \
+  -m <your e-mail> --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini -d car-data.example.com
+# SRC=config/letsencrypt/live/car-data.example.com
+```
+
+Let's Encrypt renews roughly every 60 days. Put the copy lines in a weekly cron job (as root), followed by `docker compose restart fleet-telemetry` – with the certbot way, run `… certbot/dns-cloudflare renew -q` first. The setup script writes exactly this as `renew-cert.sh`.
 
 ### Step 6 – Start
 

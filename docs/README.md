@@ -2,7 +2,7 @@
 
 # Guide
 
-Follow the steps in order – each page ends with a link to the next one.
+Follow the steps in order – each page ends with a link to the next one. Prefer a guide that shows only the steps for your setup? Use the [interactive setup guide](https://mfoldager17.github.io/tesla-bridge/).
 
 | Step | |
 |---|---|

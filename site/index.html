@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tesla Bridge setup guide</title>
+<meta name="description" content="Step-by-step guide to self-hosting Tesla Bridge: your car streams to your own server and Home Assistant, without Teslemetry.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f5f6f8;
+  --card: #ffffff;
+  --ink: #17202a;
+  --muted: #5b6672;
+  --rule: #dfe3e8;
+  --asphalt: #262d35;
+  --lane: #f2b705;
+  --lane-ink: #3d2e00;
+  --signal: #2160d8;
+  --go: #1f8a4c;
+  --warn: #b25d00;
+  --code-bg: #eef1f4;
+  --shadow: 0 1px 0 rgba(23,32,42,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15191e; --card: #1c2228; --ink: #e8ecf0; --muted: #9aa5b1; --rule: #2d353e;
+    --asphalt: #0e1114; --lane: #f2b705; --lane-ink: #241a00; --signal: #6b9cff; --go: #49c07c; --warn: #f0a04b;
+    --code-bg: #12161a; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15191e; --card: #1c2228; --ink: #e8ecf0; --muted: #9aa5b1; --rule: #2d353e;
+  --asphalt: #0e1114; --lane: #f2b705; --lane-ink: #241a00; --signal: #6b9cff; --go: #49c07c; --warn: #f0a04b;
+  --code-bg: #12161a; --shadow: none;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 Barlow, system-ui, sans-serif; }
+a { color: var(--signal); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--lane); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3 { font-family: "Barlow Semi Condensed", Barlow, sans-serif; font-weight: 700; line-height: 1.15; margin: 0; }
+code, pre, kbd { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .86em; }
+:not(pre) > code { background: var(--code-bg); padding: .08em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+/* ---------- hero: the road ---------- */
+.hero { background: var(--asphalt); color: #f1f3f5; position: relative; overflow: hidden; }
+.hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 34px; height: 6px;
+  background: repeating-linear-gradient(90deg, var(--lane) 0 46px, transparent 46px 86px); opacity: .9; }
+.hero .wrap { padding-top: 28px; padding-bottom: 86px; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; grid-column: 1 / -1; font-weight: 600; }
+.top a { color: #f1f3f5; text-decoration: none; }
+.top nav { display: flex; gap: 18px; font-weight: 500; font-size: 15px; }
+.top nav a { opacity: .8; } .top nav a:hover { opacity: 1; text-decoration: underline; }
+.hero h1 { font-size: clamp(38px, 6vw, 62px); letter-spacing: -.01em; max-width: 13ch; }
+.hero p.lede { color: #c5ccd3; font-size: 19px; max-width: 46ch; margin: 18px 0 0; }
+.hero .shot { border-radius: 14px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.08); }
+.hero .shot img { display: block; width: 100%; height: auto; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 22px 0 0; padding: 0; list-style: none; color: #dfe4e9; font-size: 15px; }
+.facts li::before { content: ""; display: inline-block; width: 10px; height: 3px; background: var(--lane); margin-right: 8px; vertical-align: middle; }
+
+/* ---------- junction: the three choices ---------- */
+.junction { margin-top: -40px; position: relative; z-index: 2; }
+.junction .panel { background: var(--card); border: 1px solid var(--rule); border-radius: 16px; padding: 22px; box-shadow: 0 10px 30px rgba(23,32,42,.08); }
+.junction h2 { font-size: 26px; }
+.junction > .panel > p { margin: 4px 0 18px; color: var(--muted); }
+.forks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { font-weight: 600; padding: 0; margin-bottom: 8px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--code-bg); border-radius: 10px; padding: 4px; gap: 4px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { display: block; text-align: center; padding: 9px 6px 8px; border-radius: 7px; cursor: pointer; font-weight: 600; line-height: 1.2; }
+.seg label small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.seg input:checked + label { background: var(--lane); color: var(--lane-ink); }
+.seg input:checked + label small { color: var(--lane-ink); opacity: .8; }
+.seg input:focus-visible + label { outline: 3px solid var(--signal); outline-offset: 1px; }
+.hint { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+
+.yours { margin-top: 18px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.yours summary { cursor: pointer; font-weight: 600; }
+.yours .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
+.yours label { font-size: 14px; color: var(--muted); display: block; }
+.yours input { display: block; width: 100%; margin-top: 4px; font: 500 15px "JetBrains Mono", monospace; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--rule); background: var(--paper); color: var(--ink); }
+.yours p { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
+
+/* ---------- the route ---------- */
+main { padding: 44px 0 30px; }
+.route { list-style: none; margin: 0; padding: 0; counter-reset: s; position: relative; }
+.route::before { content: ""; position: absolute; left: 21px; top: 10px; bottom: 10px; width: 4px;
+  background: repeating-linear-gradient(180deg, var(--lane) 0 18px, transparent 18px 32px); }
+.route > li { counter-increment: s; position: relative; padding: 0 0 34px 68px; }
+.route > li[hidden] { display: none; }
+.route > li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 46px; height: 46px; border-radius: 50%;
+  background: var(--asphalt); color: #fff; border: 3px solid var(--lane); display: grid; place-items: center;
+  font: 700 19px "Barlow Semi Condensed", sans-serif; }
+.route h3 { font-size: 26px; padding-top: 6px; }
+.route .who { font-size: 14px; color: var(--muted); margin: 2px 0 10px; }
+.step { max-width: 74ch; }
+.step p { margin: 10px 0; }
+.step ul, .step ol { padding-left: 1.2em; margin: 8px 0; }
+.step li { margin: 4px 0; }
+.box { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; margin: 12px 0; box-shadow: var(--shadow); }
+.box.note { border-left: 4px solid var(--lane); }
+.box.warn { border-left: 4px solid var(--warn); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); }
+td code { white-space: normal; }
+.tbl { overflow-x: auto; }
+
+pre { position: relative; background: var(--asphalt); color: #e6eaee; padding: 34px 16px 14px; border-radius: 10px; overflow-x: auto; line-height: 1.55; margin: 10px 0; }
+pre .c { color: #8a96a3; }
+pre .v { color: var(--lane); }
+.copy { position: absolute; top: 8px; right: 8px; font: 600 12px Barlow, sans-serif; background: rgba(255,255,255,.1); color: #e6eaee;
+  border: 0; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+.copy:hover { background: rgba(255,255,255,.2); }
+.v-inline { color: var(--signal); font-weight: 600; }
+
+.split { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+.check { list-style: none; padding: 0 !important; }
+.check li { padding-left: 26px; position: relative; }
+.check li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 12px; height: 7px; border-left: 2.5px solid var(--go); border-bottom: 2.5px solid var(--go); transform: rotate(-45deg); }
+
+footer { border-top: 1px solid var(--rule); padding: 26px 0 40px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+
+@media (max-width: 860px) {
+  .hero .wrap { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+  .forks { grid-template-columns: minmax(0, 1fr); }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .top nav { display: none; }
+}
+@media (max-width: 520px) {
+  .route > li { padding-left: 0; }
+  .route::before { display: none; }
+  .route > li::before { position: static; display: inline-grid; width: 38px; height: 38px; font-size: 17px; margin-bottom: 6px; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="top">
+      <a href="#">Tesla Bridge</a>
+      <nav aria-label="Links">
+        <a href="https://github.com/Mfoldager17/tesla-bridge">GitHub</a>
+        <a href="https://github.com/Mfoldager17/tesla-bridge/tree/main/docs">Full docs</a>
+        <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/troubleshooting.md">Troubleshooting</a>
+      </nav>
+    </div>
+    <div>
+      <h1>Your Tesla, streaming to your own server</h1>
+      <p class="lede">A self-hosted replacement for Teslemetry. The car sends its data straight to you, Home Assistant gets around 80 entities, and you control the car through Tesla's official Fleet API – no middleman, no subscription.</p>
+      <ul class="facts">
+        <li>Runs in Docker on a Raspberry Pi</li>
+        <li>MQTT or a native integration</li>
+        <li>One car fits in Tesla's free credit</li>
+      </ul>
+    </div>
+    <div class="shot"><img src="screenshots/car.png" alt="The bridge's dashboard: a 3D Model Y with the battery at 68 % and charging, quick actions and status" width="1600" height="1000"></div>
+  </div>
+</header>
+
+<section class="wrap junction" aria-labelledby="choose">
+  <div class="panel">
+    <h2 id="choose">Pick your route</h2>
+    <p>Three choices decide the steps. They don't depend on each other, and the guide below follows what you pick.</p>
+    <div class="forks">
+      <fieldset>
+        <legend>How do you want to install?</legend>
+        <div class="seg">
+          <input type="radio" name="install" id="i-script" value="script" checked><label for="i-script">Setup script<small>asks and does it</small></label>
+          <input type="radio" name="install" id="i-hand" value="hand"><label for="i-hand">By hand<small>every step shown</small></label>
+        </div>
+        <p class="hint">Same result. The script writes the same <code>.env</code> you would.</p>
+      </fieldset>
+      <fieldset>
+        <legend>How does the internet reach you?</legend>
+        <div class="seg">
+          <input type="radio" name="net" id="n-proxy" value="proxy" checked><label for="n-proxy">Reverse proxy<small>port 443 open</small></label>
+          <input type="radio" name="net" id="n-tunnel" value="tunnel"><label for="n-tunnel">Tunnel<small>e.g. Cloudflare</small></label>
+        </div>
+        <p class="hint">Any proxy works – Nginx Proxy Manager, Caddy, Traefik. Not sure? <a href="#why">Why it matters</a></p>
+      </fieldset>
+      <fieldset>
+        <legend>How should Home Assistant get the data?</legend>
+        <div class="seg">
+          <input type="radio" name="ha" id="h-int" value="int" checked><label for="h-int">Integration<small>no broker needed</small></label>
+          <input type="radio" name="ha" id="h-mqtt" value="mqtt"><label for="h-mqtt">MQTT<small>your own broker</small></label>
+        </div>
+        <p class="hint">Identical entities either way – you can switch later.</p>
+      </fieldset>
+    </div>
+
+    <details class="yours">
+      <summary>Fill in your own values (optional) – the commands below update as you type</summary>
+      <div class="grid">
+        <label>Your domain <input id="f-domain" placeholder="car.example.com" autocomplete="off" spellcheck="false"></label>
+        <label data-net="tunnel">Car domain (DNS only) <input id="f-cardomain" placeholder="car-data.example.com" autocomplete="off" spellcheck="false"></label>
+        <label>Server IP on your network <input id="f-ip" placeholder="192.168.1.20" autocomplete="off" spellcheck="false"></label>
+        <label data-ha="mqtt">MQTT broker IP <input id="f-broker" placeholder="192.168.1.20" autocomplete="off" spellcheck="false"></label>
+        <label>Name of your car <input id="f-name" placeholder="Model Y" autocomplete="off"></label>
+      </div>
+      <p>Nothing leaves your browser. The placeholders are only examples – the names are up to you.</p>
+    </details>
+  </div>
+</section>
+
+<main class="wrap">
+  <ol class="route" id="route">
+
+    <li>
+      <h3>Check what you need</h3>
+      <p class="who">5 minutes · reading</p>
+      <div class="step">
+        <ul class="check">
+          <li>A server with Docker – a Raspberry Pi 4/5 or any x86 machine.</li>
+          <li data-net="proxy">One (sub)domain, e.g. <span class="v-inline" data-v="domain"></span>, pointing to your public IP.</li>
+          <li data-net="tunnel">Two (sub)domains: <span class="v-inline" data-v="domain"></span> through your tunnel, and <span class="v-inline" data-v="cardomain"></span> pointing straight to your public IP.</li>
+          <li>A public IP address you can forward a port on. Behind CGNAT you need a VPS or a raw TCP tunnel for port 4443.</li>
+          <li>A valid certificate for the name the car connects to (<span class="v-inline" data-v="cardomain"></span>) – and <strong>knowing which folder it's in</strong>. Nginx Proxy Manager is not required.</li>
+          <li data-ha="mqtt">An MQTT broker that the server and Home Assistant can both reach, e.g. Mosquitto.</li>
+          <li data-ha="int">HACS in Home Assistant.</li>
+        </ul>
+        <div class="box note">The name must not contain the word “tesla” – Tesla rejects it. <code>car.</code>, <code>ev.</code> or anything else is fine.</div>
+
+        <div class="box" id="why">
+          <strong>Why two ports, and why it matters how you reach the internet</strong>
+          <div class="tbl"><table>
+            <tr><th>Port</th><th>Who connects</th><th>How it gets in</th></tr>
+            <tr><td>443 (HTTPS)</td><td>Tesla fetches your public key; your browser comes back here after login</td><td>a reverse proxy <em>or</em> a tunnel</td></tr>
+            <tr><td>4443 (TCP)</td><td>the car, with its own client certificate</td><td>always a port forward, straight to fleet-telemetry</td></tr>
+          </table></div>
+          <p>A proxy or tunnel opens the TLS connection itself, so the car's certificate would never arrive. That's why 4443 can't go through one – and why a tunnel setup needs a second, DNS-only name for the car.</p>
+        </div>
+      </div>
+    </li>
+
+    <li>
+      <h3>Create the DNS record<span data-net="tunnel">s</span></h3>
+      <p class="who">At your DNS provider</p>
+      <div class="step">
+        <div class="tbl"><table>
+          <tr><th>Name</th><th>Type</th><th>Points to</th><th>Cloudflare</th></tr>
+          <tr data-net="proxy"><td><code data-v="domain"></code></td><td>A</td><td>your public IP</td><td>DNS only (grey cloud)</td></tr>
+          <tr data-net="tunnel"><td><code data-v="domain"></code></td><td>–</td><td>created by the tunnel (see “Add the tunnel hostname”)</td><td>proxied is fine</td></tr>
+          <tr data-net="tunnel"><td><code data-v="cardomain"></code></td><td>A</td><td>your public IP</td><td>DNS only (grey cloud)</td></tr>
+        </table></div>
+        <p>The car must talk to your server directly. If Cloudflare proxies the name the car uses, the car never gets through.</p>
+      </div>
+    </li>
+
+    <li>
+      <h3>Create the app at Tesla</h3>
+      <p class="who">developer.tesla.com → Create application</p>
+      <div class="step">
+        <div class="tbl"><table>
+          <tr><th>Field</th><th>Value</th></tr>
+          <tr><td>Name</td><td>your choice, without “tesla” – e.g. <code>My Car</code></td></tr>
+          <tr><td>Allowed Origin</td><td><code>https://<span data-v="domain"></span></code></td></tr>
+          <tr><td>Allowed Redirect URI</td><td><code>https://<span data-v="domain"></span>/auth/callback</code></td></tr>
+          <tr><td>Scopes</td><td>Vehicle Information, Vehicle Location, Vehicle Commands, Vehicle Charging Management</td></tr>
+        </table></div>
+        <p>Keep the <strong>Client ID</strong> and <strong>Client Secret</strong> for the next step. You don't make any keys – the bridge makes them.</p>
+      </div>
+    </li>
+
+    <!-- script route -->
+    <li data-install="script">
+      <h3>Run the setup script</h3>
+      <p class="who">On the server, in a terminal</p>
+      <div class="step">
+        <pre><code>curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/install.sh | bash</code></pre>
+        <p>It asks a few questions – answer with what you picked above:</p>
+        <ul>
+          <li><strong>Folder</strong> – anywhere you like. An existing install is found by itself.</li>
+          <li><strong>How the internet reaches you</strong> – answer <strong data-net="proxy">1 (reverse proxy)</strong><strong data-net="tunnel">2 (tunnel)</strong>.</li>
+          <li><strong>Client ID / Secret, VIN and a name</strong> for the car (the name becomes the entity ids).</li>
+          <li><strong>MQTT</strong> – answer <strong data-ha="int">1 (built-in broker)</strong><strong data-ha="mqtt">2 if it finds your Mosquitto container (it creates both users), or 3 for another broker</strong>.</li>
+          <li><strong>Certificate</strong> –
+            <span data-net="proxy">with Nginx Proxy Manager it's found by itself. With anything else, give it the folder (a parent folder is fine – it searches).</span>
+            <span data-net="tunnel">give it the folder, or pick “get it now” and paste a Cloudflare API token with <em>Edit zone DNS</em> – it gets a Let's Encrypt certificate for <code data-v="cardomain"></code>.</span>
+            It is renewed weekly by itself.</li>
+        </ul>
+        <p>Run it again any time – to change an answer or update. Your answers are the defaults. <code>--dry-run</code> shows what it would do.</p>
+      </div>
+    </li>
+
+    <!-- manual route -->
+    <li data-install="hand">
+      <h3>Download two files</h3>
+      <p class="who">On the server – no source code, no git</p>
+      <div class="step">
+        <pre><code>mkdir -p ~/tesla-bridge &amp;&amp; cd ~/tesla-bridge     <span class="c"># any folder you like</span>
+curl -fsSLO https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/docker-compose.yml
+curl -fsSL  https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/.env.example -o .env
+chmod 600 .env</code></pre>
+      </div>
+    </li>
+
+    <li data-install="hand">
+      <h3>Fill in .env</h3>
+      <p class="who">nano .env – this is built from your choices</p>
+      <div class="step">
+        <pre id="envblock"><code></code></pre>
+        <p>Replace everything in <code>&lt;angle brackets&gt;</code>. A token: <code>openssl rand -hex 24</code>.</p>
+      </div>
+    </li>
+
+    <li data-install="hand" data-ha="mqtt">
+      <h3>Create the MQTT users</h3>
+      <p class="who">Only with your own broker</p>
+      <div class="step">
+        <p>Replace <code>mosquitto</code> with your container's name, and use the password file it prints.</p>
+        <pre><code><span class="c"># where is the password file?</span>
+docker exec mosquitto sh -c 'grep -h password_file /mosquitto/config/*.conf /etc/mosquitto/*.conf 2&gt;/dev/null'
+
+docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd tesla-bridge
+docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd fleet-telemetry
+docker kill -s HUP mosquitto      <span class="c"># re-read users, no restart</span></code></pre>
+        <p>Anonymous broker? Skip this and leave usernames and passwords empty.</p>
+      </div>
+    </li>
+
+    <li data-install="hand">
+      <h3>Put the certificate in place</h3>
+      <p class="who">For <code data-v="cardomain"></code> – from wherever it lives</p>
+      <div class="step">
+        <pre><code>SRC=<span class="v">&lt;certificate folder&gt;</span>
+mkdir -p config/fleet-telemetry/certs
+sudo cp -L "$SRC"/fullchain.pem config/fleet-telemetry/certs/fullchain.pem
+sudo cp -L "$SRC"/privkey.pem   config/fleet-telemetry/certs/privkey.pem
+sudo chown -R $(id -u):$(id -g) config/fleet-telemetry/certs</code></pre>
+        <div class="tbl"><table>
+          <tr><th>Made by</th><th>Folder</th></tr>
+          <tr><td>Nginx Proxy Manager</td><td><code>&lt;letsencrypt&gt;/live/npm-&lt;nr&gt;</code> – find the number with <code>sudo grep -l <span data-v="cardomain"></span> &lt;letsencrypt&gt;/renewal/*.conf</code></td></tr>
+          <tr><td>certbot</td><td><code>/etc/letsencrypt/live/<span data-v="cardomain"></span></code></td></tr>
+          <tr><td>Caddy</td><td><code>&lt;caddy data&gt;/caddy/certificates/&lt;ca&gt;/<span data-v="cardomain"></span></code> – files are <code>.crt</code> and <code>.key</code></td></tr>
+          <tr><td>acme.sh</td><td><code>~/.acme.sh/<span data-v="cardomain"></span></code> – <code>fullchain.cer</code> and <code>.key</code></td></tr>
+        </table></div>
+        <p data-net="tunnel">No certificate for <code data-v="cardomain"></code> yet? The <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/2-install.md#step-5--the-certificate-for-fleet-telemetry">install guide</a> shows how to get one with certbot and Cloudflare DNS – or let the setup script do it.</p>
+        <p>Let's Encrypt renews about every 60 days: copy again weekly with a root cron job and run <code>docker compose restart fleet-telemetry</code>.</p>
+      </div>
+    </li>
+
+    <li data-install="hand">
+      <h3>Start it</h3>
+      <div class="step">
+        <pre><code>docker compose up -d
+docker compose logs tesla-init        <span class="c"># what was created, and any warnings</span></code></pre>
+        <p>Back up <code>config/</code> and <code>data/</code>. If the app key is lost, it must be paired with the car again.</p>
+      </div>
+    </li>
+
+    <!-- both -->
+    <li>
+      <h3 data-net="proxy">Add the proxy host</h3>
+      <h3 data-net="tunnel">Add the tunnel hostname</h3>
+      <p class="who" data-net="proxy">In your reverse proxy</p>
+      <p class="who" data-net="tunnel">In your tunnel – Cloudflare: Zero Trust → Networks → Tunnels → Public Hostname</p>
+      <div class="step">
+        <div data-net="proxy">
+          <div class="tbl"><table>
+            <tr><th>Domain</th><td><code data-v="domain"></code></td></tr>
+            <tr><th>Forward to</th><td><code>http://<span data-v="ip"></span>:8091</code></td></tr>
+            <tr><th>SSL</th><td>Let's Encrypt certificate, force HTTPS</td></tr>
+          </table></div>
+          <p>Caddy, for example:</p>
+          <pre><code><span data-v="domain"></span> {
+    reverse_proxy <span data-v="ip"></span>:8091
+}</code></pre>
+        </div>
+        <div data-net="tunnel">
+          <div class="tbl"><table>
+            <tr><th>Hostname</th><td><code data-v="domain"></code></td></tr>
+            <tr><th>Service</th><td><code>http://<span data-v="ip"></span>:8091</code> – or <code>http://tesla-bridge:8091</code> if cloudflared runs on the same Docker network</td></tr>
+          </table></div>
+          <p>Or in cloudflared's <code>config.yml</code>:</p>
+          <pre><code>ingress:
+  - hostname: <span data-v="domain"></span>
+    service: http://<span data-v="ip"></span>:8091</code></pre>
+        </div>
+        <p>Port 8091 only answers with the public key and the login callback – never the dashboard. Once Tesla can fetch the key, the bridge registers your domain with Tesla by itself.</p>
+      </div>
+    </li>
+
+    <li>
+      <h3>Forward TCP 4443 in your router</h3>
+      <div class="step">
+        <p>To <code data-v="ip"></code>, port 4443. That's where the car sends its data – to <code><span data-v="cardomain"></span>:4443</code>. Your existing services on 443 are not affected.</p>
+        <div class="box warn">Don't forward 8090. That's the dashboard, and it can unlock the car – keep it on your own network.</div>
+      </div>
+    </li>
+
+    <li>
+      <h3>Connect the car</h3>
+      <p class="who">In the dashboard, on your own network</p>
+      <div class="step">
+        <p>Open <code>http://<span data-v="ip"></span>:8090</code> and sign in with the token from <code>.env</code> (the script prints a link that signs you in). Under <strong>Setup</strong>:</p>
+        <ol>
+          <li><strong>Sign in with Tesla.</strong></li>
+          <li><strong>Pair the key</strong> – scan the QR code with your phone while you're at the car, and approve in the Tesla app.</li>
+          <li>Wait for the car to wake – the first data arrives within a minute or two.</li>
+        </ol>
+      </div>
+    </li>
+
+    <li>
+      <h3>Add it to Home Assistant</h3>
+      <div class="step">
+        <div data-ha="mqtt">
+          <p>Nothing to do: the car appears by itself under <strong>MQTT</strong> as <strong data-v="name"></strong>, as long as Home Assistant uses the same broker.</p>
+        </div>
+        <div data-ha="int">
+          <ol>
+            <li>HACS → ⋮ → <strong>Custom repositories</strong> → <code>https://github.com/Mfoldager17/tesla-bridge</code>, type <em>Integration</em>.</li>
+            <li>Install <strong>Tesla Bridge</strong> and restart Home Assistant.</li>
+            <li>Settings → Devices &amp; services → Add integration → <strong>Tesla Bridge</strong>, with URL <code>http://<span data-v="ip"></span>:8090</code> and the token from <code>.env</code>.</li>
+          </ol>
+        </div>
+        <p>You get about 80 entities under <strong data-v="name"></strong>, e.g. <code>sensor.<span data-v="slug"></span>_battery_level</code>. <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/entities.md">All entities</a></p>
+      </div>
+    </li>
+  </ol>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Stuck? <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/troubleshooting.md">Troubleshooting</a> · <a href="https://github.com/Mfoldager17/tesla-bridge/issues">Open an issue</a></span>
+    <span>Screenshot: test data from the built-in simulator. 3D model “2025 Tesla Model Y” by BloxBloger, <a href="https://creativecommons.org/licenses/by-nc/4.0/">CC BY-NC 4.0</a>, modified – <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/5-the-dashboard.md#credits">credits</a>.<br>Tesla and Model Y are trademarks of Tesla, Inc. This project is not affiliated with Tesla.</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const store = { get(k) { try { return localStorage.getItem("tb." + k); } catch { return null; } },
+                  set(k, v) { try { localStorage.setItem("tb." + k, v); } catch {} } };
+  const fields = { domain: "car.example.com", cardomain: "car-data.example.com", ip: "<server-IP>", broker: "<broker-IP>", name: "Model Y" };
+
+  // restore choices and values (from the URL first, so a link can be shared, then this browser)
+  const q = new URLSearchParams(location.search);
+  for (const n of ["install", "net", "ha"]) {
+    const v = q.get(n) || store.get(n);
+    const el = v && $(`input[name="${n}"][value="${CSS.escape(v)}"]`); if (el) el.checked = true;
+  }
+  for (const k of Object.keys(fields)) { const v = store.get("f." + k); if (v) $("#f-" + k).value = v; }
+
+  const val = (k) => $("#f-" + k).value.trim() || fields[k];
+  const pick = (n) => $(`input[name="${n}"]:checked`).value;
+
+  function env(c) {
+    const lines = [
+      ["TZ=Europe/Copenhagen", "your time zone"],
+      ["PUID=1000", "from `id`"], ["PGID=1000", ""], ["", ""],
+      [`Bridge__Telemetry__Hostname=${c.net === "tunnel" ? val("cardomain") : val("domain")}`, "the name the car connects to"],
+      ...(c.net === "tunnel" ? [[`Bridge__Tesla__PartnerDomain=${val("domain")}`, "the name through the tunnel"]] : []),
+      ["Bridge__Vehicles__0__Vin=<VIN>", "17 characters, Tesla app → Software"],
+      [`Bridge__Vehicles__0__Name=${val("name")}`, "your choice"],
+      ["Bridge__Tesla__ClientId=<Client ID>", ""], ["Bridge__Tesla__ClientSecret=<Client Secret>", ""], ["", ""],
+      ...(c.ha === "mqtt" ? [
+        ["Bridge__Mqtt__EmbeddedBroker=false", ""], [`Bridge__Mqtt__Host=${val("broker")}`, "an IP, not localhost"], ["Bridge__Mqtt__Port=1883", ""],
+        ["Bridge__Mqtt__Username=tesla-bridge", ""], ["Bridge__Mqtt__Password=<password 1>", ""],
+        ["Bridge__Telemetry__MqttUsername=fleet-telemetry", ""], ["Bridge__Telemetry__MqttPassword=<password 2>", ""],
+        ["Bridge__Mqtt__DiscoveryPrefix=homeassistant", ""],
+      ] : [
+        ["Bridge__Mqtt__EmbeddedBroker=true", "no broker needed"], ["Bridge__Mqtt__DiscoveryPrefix=", ""],
+      ]),
+      ["", ""], ["Bridge__Web__Token=<token>", "openssl rand -hex 24"], ["BRIDGE_TAG=latest", ""],
+    ];
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    // comments on their own line: an inline "# …" would become part of the value in some .env readers
+    return lines.map(([l, c]) => (c ? `<span class="c"># ${esc(c)}</span>\n` : "") + esc(l).replace(/(&lt;[^&]*?>)/g, '<span class="v">$1</span>')).join("\n");
+  }
+
+  function render() {
+    const c = { install: pick("install"), net: pick("net"), ha: pick("ha") };
+    for (const n of ["install", "net", "ha"]) store.set(n, c[n]);
+    const keep = new URLSearchParams(c); history.replaceState(null, "", "?" + keep + location.hash);
+    for (const el of $$("[data-install],[data-net],[data-ha]")) {
+      el.hidden = (el.dataset.install && el.dataset.install !== c.install) || (el.dataset.net && el.dataset.net !== c.net) || (el.dataset.ha && el.dataset.ha !== c.ha);
+    }
+    const v = { domain: val("domain"), cardomain: c.net === "tunnel" ? val("cardomain") : val("domain"), ip: val("ip"), name: val("name"),
+                slug: val("name").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "model_y" };
+    for (const el of $$("[data-v]")) el.textContent = v[el.dataset.v] ?? "";
+    $("#envblock code").innerHTML = env(c);
+  }
+
+  $$("input[type=radio]").forEach((r) => r.addEventListener("change", render));
+  for (const k of Object.keys(fields)) $("#f-" + k).addEventListener("input", (e) => { store.set("f." + k, e.target.value.trim()); render(); });
+
+  // copy buttons
+  for (const pre of $$("pre")) {
+    const b = document.createElement("button"); b.className = "copy"; b.type = "button"; b.textContent = "Copy";
+    b.onclick = async () => {
+      try { await navigator.clipboard.writeText(pre.querySelector("code").innerText); b.textContent = "Copied"; }
+      catch { b.textContent = "Select and copy"; }
+      setTimeout(() => (b.textContent = "Copy"), 1600);
+    };
+    pre.append(b);
+  }
+  render();
+})();
+</script>
+</body>
+</html>

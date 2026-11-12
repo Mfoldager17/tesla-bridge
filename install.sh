@@ -88,22 +88,55 @@ if [[ -f .env ]]; then ok "Found an existing .env – your answers from last tim
 run curl -fsSLo docker-compose.yml "$REPO_RAW/docker-compose.yml"
 ok "docker-compose.yml downloaded (newest version)"
 
-# ---------------------------------------------------------------- 3. domain
-step "Your domain"
-info "The car sends data to a (sub)domain of yours, e.g. car.example.com. The name is up to you,"
-info "but Tesla rejects anything containing \"tesla\". At Cloudflare it must be ${B}DNS only${N} (grey cloud)."
-DOMAIN=$(env_get Bridge__Telemetry__Hostname); [[ "$DOMAIN" == *ditdomaene* || "$DOMAIN" == *example* ]] && DOMAIN=""
-while :; do
-  DOMAIN=$(ask "Domain" "$DOMAIN"); DOMAIN="${DOMAIN#https://}"; DOMAIN="${DOMAIN%%/*}"
-  [[ "$DOMAIN" == *.* ]] || { warn "That doesn't look like a domain."; continue; }
-  [[ "${DOMAIN,,}" == *tesla* ]] && { warn "Tesla rejects domains containing \"tesla\" – pick another name, e.g. car.${DOMAIN#*.}"; DOMAIN=""; continue; }
-  break
-done
+# ---------------------------------------------------------------- 3. domain(s)
+step "How the internet reaches you"
+info "Two things must be reachable from the internet:"
+info "  ${B}HTTPS (443)${N}  Tesla fetches your public key and sends you back after login – any reverse proxy or tunnel"
+info "  ${B}TCP 4443${N}     the car streams its data – always a port forward (raw TLS, it can't go through a proxy or HTTP tunnel)"
+info "1) Reverse proxy – port 443 is forwarded to a reverse proxy (Nginx Proxy Manager, Caddy, Traefik, nginx …)."
+info "   One domain for both, e.g. car.example.com."
+info "2) Tunnel – the website part goes through a tunnel (e.g. Cloudflare Tunnel), no port 443 open."
+info "   Two domains: one through the tunnel (car.example.com) and one DNS only for the car (car-data.example.com)."
+CUR_TEL=$(env_get Bridge__Telemetry__Hostname); CUR_PARTNER=$(env_get Bridge__Tesla__PartnerDomain)
+[[ "$CUR_TEL" == *ditdomaene* || "$CUR_TEL" == *example* ]] && CUR_TEL=""
+[[ "$CUR_PARTNER" == *example* ]] && CUR_PARTNER=""
+DEF=1; [[ -n "$CUR_PARTNER" && "$CUR_PARTNER" != "$CUR_TEL" ]] && DEF=2
+ACCESS=$(ask "Choose 1 or 2" "$DEF"); [[ "$ACCESS" == 2 ]] || ACCESS=1
+
+ask_domain() { # ask_domain "Question" "default" -> clean domain on stdout
+  local d=$2
+  while :; do
+    d=$(ask "$1" "$d"); d="${d#https://}"; d="${d#http://}"; d="${d%%/*}"; d="${d,,}"
+    [[ "$d" == *.* ]] || { warn "That doesn't look like a domain." >&2; continue; }
+    [[ "$d" == *tesla* ]] && { warn "Tesla rejects domains containing \"tesla\" – pick another name, e.g. car.${d#*.}" >&2; d=""; continue; }
+    printf '%s' "$d"; return
+  done
+}
+if [[ "$ACCESS" == 1 ]]; then
+  info "Your (sub)domain, e.g. car.example.com – the name is up to you, but not containing \"tesla\"."
+  info "At Cloudflare it must be ${B}DNS only${N} (grey cloud): the car needs to reach your server directly."
+  PARTNER=$(ask_domain "Domain" "$CUR_TEL"); TELEMETRY=$PARTNER
+else
+  info "Website domain – goes through your tunnel (proxied/orange cloud is fine), e.g. car.example.com"
+  PARTNER=$(ask_domain "Website domain" "${CUR_PARTNER:-}")
+  info "Car domain – ${B}DNS only${N} (grey cloud), an A record to your public IP, e.g. car-data.example.com"
+  while :; do
+    TELEMETRY=$(ask_domain "Car domain" "$([[ "$CUR_TEL" != "$PARTNER" ]] && echo "$CUR_TEL")")
+    [[ "$TELEMETRY" != "$PARTNER" ]] && break
+    warn "It must be a different name: the tunnel owns $PARTNER, so the car can't reach port 4443 there."
+  done
+fi
+DOMAIN=$TELEMETRY   # the certificate is for the name the car connects to
+
 PUBLIC_IP=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)
-DNS_IP=$(getent ahostsv4 "$DOMAIN" 2>/dev/null | awk 'NR==1{print $1}' || true)
-if [[ -z "$DNS_IP" ]]; then warn "$DOMAIN doesn't resolve yet. Create an A record → ${PUBLIC_IP:-your public IP} (DNS only)."
-elif [[ -n "$PUBLIC_IP" && "$DNS_IP" != "$PUBLIC_IP" ]]; then warn "$DOMAIN points to $DNS_IP, but your public IP is $PUBLIC_IP. Behind Cloudflare? Set it to DNS only."
-else ok "$DOMAIN → $DNS_IP (your public IP)"; fi
+DNS_IP=$(getent ahostsv4 "$TELEMETRY" 2>/dev/null | awk 'NR==1{print $1}' || true)
+if [[ -z "$DNS_IP" ]]; then warn "$TELEMETRY doesn't resolve yet. Create an A record → ${PUBLIC_IP:-your public IP} (DNS only)."
+elif [[ -n "$PUBLIC_IP" && "$DNS_IP" != "$PUBLIC_IP" ]]; then warn "$TELEMETRY points to $DNS_IP, but your public IP is $PUBLIC_IP. Behind Cloudflare? Set it to DNS only."
+else ok "$TELEMETRY → $DNS_IP (your public IP)"; fi
+if [[ "$ACCESS" == 2 ]]; then
+  if getent hosts "$PARTNER" >/dev/null 2>&1; then ok "$PARTNER resolves (through your tunnel)"
+  else warn "$PARTNER doesn't resolve yet – add it as a public hostname in your tunnel (shown at the end)."; fi
+fi
 
 # ---------------------------------------------------------------- 4. Tesla app
 step "Tesla app"
@@ -111,8 +144,8 @@ CLIENT_ID=$(env_get Bridge__Tesla__ClientId); CLIENT_SECRET=$(env_get Bridge__Te
 if [[ -z "$CLIENT_ID" ]]; then
   info "Create a new app at ${C}https://developer.tesla.com${N} → Create application, with:"
   info "  Name                  anything without \"tesla\", e.g. ${B}My Car${N}"
-  info "  Allowed Origin        ${B}https://$DOMAIN${N}"
-  info "  Allowed Redirect URI  ${B}https://$DOMAIN/auth/callback${N}"
+  info "  Allowed Origin        ${B}https://$PARTNER${N}"
+  info "  Allowed Redirect URI  ${B}https://$PARTNER/auth/callback${N}"
   info "  Scopes                Vehicle Information, Vehicle Location, Vehicle Commands, Vehicle Charging Management"
   info "You do NOT need to make any keys – the bridge makes them."
 fi
@@ -186,7 +219,9 @@ TZ=$(T=$(env_get TZ); echo "${T:-$(cat /etc/timezone 2>/dev/null || echo Europe/
 PUID=$(id -u)
 PGID=$(id -g)
 
-Bridge__Telemetry__Hostname=$DOMAIN
+Bridge__Telemetry__Hostname=$TELEMETRY
+# Only set when the website part has its own name (tunnel); empty = same as Bridge__Telemetry__Hostname
+Bridge__Tesla__PartnerDomain=$([[ "$PARTNER" != "$TELEMETRY" ]] && echo "$PARTNER")
 Bridge__Telemetry__Port=4443
 Bridge__Vehicles__0__Vin=$VIN
 Bridge__Vehicles__0__Name=$NAME
@@ -218,40 +253,108 @@ ok ".env written (only readable by you)"
 
 # ---------------------------------------------------------------- 8. certificate
 step "Certificate for $DOMAIN"
+info "The car only talks to a server with a valid certificate for ${B}$DOMAIN${N}. Nginx Proxy Manager is NOT required –"
+info "any Let's Encrypt certificate works. You just need to know the folder it is in."
 CERTS=config/fleet-telemetry/certs
 run mkdir -p "$CERTS"
+covers() { # covers <cert file> <domain> – also accepts a wildcard (*.example.com)
+  local san; san=$(sudo openssl x509 -in "$1" -noout -ext subjectAltName 2>/dev/null) || return 1
+  grep -qE "DNS:($(printf '%s' "$2" | sed 's/\./\\./g')|\*\.$(printf '%s' "${2#*.}" | sed 's/\./\\./g'))(,|$)" <<<"$san"
+}
 cert_ok() { [[ -f "$CERTS/fullchain.pem" ]] && openssl x509 -in "$CERTS/fullchain.pem" -noout -checkend 1728000 >/dev/null 2>&1 \
-  && openssl x509 -in "$CERTS/fullchain.pem" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:$DOMAIN"; }
-SRC=""
+  && covers "$CERTS/fullchain.pem" "$DOMAIN"; }
+find_cert() { # find_cert <folder>: sets CERT_FILE and KEY_FILE to the newest valid pair for $DOMAIN anywhere below it
+  CERT_FILE=""; KEY_FILE=""
+  local f k
+  while IFS= read -r f; do
+    case "$f" in
+      */fullchain.pem|*/fullchain*.pem) k="$(dirname "$f")/privkey${f##*/fullchain}" ;;  # certbot, NPM (live/ and custom_ssl/)
+      *.crt) k="${f%.crt}.key" ;;                                                         # Caddy, acme.sh, many others
+      *.cer) k="$(dirname "$f")/$(basename "$(dirname "$f")").key" ;;                     # acme.sh fullchain.cer
+      *) continue ;;
+    esac
+    sudo test -f "$k" || continue
+    sudo openssl x509 -in "$f" -noout -checkend 0 >/dev/null 2>&1 || continue
+    covers "$f" "$DOMAIN" || continue
+    CERT_FILE=$f; KEY_FILE=$k; return 0
+  done < <(sudo find "$1" -maxdepth 7 \( -name 'fullchain*.pem' -o -name '*.crt' -o -name 'fullchain.cer' \) -not -path '*/archive/*' 2>/dev/null \
+           | xargs -r sudo ls -t 2>/dev/null)
+  return 1
+}
+CERT_FILE=""; KEY_FILE=""; RENEW_CMD=""
 if cert_ok; then ok "Already in place and valid for more than 20 days"
 else
+  # 1) Nginx Proxy Manager is found by itself (reverse proxy way only – with a tunnel NPM has no cert for the car domain)
   NPM=$(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($2) ~ /nginx-proxy-manager/ {print $1; exit}')
-  if [[ -n "$NPM" ]]; then
+  if [[ -n "$NPM" && "$ACCESS" == 1 ]]; then
     LE=$(docker inspect "$NPM" --format '{{range .Mounts}}{{if eq .Destination "/etc/letsencrypt"}}{{.Source}}{{end}}{{end}}')
-    info "Looking for a certificate for $DOMAIN in Nginx Proxy Manager ($LE) – needs sudo to read it"
-    for d in $(sudo find "$LE/live" -mindepth 1 -maxdepth 1 -type d 2>/dev/null); do
-      if sudo openssl x509 -in "$d/fullchain.pem" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:$DOMAIN"; then SRC="$d"; break; fi
-    done
-    [[ -z "$SRC" ]] && warn "No certificate for $DOMAIN in NPM yet. Create the proxy host first (see below) and run the script again."
-  else
-    info "No Nginx Proxy Manager container found."
-    P=$(ask "Folder with fullchain.pem and privkey.pem for $DOMAIN (empty = skip for now)" "")
-    [[ -n "$P" ]] && SRC="$P"
+    info "Found Nginx Proxy Manager ($NPM) – looking in $LE (needs sudo to read it)"
+    [[ -n "$LE" ]] && find_cert "$LE" && ok "Found $CERT_FILE"
   fi
-  if [[ -n "$SRC" ]]; then
-    run sudo cp -L "$SRC/fullchain.pem" "$SRC/privkey.pem" "$CERTS/"
+  # 2) otherwise: a folder you know, or get one now
+  while [[ -z "$CERT_FILE" ]]; do
+    info "Where is the certificate for $DOMAIN?"
+    info "  1) In a folder I know – any reverse proxy or ACME client. Examples:"
+    info "       Nginx Proxy Manager  <npm data>/letsencrypt         certbot  /etc/letsencrypt"
+    info "       Caddy                <caddy data>/certificates      acme.sh  ~/.acme.sh"
+    info "     A parent folder is fine – the script searches it for a valid certificate for $DOMAIN."
+    info "  2) I don't have one – get it now from Let's Encrypt via Cloudflare DNS (needs a Cloudflare API token)"
+    info "  3) Skip for now (run the script again later)"
+    CH=$(ask "Choose 1, 2 or 3" "$([[ "$ACCESS" == 2 ]] && echo 2 || echo 1)")
+    case "$CH" in
+      1)
+        P=$(ask "Folder" ""); P="${P/#\~/$HOME}"
+        [[ -n "$P" ]] || continue
+        if find_cert "$P"; then ok "Found $CERT_FILE"
+        else
+          warn "No valid certificate for $DOMAIN found below $P."
+          if confirm "Type the two file paths yourself instead?" n; then
+            CERT_FILE=$(ask "Certificate (full chain, PEM)" ""); KEY_FILE=$(ask "Private key (PEM)" "")
+            if ! sudo test -f "$CERT_FILE" || ! sudo test -f "$KEY_FILE"; then warn "One of the files doesn't exist."; CERT_FILE=""; fi
+            [[ -n "$CERT_FILE" ]] && ! covers "$CERT_FILE" "$DOMAIN" && warn "That certificate isn't for $DOMAIN – the car will refuse it."
+          fi
+        fi ;;
+      2)
+        info "Create a token at ${C}https://dash.cloudflare.com/profile/api-tokens${N} → Create Token → ${B}Edit zone DNS${N},"
+        info "limited to the zone of $DOMAIN. It is stored in $DIR/config/letsencrypt/cloudflare.ini (only readable by root)."
+        LEDIR="$DIR/config/letsencrypt"
+        CFTOKEN=$(ask_secret "Cloudflare API token" "")
+        [[ -n "$CFTOKEN" ]] || continue
+        EMAIL=$(ask "E-mail for Let's Encrypt (expiry warnings)" "")
+        run sudo mkdir -p "$LEDIR"
+        if [[ $DRY_RUN == 0 ]]; then
+          printf 'dns_cloudflare_api_token = %s\n' "$CFTOKEN" | sudo tee "$LEDIR/cloudflare.ini" >/dev/null
+          sudo chmod 600 "$LEDIR/cloudflare.ini"
+        fi
+        CB=(docker run --rm -v "$LEDIR:/etc/letsencrypt" certbot/dns-cloudflare)
+        if [[ -n "$EMAIL" ]]; then MAIL=(-m "$EMAIL"); else MAIL=(--register-unsafely-without-email); fi
+        run sudo "${CB[@]}" certonly -n --agree-tos "${MAIL[@]}" \
+          --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --dns-cloudflare-propagation-seconds 30 -d "$DOMAIN" \
+          || { warn "certbot failed – check the token (Edit zone DNS for the right zone)."; continue; }
+        CERT_FILE="$LEDIR/live/$DOMAIN/fullchain.pem"; KEY_FILE="$LEDIR/live/$DOMAIN/privkey.pem"
+        RENEW_CMD="${CB[*]} renew -q"
+        ok "Certificate issued by Let's Encrypt" ;;
+      *) warn "No certificate yet – the car can't send data until there is one. Run the script again when you have it."; break ;;
+    esac
+  done
+  if [[ -n "$CERT_FILE" ]]; then
+    run sudo cp -L "$CERT_FILE" "$CERTS/fullchain.pem"
+    run sudo cp -L "$KEY_FILE" "$CERTS/privkey.pem"
     run sudo chown "$(id -u):$(id -g)" "$CERTS/fullchain.pem" "$CERTS/privkey.pem"
-    ok "Copied from $SRC"
+    ok "Copied to $CERTS"
     # Let's Encrypt renews about every 60 days – copy again weekly and restart fleet-telemetry when it changed
     RENEW="$DIR/renew-cert.sh"
     if [[ $DRY_RUN == 0 ]]; then
       cat > "$RENEW" <<EOF
 #!/bin/sh
-# Written by install.sh: copies the renewed certificate for $DOMAIN to fleet-telemetry.
+# Written by install.sh: keeps the certificate for $DOMAIN in fleet-telemetry up to date.
+# Source: $CERT_FILE
 set -e
 cd "$DIR"
-if ! cmp -s "$SRC/fullchain.pem" $CERTS/fullchain.pem; then
-  cp -L "$SRC/fullchain.pem" "$SRC/privkey.pem" $CERTS/
+${RENEW_CMD:+$RENEW_CMD}
+if ! cmp -s "$CERT_FILE" $CERTS/fullchain.pem; then
+  cp -L "$CERT_FILE" $CERTS/fullchain.pem
+  cp -L "$KEY_FILE" $CERTS/privkey.pem
   chown $(id -u):$(id -g) $CERTS/fullchain.pem $CERTS/privkey.pem
   docker compose restart fleet-telemetry
 fi
@@ -261,7 +364,7 @@ EOF
     LINE="17 4 * * 1 $RENEW # tesla-bridge-cert"
     if [[ $DRY_RUN == 1 ]]; then info "[dry-run] root crontab += $LINE"
     else (sudo crontab -l 2>/dev/null | grep -v 'tesla-bridge-cert'; echo "$LINE") | sudo crontab -; fi
-    ok "Renewed automatically every Monday 04:17 (root's crontab)"
+    ok "Kept up to date every Monday 04:17 (root's crontab, $RENEW)"
   fi
 fi
 
@@ -271,24 +374,41 @@ run docker compose pull -q
 run docker compose up -d
 if [[ $DRY_RUN == 0 ]]; then
   for _ in $(seq 1 60); do curl -fsS http://localhost:8090/api/info >/dev/null 2>&1 && break; sleep 2; done
-  curl -fsS http://localhost:8090/api/info >/dev/null 2>&1 && ok "Bridge is running" || warn "The bridge doesn't answer yet: docker compose logs tesla-bridge"
+  if curl -fsS http://localhost:8090/api/info >/dev/null 2>&1; then ok "Bridge is running"
+  else warn "The bridge doesn't answer yet: docker compose logs tesla-bridge"; fi
   docker compose logs tesla-init 2>/dev/null | grep -iE 'advarsel|warning|mangler|missing' | sed 's/^/    /' || true
 fi
 
 # ---------------------------------------------------------------- 10. reachable from the internet?
 step "Checking from the outside"
-KEYURL="https://$DOMAIN/.well-known/appspecific/com.tesla.3p.public-key.pem"
+KEYURL="https://$PARTNER/.well-known/appspecific/com.tesla.3p.public-key.pem"
 if curl -fsS --max-time 8 "$KEYURL" 2>/dev/null | grep -q "BEGIN PUBLIC KEY"; then
   ok "Public key is reachable at $KEYURL – the bridge registers the domain with Tesla by itself"
 else
   warn "The public key isn't reachable at $KEYURL yet."
-  info "In your reverse proxy (e.g. Nginx Proxy Manager → Hosts → Add Proxy Host):"
-  info "  Domain       ${B}$DOMAIN${N}"
-  info "  Forward to   ${B}http://$(lan_ip):8091${N}"
-  info "  SSL          request a new Let's Encrypt certificate, Force SSL on"
-  info "Then run this script again (it picks up the certificate). The bridge keeps trying to register by itself."
+  if [[ "$ACCESS" == 1 ]]; then
+    info "Add a host in your reverse proxy (any will do – Nginx Proxy Manager: Hosts → Add Proxy Host):"
+    info "  Domain       ${B}$PARTNER${N}"
+    info "  Forward to   ${B}http://$(lan_ip):8091${N}"
+    info "  SSL          a Let's Encrypt certificate, force HTTPS"
+    info "Then run this script again – it picks up the certificate. The bridge keeps trying to register by itself."
+  else
+    info "Add a public hostname to your tunnel (Cloudflare: Zero Trust → Networks → Tunnels → your tunnel → Public Hostname):"
+    info "  Hostname     ${B}$PARTNER${N}"
+    info "  Service      ${B}http://$(lan_ip):8091${N}   (or http://tesla-bridge:8091 if cloudflared is on the same Docker network)"
+    info "Or in cloudflared's config.yml:"
+    info "  ingress:"
+    info "    - hostname: $PARTNER"
+    info "      service: http://$(lan_ip):8091"
+    info "The bridge keeps trying to register by itself once it is reachable."
+  fi
 fi
-info "Router: forward ${B}TCP 4443${N} to ${B}$(lan_ip)${N} – that's where the car sends its data."
+info "Router: forward ${B}TCP 4443${N} to ${B}$(lan_ip)${N} – the car connects to ${B}$TELEMETRY:4443${N} (DNS only, not through a tunnel)."
+# fleet-telemetry wants a client certificate (only the car has one), but it shows its own certificate first
+TLS=$(timeout 8 openssl s_client -connect "$TELEMETRY:4443" -servername "$TELEMETRY" -verify_hostname "$TELEMETRY" </dev/null 2>/dev/null || true)
+if grep -q "Verify return code: 0" <<<"$TLS"; then ok "$TELEMETRY:4443 answers with a valid certificate"
+elif grep -q "BEGIN CERTIFICATE" <<<"$TLS"; then warn "$TELEMETRY:4443 answers, but its certificate isn't valid for $TELEMETRY (wrong or expired certificate?)"
+else info "(Can't check port 4443 from here – many routers don't loop back. The Setup page shows when the car is streaming.)"; fi
 
 # ---------------------------------------------------------------- done
 step "Almost there"

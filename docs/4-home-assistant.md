@@ -2,7 +2,7 @@
 
 # 4. Home Assistant
 
-Follow the way you chose in [step 1](1-before-you-start.md#two-ways-into-home-assistant). The entities are the same either way – see [Entities](entities.md).
+Follow the way you chose in [step 1](1-before-you-start.md#choice-2-how-home-assistant-gets-the-data). The entities are the same either way – see [Entities](entities.md).
 
 ## A) MQTT
 

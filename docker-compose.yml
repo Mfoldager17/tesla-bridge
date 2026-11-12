@@ -6,15 +6,16 @@
 #   nano .env && docker compose up -d
 # Update:  docker compose pull && docker compose up -d
 #
-#   https://<your domain> (reverse proxy :443) ──▶ tesla-bridge :8091   (public key + login callback)
+#   https://<your domain> (reverse proxy :443 or a tunnel) ──▶ tesla-bridge :8091   (public key + login callback)
 #   Car ──mTLS:4443──▶ fleet-telemetry ──MQTT──▶ your broker ◀──▶ tesla-bridge ◀──▶ Home Assistant / panels
 #                      (or the bridge's embedded broker: Bridge__Mqtt__EmbeddedBroker=true – no Mosquitto needed)
 #                                                                      │
 #                                              tesla-proxy (signs) ◀───┘──▶ Tesla Fleet API
 #
-# Only port 4443 needs to be forwarded from your router (to fleet-telemetry).
-# ./config and ./data are created automatically. The only thing you add yourself is
-# your domain's certificate in ./config/fleet-telemetry/certs/ (fullchain.pem + privkey.pem).
+# Port 4443 must be forwarded from your router (to fleet-telemetry) – it can't go through a proxy or tunnel.
+# ./config and ./data are created automatically. The only thing you add yourself is a certificate for the
+# name the car connects to, in ./config/fleet-telemetry/certs/ (fullchain.pem + privkey.pem). Any
+# Let's Encrypt certificate works – Nginx Proxy Manager is not required.
 
 x-bridge-image: &bridge-image ghcr.io/mfoldager17/tesla-bridge:${BRIDGE_TAG:-latest}
 
