@@ -33,6 +33,39 @@ Both ways produce **identical entities** (`sensor.<car>_battery_level`, `climate
 
 The cost is Tesla's own Fleet API billing, which for one car stays within the free monthly credit ($10). The bridge tracks your usage for you.
 
+## What it looks like
+
+The bridge has its own dashboard on your local network, so you can see and control the car without Home Assistant. It works on a phone, follows light/dark mode and is in English or Danish. [More about the dashboard](#the-dashboard).
+
+<table>
+<tr>
+<td width="66%"><img src="docs/screenshots/car.png" alt="The car page: a top-down view of the car showing an open rear window and the charge cable plugged in, 68 % battery charging at 10.8 kW towards an 80 % limit, quick actions and status"></td>
+<td><img src="docs/screenshots/phone-car.png" alt="The car page on a phone in light mode"></td>
+</tr>
+<tr>
+<td><b>Car</b> – live view of doors, frunk, trunk, windows, charge cable and lock; battery, range and charging; quick actions.</td>
+<td><b>On a phone</b></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/controls.png" alt="Controls: climate with temperature, Keep/Dog/Camp and overheat protection; seat and steering wheel heat; charging limit and current; locks, sentry, guest and valet mode; frunk, trunk, windows and HomeLink"></td>
+<td><img src="docs/screenshots/phone-controls.png" alt="Controls on a phone"></td>
+</tr>
+<tr>
+<td><b>Controls</b> – everything Home Assistant can do, with the car's current state.</td>
+<td></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/settings.png" alt="Settings: quick choices Save money, Recommended and As live as possible, and a list of telemetry fields with their interval, this month's signal count and an on/off switch"></td>
+<td><img src="docs/screenshots/usage.png" alt="Usage: money spent this month, the projection to the end of the month and what is left of the free credit"></td>
+</tr>
+<tr>
+<td><b>Settings</b> – how often the car sends each value, with this month's signal count and a cost estimate.</td>
+<td><b>Usage</b> – Fleet API cost this month and the projection.</td>
+</tr>
+</table>
+
+<sub>Screenshots use test data from the built-in simulator.</sub>
+
 ---
 
 ## Contents
