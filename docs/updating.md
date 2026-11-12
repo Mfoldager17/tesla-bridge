@@ -6,6 +6,7 @@
 ```bash
 cd ~/tesla-bridge        # your folder
 docker compose pull && docker compose up -d
+docker image prune -f        # removes the old, now unused image layers so they don't fill the disk
 ```
 New versions are backwards compatible with your existing `.env`: new settings have defaults that keep the current behaviour.
 To pin a version, set `BRIDGE_TAG=v1.2.0` in `.env`. Roll back by setting an older tag.

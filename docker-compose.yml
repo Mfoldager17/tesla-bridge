@@ -19,10 +19,18 @@
 
 x-bridge-image: &bridge-image ghcr.io/mfoldager17/tesla-bridge:${BRIDGE_TAG:-latest}
 
+# Docker keeps container logs forever by default – cap them so they can't fill the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # Runs once on every start and exits: creates the app key and internal TLS if missing,
   # writes fleet-telemetry's config.json from .env and hands the files to PUID:PGID.
   tesla-init:
+    logging: *logging
     image: *bridge-image
     command: ["init"]
     env_file: .env
@@ -32,6 +40,7 @@ services:
       - ./data:/data
 
   fleet-telemetry:
+    logging: *logging
     image: tesla/fleet-telemetry:v0.9.5
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
@@ -49,6 +58,7 @@ services:
         condition: service_started   # with the embedded broker the bridge must be running first
 
   tesla-proxy:
+    logging: *logging
     image: tesla/vehicle-command:0.4.1
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
@@ -69,6 +79,7 @@ services:
         condition: service_completed_successfully
 
   tesla-bridge:
+    logging: *logging
     image: *bridge-image
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"

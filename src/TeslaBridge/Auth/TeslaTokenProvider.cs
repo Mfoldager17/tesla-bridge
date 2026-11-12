@@ -26,6 +26,7 @@ public sealed class TeslaTokenProvider(
     private readonly string _redirectUri = options.Value.RedirectUri;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private StoredTokens? _tokens;
+    private bool _unsaved;   // renewed tokens that couldn't be written yet (e.g. disk full)
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
@@ -37,6 +38,7 @@ public sealed class TeslaTokenProvider(
             _tokens ??= Load() ?? throw new InvalidOperationException(
                 $"Ikke logget ind hos Tesla. Brug 'Log ind med Tesla' under Opsætning i dashboardet.");
 
+            if (_unsaved) TrySave(_tokens);
             if (_tokens.ExpiresAt - time.GetUtcNow() > TimeSpan.FromMinutes(5))
                 return _tokens.AccessToken;
 
@@ -47,7 +49,9 @@ public sealed class TeslaTokenProvider(
                 ["client_id"] = _opts.ClientId,
                 ["refresh_token"] = _tokens.RefreshToken,
             }, ct);
-            Save(_tokens);
+            // The old refresh token is now spent, so never let a failed write lose the new one: keep it in
+            // memory, use it, and write it as soon as the disk allows.
+            TrySave(_tokens);
             return _tokens.AccessToken;
         }
         finally
@@ -107,6 +111,23 @@ public sealed class TeslaTokenProvider(
         File.Exists(_opts.TokenFile)
             ? JsonSerializer.Deserialize<StoredTokens>(File.ReadAllText(_opts.TokenFile), JsonOpts)
             : null;
+
+    private void TrySave(StoredTokens tokens)
+    {
+        try
+        {
+            Save(tokens);
+            if (_unsaved) log.LogInformation("Tesla tokens saved to {File} again", _opts.TokenFile);
+            _unsaved = false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _unsaved = true;
+            log.LogError("Can't save the renewed Tesla tokens to {File}: {Error}. They are kept in memory and saved as soon as possible – " +
+                         "free up disk space before the bridge restarts, or you'll have to sign in with Tesla again.", _opts.TokenFile, ex.Message);
+            try { File.Delete(_opts.TokenFile + ".tmp"); } catch { /* best effort */ }
+        }
+    }
 
     private void Save(StoredTokens tokens)
     {
