@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
 <title>Tesla Bridge</title>
+<script type="importmap">{ "imports": { "three": "/vendor/three/three.module.min.js", "three/addons/": "/vendor/three/addons/" } }</script>
 <style>
   :root {
     --bg: #15191e; --surface: #1d2228; --raise: #252b33; --line: #313842; --line-soft: #262c34;
@@ -115,7 +116,8 @@
 
   /* ---------- overview ---------- */
   .hero { display: grid; grid-template-columns: minmax(260px, 420px) 1fr; gap: 36px; align-items: center; padding: 8px 0 28px; }
-  @media (max-width: 860px) { .hero { grid-template-columns: 1fr; gap: 18px; } }
+  .hero.has3d { grid-template-columns: minmax(300px, 1.25fr) minmax(260px, 1fr); gap: 28px; }
+  @media (max-width: 860px) { .hero, .hero.has3d { grid-template-columns: 1fr; gap: 18px; } }
   .car svg { width: 100%; height: auto; display: block; }
   .car .body { fill: var(--body-fill); stroke: var(--body-off); stroke-width: 2; }
   .car .wheel rect { fill: var(--body-off); }
@@ -129,6 +131,30 @@
   .car .lock-badge path { fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .car .lock-badge.unlocked path { stroke: var(--warn); }
   .car .lock-badge.pending path { stroke: var(--pending); }
+  .c3d { position: relative; width: 100%; aspect-ratio: 16 / 10; max-height: 380px; border-radius: var(--r-lg); overflow: hidden; }
+  .c3d canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; outline: none; }
+  .hs { position: absolute; left: 0; top: 0; z-index: 2; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border-radius: 50%;
+    background: rgba(255,255,255,.22); border: 1.5px solid rgba(255,255,255,.8); box-shadow: 0 2px 8px rgba(0,0,0,.35); cursor: pointer; transition: opacity .3s, background .3s, box-shadow .3s; }
+  .hs::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+  .hs span { position: absolute; left: 28px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 99px;
+    background: rgba(13,17,23,.78); color: #fff; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .hs:hover span, .hs:focus-visible span, .hs.open span { opacity: 1; }
+  .hs.open { background: var(--warn); border-color: #fff; box-shadow: 0 0 16px var(--warn); }
+  .hs.port.open { background: var(--charge); box-shadow: 0 0 16px var(--charge); }
+  .hs.port.charging { animation: blink 1.4s infinite; }
+  .hs.door { opacity: 0; pointer-events: none; cursor: default; }
+  .hs.door.open { opacity: 1; }
+  .c3d .hs.hid, .c3d:not(.ready) .hs { opacity: 0 !important; pointer-events: none; }
+  @keyframes blink { 50% { opacity: .45; } }
+  .palbtn { position: absolute; right: 10px; top: 10px; z-index: 3; width: 36px; height: 36px; border-radius: 50%; padding: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--surface) 80%, transparent); }
+  .palbtn svg { width: 18px; height: 18px; fill: currentColor; }
+  .cpick { position: absolute; right: 10px; top: 54px; z-index: 3; display: grid; gap: 10px; padding: 12px 14px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); }
+  .cpick .lbl { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .sws { display: flex; gap: 8px; }
+  .sw { width: 26px; height: 26px; border-radius: 50%; padding: 0; border: 2px solid var(--line); }
+  .sw[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .c3d-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+  .c3d.ready .c3d-loading { display: none; }
   .car-legend { display: flex; gap: 14px; justify-content: center; font-size: 12px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
   .car-legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
 
@@ -244,6 +270,8 @@
   @media (max-width: 860px) { .savebar { bottom: 78px; padding: 12px 14px; gap: 8px; } .savebar .est { flex-basis: 100%; font-size: 13px; } .savebar .est b { font-size: 16px; } .savebar button { padding: 6px 10px; font-size: 13px; } .savebar.dirty #setReset { display: none; } }
   .savebar .est { flex: 1; min-width: 200px; font-size: 14px; }
   .savebar .est b { font-size: 18px; font-weight: 500; }
+  .btnlike { display: inline-block; background: var(--accent); color: var(--accent-ink); border-radius: var(--r-sm); padding: 7px 13px; font-size: 14px; font-weight: 500; }
+  label:focus-within .btnlike { outline: 2px solid var(--accent); outline-offset: 2px; }
   .note { border-left: 3px solid var(--accent); padding: 8px 12px; background: var(--raise); border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: 14px; margin: 12px 0; }
   .note.bad { border-color: var(--danger); } .note.ok { border-color: var(--charge); }
 
@@ -303,6 +331,11 @@
       <section class="view" data-view="overview">
         <div class="hero">
           <div class="car">
+            <div class="c3d" id="c3d" hidden>
+              <div class="c3d-loading" data-t="car3d.loading"></div>
+              <button type="button" class="palbtn" id="palBtn" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.42-4.03-8-9-8zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></button>
+              <div class="cpick" id="cPick" hidden></div>
+            </div>
             <svg viewBox="0 0 420 200" role="img" id="carSvg">
               <title id="carTitle"></title>
               <!-- top view, front to the right -->
@@ -330,7 +363,8 @@
                 <path d="M-8 -2 h16 v12 h-16 z"/>
               </g>
             </svg>
-            <div class="car-legend"><span><i style="background:var(--warn)"></i><span data-t="car.open"></span></span><span><i style="background:var(--charge)"></i><span data-t="car.plugged"></span></span><span><i style="background:var(--pending)"></i><span data-t="car.pending"></span></span></div>
+            <div class="car-legend" id="legend3d" hidden></div>
+            <div class="car-legend" id="legendPlan"><span><i style="background:var(--warn)"></i><span data-t="car.open"></span></span><span><i style="background:var(--charge)"></i><span data-t="car.plugged"></span></span><span><i style="background:var(--pending)"></i><span data-t="car.pending"></span></span></div>
           </div>
           <div class="battery">
             <div class="pct num" id="bPct">–</div>
@@ -430,6 +464,14 @@
           <p class="sub" data-t="settings.fieldsSub"></p>
           <div class="toolbar"><input type="text" id="setFilter"><span class="spacer"></span><label class="small muted"><input type="checkbox" id="setOnlyCost"> <span data-t="settings.onlyCost"></span></label></div>
           <div id="setGroups"></div>
+        </div>
+
+        <div class="panel">
+          <h2 data-t="model.title"></h2>
+          <p class="sub" data-t="model.sub"></p>
+          <p id="modelStatus" class="small"></p>
+          <div class="toolbar"><label class="primary" id="modelPick" style="cursor:pointer"><input type="file" id="modelFile" accept=".glb,model/gltf-binary" hidden><span class="btnlike" data-t="model.upload"></span></label><button type="button" class="danger" id="modelRemove" data-t="model.remove" hidden></button></div>
+          <details class="small muted"><summary data-t="model.howTitle"></summary><p data-t="model.how1"></p><p data-t="model.how2"></p></details>
         </div>
 
         <div class="panel">
@@ -540,6 +582,17 @@ const T = {
     "s.tele": "The car sends telemetry", "s.teleOk": "Synced – the car sends to {0}.", "s.teleWait": "The configuration was sent, but the car hasn't picked it up. Wake the car in the Tesla app and wait a few minutes.",
     "s.teleNone": "Sent automatically after sign-in. Press Check status to see whether the car has it.", "s.send": "Send configuration", "working": "Working…",
     "err.register": "Registration failed:\n{0}", "err.push": "Couldn't send:\n{0}", "err.cmd": "{0} failed: {1}",
+    "car3d.loading": "Loading 3D model…", "car3d.colors": "Change colours", "car3d.paint": "Paint", "car3d.interior": "Interior",
+    "car3d.allClosed": "Everything is closed. Drag to turn the car; tap a dot to open.", "car3d.open": "Open: {0}",
+    "hs.frunk": "Frunk", "hs.trunk": "Trunk", "hs.port": "Charge port", "hs.fl": "Front left", "hs.fr": "Front right", "hs.rl": "Rear left", "hs.rr": "Rear right",
+    "door": "door", "window": "window", "confirm.frunk": "Open the frunk?", "confirm.trunkOpen": "Open the trunk?", "frunkManual": "The frunk is closed by hand.",
+    "paint.white": "White", "paint.grey": "Grey", "paint.silver": "Silver", "paint.black": "Black", "paint.red": "Red", "paint.blue": "Blue",
+    "model.title": "3D model of the car", "model.sub": "Show your car in 3D on the Car page instead of the drawing. The bridge doesn't include a model – car models are usually licensed per person – so you add your own .glb file.",
+    "model.none": "No model yet – the Car page shows the drawing.", "model.has": "Using {0} ({1} MB, {2}).", "model.srcUploaded": "the uploaded model", "model.srcFile": "{0}",
+    "model.upload": "Upload .glb file", "model.replace": "Replace model", "model.remove": "Remove uploaded model", "model.uploading": "Uploading…", "model.uploaded": "Uploaded.",
+    "model.howTitle": "Which models work?", "model.how1": "Any glTF binary (.glb) shows, up to 80 MB. Convert .obj, .fbx or .gltf to .glb in Blender (File → Export → glTF 2.0, format glTF Binary). Instead of uploading, you can also put the file in ./config/bridge/car.glb on the server.",
+    "model.how2": "For doors that open, spinning wheels and the colour picker, name the parts door_fl, door_fr, door_rl, door_rr and wheel_fl … wheel_rr, and the materials paint (body) and seats (interior). The front should face +Z and the driver's side +X.",
+    "confirm.removeModel": "Remove the uploaded model?",
     "ago.s": "{0} s ago", "ago.m": "{0} min ago", "ago.h": "{0} h ago", "ago.d": "{0} d ago", "yes": "yes", "no": "no",
   },
   da: {
@@ -613,6 +666,17 @@ const T = {
     "s.tele": "Bilen sender telemetri", "s.teleOk": "Synkroniseret – bilen sender til {0}.", "s.teleWait": "Konfigurationen er sendt, men bilen har ikke hentet den. Væk bilen i Tesla-appen, og vent et par minutter.",
     "s.teleNone": "Sendes automatisk efter login. Tryk Tjek status for at se, om bilen har den.", "s.send": "Send konfiguration", "working": "Arbejder…",
     "err.register": "Registrering fejlede:\n{0}", "err.push": "Kunne ikke sende:\n{0}", "err.cmd": "{0} fejlede: {1}",
+    "car3d.loading": "Henter 3D-model…", "car3d.colors": "Skift farver", "car3d.paint": "Lak", "car3d.interior": "Interiør",
+    "car3d.allClosed": "Alt er lukket. Træk for at dreje bilen; tryk på en prik for at åbne.", "car3d.open": "Åben: {0}",
+    "hs.frunk": "Frunk", "hs.trunk": "Bagklap", "hs.port": "Ladeport", "hs.fl": "Foran venstre", "hs.fr": "Foran højre", "hs.rl": "Bag venstre", "hs.rr": "Bag højre",
+    "door": "dør", "window": "rude", "confirm.frunk": "Åbn frunken?", "confirm.trunkOpen": "Åbn bagklappen?", "frunkManual": "Frunken lukkes med hånden.",
+    "paint.white": "Hvid", "paint.grey": "Grå", "paint.silver": "Sølv", "paint.black": "Sort", "paint.red": "Rød", "paint.blue": "Blå",
+    "model.title": "3D-model af bilen", "model.sub": "Vis din bil i 3D på Bil-siden i stedet for tegningen. Bridgen har ingen model med – bilmodeller er som regel licenseret til den enkelte – så du lægger din egen .glb-fil ind.",
+    "model.none": "Ingen model endnu – Bil-siden viser tegningen.", "model.has": "Bruger {0} ({1} MB, {2}).", "model.srcUploaded": "den uploadede model", "model.srcFile": "{0}",
+    "model.upload": "Upload .glb-fil", "model.replace": "Udskift model", "model.remove": "Fjern uploadet model", "model.uploading": "Uploader…", "model.uploaded": "Uploadet.",
+    "model.howTitle": "Hvilke modeller virker?", "model.how1": "Alle glTF binary-filer (.glb) vises, op til 80 MB. Konvertér .obj, .fbx eller .gltf til .glb i Blender (File → Export → glTF 2.0, format glTF Binary). I stedet for at uploade kan du også lægge filen i ./config/bridge/car.glb på serveren.",
+    "model.how2": "Skal dørene kunne åbne, hjulene dreje og farvevælgeren virke, så navngiv delene door_fl, door_fr, door_rl, door_rr og wheel_fl … wheel_rr, og materialerne paint (lak) og seats (interiør). Fronten skal pege mod +Z og førersiden mod +X.",
+    "confirm.removeModel": "Fjern den uploadede model?",
     "ago.s": "{0} s siden", "ago.m": "{0} min siden", "ago.h": "{0} t siden", "ago.d": "{0} d siden", "yes": "ja", "no": "nej",
   },
 };
@@ -725,6 +789,8 @@ function renderOverview() {
   badge.classList.toggle("pending", lm === "LOCKING" || lm === "UNLOCKING" || isPending("locked"));
   $("lockShackle").setAttribute("d", lk === false ? "M-6 -2 V-7 a6 6 0 0 1 11 -3" : "M-6 -2 V-7 a6 6 0 0 1 12 0 V-2");
   $("carTitle").textContent = [car?.name, lk ? t("locked") : lk === false ? t("unlocked") : ""].filter(Boolean).join(", ");
+
+  update3d();
 
   // ---- battery
   const pct = val("battery_level"), limit = val("charge_limit"), cs = val("charging_state");
@@ -1169,6 +1235,100 @@ async function setupAction(what, btn) {
 $("btnSetupCheck").onclick = async (e) => { e.target.disabled = true; try { await loadSetup(true); } finally { e.target.disabled = false; } };
 window.addEventListener("focus", () => { if (location.hash === "#setup") loadSetup(false); });
 
+
+// ===================================================================== 3D model
+let car3d = null, modelInfo = null;
+const COLORS_KEY = "tb_car_colors";
+let carColors = (() => { try { return JSON.parse(store.get(COLORS_KEY) || "null") || { paint: "white", interior: "black" }; } catch { return { paint: "white", interior: "black" }; } })();
+const hsLabels = () => Object.fromEntries(["frunk", "trunk", "port", "fl", "fr", "rl", "rr"].map((k) => [k, t("hs." + k)]));
+function car3dState() {
+  const d = (k) => !!val(`door_${k}`);
+  const doors = { fl: d("driver_front_open"), fr: d("passenger_front_open"), rl: d("driver_rear_open"), rr: d("passenger_rear_open") };
+  const win = { fl: !!val("window_driver_front_open"), fr: !!val("window_passenger_front_open"), rl: !!val("window_driver_rear_open"), rr: !!val("window_passenger_rear_open") };
+  const cs = val("charging_state"), temp = val("driver_temp_setting"), inside = val("inside_temp");
+  return {
+    doors,
+    open: { frunk: !!val("frunk_open"), trunk: !!val("trunk_open"), port: !!val("charge_port_open"), fl: doors.fl || win.fl, fr: doors.fr || win.fr, rl: doors.rl || win.rl, rr: doors.rr || win.rr },
+    windows: win,
+    charging: cs === "charging" || cs === "starting",
+    speed: val("speed") || 0, reverse: val("gear") === "R",
+    climate: val("climate_on") ? ((temp ?? 21) >= (inside ?? 20) ? "heat" : "cool") : null,
+  };
+}
+function update3d() {
+  if (!car3d) return;
+  const st = car3dState();
+  car3d.update(st);
+  const open = [];
+  if (st.open.frunk) open.push(t("hs.frunk")); if (st.open.trunk) open.push(t("hs.trunk")); if (st.open.port) open.push(t("hs.port"));
+  for (const k of ["fl", "fr", "rl", "rr"]) {
+    if (st.doors[k]) open.push(`${t("hs." + k)} ${t("door")}`);
+    else if (st.windows[k]) open.push(`${t("hs." + k)} ${t("window")}`);
+  }
+  $("legend3d").textContent = open.length ? t("car3d.open", open.join(", ")) : t("car3d.allClosed");
+  const labels = hsLabels();
+  for (const k of ["fl", "fr", "rl", "rr"]) labels[k] = `${t("hs." + k)} ${st.doors[k] ? t("door") : t("window")}`;
+  car3d.setLabels(labels);
+}
+function renderPicker() {
+  const sw = (attr, key, list, labelOf) => list.map(([k, c]) => `<button type="button" class="sw" data-${attr}="${k}" style="background:${c}" title="${esc(labelOf(k))}" aria-label="${esc(labelOf(k))}" aria-pressed="${carColors[key] === k}"></button>`).join("");
+  $("cPick").innerHTML = `<div><div class="lbl">${t("car3d.paint")}</div><div class="sws">${sw("paint", "paint", window.__PAINTS || [], (k) => t("paint." + k))}</div></div>
+    <div><div class="lbl">${t("car3d.interior")}</div><div class="sws">${sw("int", "interior", window.__INTERIORS || [], (k) => t("paint." + k))}</div></div>`;
+  $("palBtn").setAttribute("aria-label", t("car3d.colors"));
+}
+$("palBtn").onclick = () => { const c = $("cPick"); c.hidden = !c.hidden; $("palBtn").setAttribute("aria-expanded", String(!c.hidden)); };
+$("cPick").addEventListener("click", (e) => {
+  const p = e.target.closest("[data-paint]"), i = e.target.closest("[data-int]");
+  if (!p && !i) return;
+  if (p) carColors.paint = p.dataset.paint; if (i) carColors.interior = i.dataset.int;
+  store.set(COLORS_KEY, JSON.stringify(carColors)); car3d?.setColors(carColors); renderPicker();
+});
+function onHotspot(id) {
+  if (id === "frunk") { if (val("frunk_open")) return toast(t("frunkManual")); if (confirm(t("confirm.frunk"))) send("frunk", "OPEN"); }
+  else if (id === "trunk") { if (val("trunk_open")) send("trunk", "CLOSE"); else if (confirm(t("confirm.trunkOpen"))) send("trunk", "OPEN"); }
+  else if (id === "port") send("charge_port_door", val("charge_port_open") ? "CLOSE" : "OPEN");
+}
+function showPlan(on) {
+  $("carSvg").style.display = on ? "" : "none"; $("legendPlan").hidden = !on;
+  $("c3d").hidden = on; $("legend3d").hidden = on;
+  document.querySelector(".hero").classList.toggle("has3d", !on);
+}
+async function loadModel() {
+  try { modelInfo = await getJson("/api/car-model/info"); } catch { modelInfo = null; }
+  renderModelStatus();
+  if (car3d) { car3d.dispose(); car3d = null; $("c3d").classList.remove("ready"); }
+  if (!modelInfo?.present || !window.WebGLRenderingContext) { showPlan(true); return; }
+  showPlan(false);
+  try {
+    const [buf, mod] = await Promise.all([(await api("/api/car-model")).arrayBuffer(), import("./car3d.js")]);
+    window.__PAINTS = mod.PAINTS.map(([k, c]) => [k, c]); window.__INTERIORS = mod.INTERIORS;
+    car3d = await mod.mount($("c3d"), buf, { labels: hsLabels(), onHotspot });
+    car3d.setColors(carColors); renderPicker(); update3d();
+  } catch (e) {
+    console.warn("3D model could not be shown, falling back to the drawing", e);
+    showPlan(true);
+  }
+}
+function renderModelStatus() {
+  const m = modelInfo;
+  if (!m) return;
+  $("modelStatus").textContent = m.present
+    ? t("model.has", m.source === "uploaded" ? t("model.srcUploaded") : m.file, nf(m.size / 1048576, 1), new Date(m.updated_at).toLocaleDateString(locale()))
+    : t("model.none");
+  $("modelRemove").hidden = !(m.present && m.source === "uploaded");
+  document.querySelector("#modelPick .btnlike").textContent = m.present ? t("model.replace") : t("model.upload");
+}
+$("modelFile").onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const lbl = document.querySelector("#modelPick .btnlike"); lbl.textContent = t("model.uploading");
+  try {
+    const r = await api("/api/car-model", { method: "POST", headers: { "Content-Type": "model/gltf-binary" }, body: f });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) toast(j.error || String(r.status)); else toast(t("model.uploaded"));
+  } finally { e.target.value = ""; await loadModel(); }
+};
+$("modelRemove").onclick = async () => { if (!confirm(t("confirm.removeModel"))) return; await api("/api/car-model", { method: "DELETE" }); await loadModel(); };
+
 // ===================================================================== live
 function setLive(ok) {
   for (const id of ["dotLive", "mDotLive"]) $(id).className = "dot " + (ok ? "ok" : "bad");
@@ -1207,6 +1367,8 @@ function connectEvents() {
 }
 
 function renderAll() {
+  if (car3d) { car3d.setLabels(hsLabels()); renderPicker(); }
+  renderModelStatus();
   renderOverview(); renderControls(); renderFields(); renderRaw(); renderLog(); renderUsage(); renderSettings();
   if (info) { setMqtt(info); $("cfgHint").textContent = t("data.cfgHint", info.telemetry_hostname ? `${info.telemetry_hostname}:${info.telemetry_port}` : "–"); }
   route();
@@ -1233,6 +1395,7 @@ async function init() {
   cmdLog.reverse(); rawRows.reverse(); renderLog(); renderRaw();
   connectEvents();
   loadSetup(false);
+  loadModel();
 }
 
 setInterval(() => {

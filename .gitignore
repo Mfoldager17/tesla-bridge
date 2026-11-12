@@ -12,3 +12,6 @@ config/fleet-telemetry/config.json
 .vscode/
 __pycache__/
 .pytest_cache/
+
+# Your own 3D car model – never commit it (usually licensed per person)
+*.glb

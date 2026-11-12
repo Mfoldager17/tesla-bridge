@@ -98,3 +98,29 @@ public class ParkedCarTests
         Assert.Equal(161, Map("EstBatteryRange", "100")["est_range"]!.GetValue<double>());
     }
 }
+
+public class CarModelTests
+{
+    [Fact]
+    public void Only_glb_files_are_accepted()
+    {
+        Assert.True(TeslaBridge.Web.CarModelApi.LooksLikeGlb("glTF\u0002\0\0\0"u8));
+        Assert.False(TeslaBridge.Web.CarModelApi.LooksLikeGlb("glTF\u0001\0\0\0"u8));
+        Assert.False(TeslaBridge.Web.CarModelApi.LooksLikeGlb("{\"asset\":"u8));
+        Assert.False(TeslaBridge.Web.CarModelApi.LooksLikeGlb("gl"u8));
+    }
+
+    [Fact]
+    public void Uploaded_model_wins_over_the_config_file()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        var o = new TeslaBridge.Options.BridgeOptions { StateFile = Path.Combine(dir, "state.json") };
+        o.Web.CarModelFile = Path.Combine(dir, "car.glb");
+        Assert.Null(TeslaBridge.Web.CarModelApi.Find(o));
+        File.WriteAllText(o.Web.CarModelFile, "x");
+        Assert.Equal("file", TeslaBridge.Web.CarModelApi.Find(o)!.Value.Source);
+        File.WriteAllText(TeslaBridge.Web.CarModelApi.UploadedPath(o), "y");
+        Assert.Equal("uploaded", TeslaBridge.Web.CarModelApi.Find(o)!.Value.Source);
+        Directory.Delete(dir, true);
+    }
+}

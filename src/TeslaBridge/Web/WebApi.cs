@@ -44,6 +44,7 @@ public static class WebApi
         var api = app.MapGroup("/api");
         api.MapSetupApi(opts);
         api.MapSettingsApi(opts);
+        api.MapCarModelApi(opts);
 
         api.MapGet("/info", (MqttConnection mqtt, LiveEvents events) => Results.Json(new
         {

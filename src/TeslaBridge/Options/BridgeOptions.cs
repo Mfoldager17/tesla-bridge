@@ -147,4 +147,10 @@ public sealed class WebOptions
 
     /// <summary>Viser en knap der sender falske telemetri-beskeder via MQTT – til at teste kæden før bilen er sat op.</summary>
     public bool Simulator { get; set; }
+
+    /// <summary>
+    /// Your own 3D model of the car (glTF binary, .glb) shown on the dashboard. Put it here, or upload it
+    /// under Settings (saved as car-model.glb next to the state file). Not shipped with the bridge.
+    /// </summary>
+    public string CarModelFile { get; set; } = "/config/bridge/car.glb";
 }
