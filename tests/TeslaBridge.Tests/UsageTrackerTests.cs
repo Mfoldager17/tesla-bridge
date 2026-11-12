@@ -106,7 +106,10 @@ public class UsageTrackerTests
         foreach (var cat in new[] { "signals", "commands", "wakes", "data" })
             Assert.NotNull(json["categories"]![cat]!["count"]);
 
-        var sensors = HomeAssistantDiscovery.BuildUsage("tesla", "homeassistant", "tesla/bridge/status");
+        var all = HomeAssistantDiscovery.BuildUsage("tesla", "homeassistant", "tesla/bridge/status");
+        var update = Assert.Single(all, s => s.Topic.Contains("/update/"));
+        Assert.Equal("tesla/bridge/update", update.Payload["state_topic"]!.GetValue<string>());
+        var sensors = all.Where(s => s.Topic.Contains("/sensor/")).ToList();
         Assert.Equal(7, sensors.Count);
         Assert.All(sensors, s => Assert.Equal("tesla/bridge/usage", s.Payload["state_topic"]!.GetValue<string>()));
         Assert.All(sensors, s => Assert.StartsWith("sensor.tesla_bridge_", s.Payload["default_entity_id"]!.GetValue<string>()));

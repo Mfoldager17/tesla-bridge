@@ -6,12 +6,17 @@ WORKDIR /src
 COPY src/TeslaBridge/TeslaBridge.csproj src/TeslaBridge/
 RUN dotnet restore src/TeslaBridge/TeslaBridge.csproj -a $TARGETARCH
 COPY src/ src/
-RUN dotnet publish src/TeslaBridge/TeslaBridge.csproj -c Release -a $TARGETARCH --no-restore --self-contained false -o /app
+# Set by CI: the commit (shown as "1.2.0-edge (abc1234)") and the channel (stable = a release, edge = main)
+ARG GIT_SHA=""
+RUN dotnet publish src/TeslaBridge/TeslaBridge.csproj -c Release -a $TARGETARCH --no-restore --self-contained false -o /app \
+    -p:SourceRevisionId=$GIT_SHA
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 LABEL org.opencontainers.image.source="https://github.com/Mfoldager17/tesla-bridge" \
       org.opencontainers.image.description="Self-hosted Tesla bridge: fleet-telemetry → MQTT/Home Assistant, commands via the Fleet API"
-ENV ASPNETCORE_ENVIRONMENT=Production
+ARG CHANNEL=dev
+ENV ASPNETCORE_ENVIRONMENT=Production \
+    BRIDGE_CHANNEL=$CHANNEL
 EXPOSE 8080 8091
 WORKDIR /app
 COPY --from=build /app .

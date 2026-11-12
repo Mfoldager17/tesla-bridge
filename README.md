@@ -1,5 +1,7 @@
 # Tesla Bridge
 
+[![Release](https://img.shields.io/github/v/release/Mfoldager17/tesla-bridge?sort=semver)](https://github.com/Mfoldager17/tesla-bridge/releases) [![Build](https://github.com/Mfoldager17/tesla-bridge/actions/workflows/build.yml/badge.svg)](https://github.com/Mfoldager17/tesla-bridge/actions/workflows/build.yml)
+
 A self-hosted replacement for Teslemetry. Your car streams directly to your own server, and you control it through Tesla's official Fleet API – no middleman, no subscription. Fleet API usage for one car stays within Tesla's free monthly credit ($10), and the bridge tracks it for you.
 
 - **Home Assistant your way:** through your MQTT broker, or a real integration without one. Same entities either way, named like Teslemetry's.
@@ -80,7 +82,7 @@ curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/insta
 | [Bluetooth (ESP32)](docs/ble.md) | Optional: free commands and wake-ups while the car is home |
 | [Entities](docs/entities.md) | Everything you get in Home Assistant |
 | [Switching](docs/switching.md) | From MQTT to the integration and back |
-| [Updating](docs/updating.md) | New versions and pinning one |
+| [Versions and updating](docs/updating.md) | Releases, what `latest`/`edge`/`v1` mean, updating and pinning |
 | [Troubleshooting](docs/troubleshooting.md) | Symptoms and what to check |
 | [MQTT API](docs/mqtt-api.md) · [HTTP API](docs/http-api.md) | For ESP32 panels, Node-RED and scripts |
 | [Development](docs/development.md) | Run it locally with the simulator, project layout, tests |

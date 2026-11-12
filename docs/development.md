@@ -19,6 +19,30 @@ You can also point a test HA with the integration at `http://<your machine>:8080
 
 > If something already uses port 1883, run `Bridge__Mqtt__Port=1884 dotnet run`.
 
+## Commits and releases
+
+Releases are made by [release-please](https://github.com/googleapis/release-please) from the commit messages, so every commit to `main` starts with a type ([Conventional Commits](https://www.conventionalcommits.org)):
+
+| Commit message | Goes in the changelog as | Next version |
+|---|---|---|
+| `fix: seat heat turns the climate on first` | Bug fixes | 1.2.0 → 1.2.1 |
+| `feat: Bluetooth through an ESP32` | Features | 1.2.0 → 1.3.0 |
+| `feat!: new .env format` (or a `BREAKING CHANGE:` footer) | Breaking change | 1.2.0 → 2.0.0 |
+| `docs: …` | Documentation | none on its own |
+| `chore:`, `test:`, `ci:`, `refactor:` | not shown | none |
+
+A scope is optional: `fix(integration): …`, `feat(dashboard): …`. One commit can carry several changes. Put the extra ones as their own `feat: …` / `fix: …` lines at the end of the message body.
+
+How a release happens:
+
+1. Every push to `main` builds the image `edge` (`.github/workflows/build.yml`).
+2. release-please keeps one PR, *chore(main): release x.y.z*, up to date with the next version number, `CHANGELOG.md`, `manifest.json` and `<Version>` in the project file (`.github/workflows/release.yml`).
+3. **Merging that PR is the release:** tag `vX.Y.Z`, a GitHub Release (HACS offers it), and the images `vX.Y.Z`, `vX.Y`, `vX` and `latest` (`.github/workflows/image.yml`).
+
+Don't change the version number by hand. To force one, add `Release-As: 2.0.0` as a footer in a commit message.
+
+The running version is in `GET /api/info` (`version`, `version_display`, `commit`, `channel`). The integration's minimum bridge version is `MIN_BRIDGE_VERSION` in `custom_components/tesla_bridge/const.py`. Raise it when the integration starts using something a newer bridge added.
+
 ## Project layout
 
 ```

@@ -171,6 +171,38 @@ async def test_a_command_waits_for_the_car_like_teslemetry(hass: HomeAssistant, 
 
 
 @pytest.mark.allow_hosts(["127.0.0.1"])
+async def test_versions_show_in_home_assistant(hass: HomeAssistant, socket_enabled) -> None:
+    from homeassistant.helpers import device_registry as dr, issue_registry as ir
+
+    entry = MockConfigEntry(domain="tesla_bridge", data={"url": URL, "token": None}, unique_id=VIN)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    hub = entry.runtime_data
+    for _ in range(50):
+        await asyncio.sleep(0.1)
+        if hub.connected:
+            break
+    await hass.async_block_till_done()
+
+    upd = hass.states.get("update.tesla_bridge")
+    print("update entity", upd.state, upd.attributes)
+    assert upd is not None
+    assert upd.attributes["installed_version"] == hub.info["version"]
+    assert upd.attributes["title"] == "Tesla Bridge"
+
+    car = dr.async_get(hass).async_get_device(identifiers={("tesla_bridge", VIN)})
+    assert car.sw_version == hub.info["version_display"]
+    assert ir.async_get(hass).async_get_issue("tesla_bridge", "bridge_too_old") is None
+
+    # A bridge too old to report its version gets a repair
+    hub.info = {}
+    hub.check_version()
+    assert ir.async_get(hass).async_get_issue("tesla_bridge", "bridge_too_old") is not None
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.allow_hosts(["127.0.0.1"])
 async def test_config_flow(hass: HomeAssistant, socket_enabled) -> None:
     result = await hass.config_entries.flow.async_init("tesla_bridge", context={"source": "user"})
     assert result["type"] == "form"

@@ -56,6 +56,10 @@ class BridgeClient:
     async def usage(self) -> dict[str, Any]:
         return await self._get("/api/usage")
 
+    async def update(self) -> dict[str, Any]:
+        """The newest release compared to the running bridge (GET /api/update, bridge 1.1+)."""
+        return await self._get("/api/update")
+
     async def command(self, vin: str, name: str, payload: str) -> None:
         """Sends a command and waits until the car has done it (woken first if it slept), like Teslemetry.
 

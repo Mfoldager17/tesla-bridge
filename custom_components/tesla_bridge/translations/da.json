@@ -25,5 +25,11 @@
       "already_configured": "Denne bridge er allerede sat op.",
       "reauth_successful": "Token opdateret."
     }
+  },
+  "issues": {
+    "bridge_too_old": {
+      "title": "Tesla Bridge skal opdateres",
+      "description": "Bridgen kører version {installed}, men integrationen kræver mindst {required}. Opdatér containeren på serveren i bridgens mappe: `docker compose pull && docker compose up -d`."
+    }
   }
 }

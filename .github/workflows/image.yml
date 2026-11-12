@@ -1,0 +1,56 @@
+name: Image
+
+# Builds and pushes ghcr.io/<owner>/tesla-bridge. Called by the other workflows:
+#   build.yml   on every push to main → edge, sha-abc1234
+#   release.yml when a release is made → v1.2.0, v1.2, v1, latest
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Release version without v (e.g. 1.2.0). Empty = an edge build of main."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version != '' && format('v{0}', inputs.version) || github.sha }}
+      - uses: docker/setup-qemu-action@v3      # only for the runtime layer; the .NET build itself is cross-compiled
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: owner                            # ghcr requires lowercase (Mfoldager17 → mfoldager17)
+        run: echo "name=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ steps.owner.outputs.name }}/tesla-bridge
+          tags: |
+            type=raw,value=edge,enable=${{ inputs.version == '' }}
+            type=sha,format=short
+            type=semver,pattern=v{{version}},value=v${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=semver,pattern=v{{major}}.{{minor}},value=v${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=semver,pattern=v{{major}},value=v${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=raw,value=latest,enable=${{ inputs.version != '' }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            CHANNEL=${{ inputs.version != '' && 'stable' || 'edge' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

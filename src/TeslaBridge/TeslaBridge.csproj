@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>TeslaBridge</AssemblyName>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Bumped by release-please on every release – don't change by hand -->
+    <Version>1.0.0</Version> <!-- x-release-please-version -->
     <!-- <UserSecretsId>dotnet-TeslaBridge-044cea69-c335-4906-9cd1-eb7be3c026b8</UserSecretsId> -->
   </PropertyGroup>
 

@@ -110,6 +110,7 @@ public sealed class HomeAssistantDiscovery(
                 cfg[name] = t switch
                 {
                     $"{ApiBase}/bridge/usage" => "usage",
+                    $"{ApiBase}/bridge/update" => "update",
                     _ when vin is not null && t == $"{ApiBase}/{vin}/command/status" => "state:command_status",
                     _ when vin is not null && t.StartsWith($"{ApiBase}/{vin}/state/") => "state:" + t[$"{ApiBase}/{vin}/state/".Length..],
                     _ when vin is not null && t.StartsWith($"{ApiBase}/{vin}/cmd/") => "cmd:" + t[$"{ApiBase}/{vin}/cmd/".Length..],
@@ -285,13 +286,7 @@ public sealed class HomeAssistantDiscovery(
                 ["value_template"] = template,
                 ["availability_topic"] = availabilityTopic,
                 ["icon"] = icon,
-                ["device"] = new JsonObject
-                {
-                    ["identifiers"] = new JsonArray(id),
-                    ["name"] = "Tesla Bridge",
-                    ["manufacturer"] = "Tesla Bridge",
-                    ["model"] = "Fleet API-forbrug",
-                },
+                ["device"] = BridgeDevice(),
             };
             if (unit is not null) c["unit_of_measurement"] = unit;
             if (deviceClass is not null) c["device_class"] = deviceClass;
@@ -309,7 +304,30 @@ public sealed class HomeAssistantDiscovery(
         Add("commands_month", "Kommandoer denne måned", "{{ value_json.categories.commands.count }}", null, null, "total_increasing", "mdi:console");
         Add("wakes_month", "Wakes denne måned", "{{ value_json.categories.wakes.count }}", null, null, "total_increasing", "mdi:sleep-off");
         Add("data_month", "Data-forespørgsler denne måned", "{{ value_json.categories.data.count }}", null, null, "total_increasing", "mdi:database-search");
+
+        // New releases show up under Settings → Updates. No install button: the bridge runs in Docker,
+        // so updating stays `docker compose pull && docker compose up -d` (the release notes say so).
+        list.Add(($"{prefix}/update/{id}/update/config", new JsonObject
+        {
+            ["name"] = null,   // = the device's name, "Tesla Bridge"
+            ["unique_id"] = $"{id}_update",
+            ["default_entity_id"] = $"update.{id}",
+            ["state_topic"] = $"{bridgeBase}/bridge/update",
+            ["availability_topic"] = availabilityTopic,
+            ["entity_category"] = "diagnostic",
+            ["device_class"] = "firmware",
+            ["device"] = BridgeDevice(),
+        }));
         return list;
+
+        JsonObject BridgeDevice() => new()
+        {
+            ["identifiers"] = new JsonArray(id),
+            ["name"] = "Tesla Bridge",
+            ["manufacturer"] = "Tesla Bridge",
+            ["model"] = "Fleet API-forbrug",
+            ["sw_version"] = TeslaBridge.Versioning.BuildInfo.Display,
+        };
     }
 
     internal static List<(string Topic, JsonObject Payload)> Build(VehicleOptions v, string bridgeBase, string prefix, string availabilityTopic)
@@ -334,6 +352,7 @@ public sealed class HomeAssistantDiscovery(
                     ["manufacturer"] = "Tesla",
                     ["model"] = "Tesla Bridge",
                     ["serial_number"] = vin,
+                    ["sw_version"] = TeslaBridge.Versioning.BuildInfo.Display,
                 },
             };
             return o;

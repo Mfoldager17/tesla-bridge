@@ -49,6 +49,11 @@ public static class WebApi
 
         api.MapGet("/info", (MqttConnection mqtt, LiveEvents events) => Results.Json(new
         {
+            version = TeslaBridge.Versioning.BuildInfo.Version,
+            version_display = TeslaBridge.Versioning.BuildInfo.Display,
+            commit = TeslaBridge.Versioning.BuildInfo.Commit,
+            channel = TeslaBridge.Versioning.BuildInfo.Channel,
+            api_version = 2,
             started_at = events.StartedAt,
             mqtt_connected = mqtt.IsConnected,
             embedded_broker = opts.Mqtt.EmbeddedBroker,
@@ -58,6 +63,14 @@ public static class WebApi
             telemetry_port = opts.Telemetry.Port,
             vehicles = opts.Vehicles.Select(v => new { vin = v.Vin, name = v.Name }),
         }));
+
+        // Newest release vs. this version; POST checks again now.
+        api.MapGet("/update", (TeslaBridge.Versioning.UpdateCheckService u) => Results.Json(UpdateJson(u)));
+        api.MapPost("/update/check", async (TeslaBridge.Versioning.UpdateCheckService u, CancellationToken ct) =>
+        {
+            await u.CheckAsync(ct);
+            return Results.Json(UpdateJson(u));
+        });
 
         api.MapGet("/state", (VehicleStateStore store) =>
         {
@@ -202,6 +215,20 @@ public static class WebApi
                 return Results.Ok(new { asleep = true });
             });
         }
+    }
+
+    private static JsonObject UpdateJson(TeslaBridge.Versioning.UpdateCheckService u)
+    {
+        var i = u.Current;
+        var o = u.StatePayload();
+        o["installed_display"] = TeslaBridge.Versioning.BuildInfo.Display;
+        o["channel"] = i.Channel;
+        o["update_available"] = i.UpdateAvailable;
+        o["release_notes"] = i.ReleaseNotes;
+        o["published_at"] = i.PublishedAt?.ToString("O");
+        o["checked_at"] = i.CheckedAt?.ToString("O");
+        o["error"] = i.Error;
+        return o;
     }
 
     private static JsonObject ToJson(LiveEvent e) => new()

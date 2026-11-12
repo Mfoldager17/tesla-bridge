@@ -21,9 +21,11 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers import issue_registry as ir
+from awesomeversion import AwesomeVersion
 
 from .api import BridgeAuthError, BridgeClient, BridgeError
-from .const import BRIDGE, CONF_TOKEN, CONF_URL, DOMAIN, PLATFORMS
+from .const import BRIDGE, CONF_TOKEN, CONF_URL, DOMAIN, MIN_BRIDGE_VERSION, PLATFORMS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +39,7 @@ class BridgeHub:
         self.hass = hass
         self.client = client
         self.definitions: dict[str, Any] = {}
+        self.info: dict[str, Any] = {}
         self.state: dict[str, dict[str, Any]] = {}
         self.connected = False
         self._listeners: dict[tuple[str, str], set[Callable[[], None]]] = {}
@@ -46,9 +49,31 @@ class BridgeHub:
     # ---------- loading ----------
 
     async def async_load(self) -> None:
+        self.info = await self.client.info()
         self.definitions = await self.client.entities()
         await self.async_refresh_state()
         await self.async_refresh_usage()
+
+    @property
+    def version(self) -> str | None:
+        """The bridge's version as shown on the devices, e.g. "1.2.0" or "1.2.0-edge (abc1234)"."""
+        return self.info.get("version_display") or self.info.get("version")
+
+    def check_version(self) -> None:
+        """A repair in HA when the bridge is older than this integration needs (or too old to say)."""
+        installed = self.info.get("version")
+        too_old = installed is None or AwesomeVersion(installed) < AwesomeVersion(MIN_BRIDGE_VERSION)
+        if too_old:
+            ir.async_create_issue(
+                self.hass, DOMAIN, "bridge_too_old",
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="bridge_too_old",
+                translation_placeholders={"installed": installed or "older than 1.1", "required": MIN_BRIDGE_VERSION},
+                learn_more_url="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/updating.md",
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, "bridge_too_old")
 
     async def async_refresh_state(self) -> None:
         for car in await self.client.state():
@@ -63,6 +88,7 @@ class BridgeHub:
     async def async_refresh_usage(self, *_: Any) -> None:
         try:
             self.set_value(BRIDGE, "usage", await self.client.usage())
+            self.set_value(BRIDGE, "update", await self.client.update())
         except BridgeError as err:
             _LOGGER.debug("Could not fetch usage: %s", err)
 
@@ -156,6 +182,7 @@ class BridgeHub:
                 manufacturer="Tesla",
                 model="Tesla Bridge",
                 serial_number=car["vin"],
+                sw_version=self.version,
                 configuration_url=self.client.url,
             )
             for d in car.get("entities", []):
@@ -166,6 +193,7 @@ class BridgeHub:
             name="Tesla Bridge",
             manufacturer="Tesla Bridge",
             model="Fleet API-forbrug",
+            sw_version=self.version,
             configuration_url=self.client.url,
         )
         for d in self.definitions.get("bridge", {}).get("entities", []):
@@ -185,6 +213,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TeslaBridgeConfigEntry) 
         raise ConfigEntryNotReady(f"Cannot reach Tesla Bridge at {client.url}: {err}") from err
 
     entry.runtime_data = hub
+    hub.check_version()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     entry.async_create_background_task(hass, hub.async_run(), "tesla_bridge_events")

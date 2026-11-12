@@ -10,6 +10,7 @@ public sealed class BridgeOptions
     public TelemetryOptions Telemetry { get; set; } = new();
     public CommandOptions Commands { get; set; } = new();
     public WebOptions Web { get; set; } = new();
+    public UpdatesOptions Updates { get; set; } = new();
     public string StateFile { get; set; } = "/data/state.json";
 
     /// <summary>Domænet appen er registreret med hos Tesla (Allowed Origin). Tom = samme som telemetri-hostname.</summary>
@@ -176,4 +177,13 @@ public sealed class WebOptions
     /// under Settings (saved as car-model.glb next to the state file). Not shipped with the bridge.
     /// </summary>
     public string CarModelFile { get; set; } = "/config/bridge/car.glb";
+}
+
+/// <summary>Looking up new releases (Bridge__Updates__*). Only shown – the bridge never updates itself.</summary>
+public sealed class UpdatesOptions
+{
+    /// <summary>Ask GitHub for the newest release (one anonymous request every IntervalHours).</summary>
+    public bool Check { get; set; } = true;
+    public string Repository { get; set; } = "Mfoldager17/tesla-bridge";
+    public int IntervalHours { get; set; } = 6;
 }

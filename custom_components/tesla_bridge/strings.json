@@ -25,5 +25,11 @@
       "already_configured": "This bridge is already set up.",
       "reauth_successful": "Token updated."
     }
+  },
+  "issues": {
+    "bridge_too_old": {
+      "title": "Tesla Bridge needs an update",
+      "description": "The bridge runs version {installed}, but this integration needs at least {required}. Update the container on the server, in the bridge's folder: `docker compose pull && docker compose up -d`."
+    }
   }
 }

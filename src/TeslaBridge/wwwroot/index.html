@@ -78,7 +78,7 @@
     .shell { grid-template-columns: minmax(0, 1fr); }
     nav.side { position: fixed; inset: auto 0 0 0; height: auto; z-index: 20; flex-direction: row; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
       border-right: 0; border-top: 1px solid var(--line); background: var(--surface); }
-    nav.side .brand, nav.side .conn, nav.side .prefs { display: none; }
+    nav.side .brand, nav.side .conn, nav.side .prefs, nav.side .ver { display: none; }
     .navlist { grid-auto-flow: column; width: 100%; gap: 0; }
     .navlist a { flex-direction: column; gap: 2px; font-size: 10.5px; padding: 6px 0; justify-content: center; position: relative; min-width: 0; }
     .navlist a span:not(.count) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -362,6 +362,9 @@
   .blepair ol { margin: 6px 0 10px; padding-left: 20px; } .blepair li { margin: 3px 0; }
   @media (max-width: 720px) { .bleform { grid-template-columns: minmax(0, 1fr); } }
   .note-line { grid-column: 2 / -1; color: var(--muted); font-size: 12px; }
+  .ver { font-size: 11.5px; color: var(--muted); display: grid; gap: 4px; padding: 0 4px; }
+  .ver a { color: var(--accent, var(--charge)); font-weight: 600; text-decoration: none; font-size: 12.5px; }
+  .ver a:hover { text-decoration: underline; }
   .views { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
   .view-opt { text-align: left; padding: 12px 14px; display: grid; gap: 2px; }
   .view-opt b { font-weight: 500; }
@@ -422,6 +425,7 @@
       <div><span class="dot" id="dotCar"></span><span id="txtCar"></span></div>
     </div>
     <div class="prefs"><button id="btnLang" type="button"></button><button id="btnTheme" type="button"></button></div>
+    <div class="ver"><span id="verText"></span><a id="verUpdate" target="_blank" rel="noopener" hidden></a></div>
   </nav>
 
   <div>
@@ -617,6 +621,7 @@
           <div class="toolbar"><span id="setupSummary" class="muted"></span><span class="spacer"></span><button id="btnSetupCheck" type="button" data-t="setup.check"></button></div>
           <ol class="steps" id="setupSteps"></ol>
         </div>
+        <p class="small muted" id="setupVer" style="margin-top:22px"></p>
       </section>
     </main>
   </div>
@@ -709,6 +714,7 @@ const T = {
     "door": "door", "window": "window", "confirm.frunk": "Open the frunk?", "confirm.trunkOpen": "Open the trunk?", "frunkManual": "The frunk is closed by hand.",
     "paint.white": "White", "paint.grey": "Grey", "paint.silver": "Silver", "paint.black": "Black", "paint.red": "Red", "paint.blue": "Blue",
     "model.title": "Car view", "model.sub": "What the Car page shows.",
+    "ver.update": "Version {0} is out", "ver.how": "Update on the server: docker compose pull && docker compose up -d",
     "seatClimate.title": "Seat and steering-wheel heat", "seatClimate.sub": "The car only heats seats and the steering wheel while the climate is on. What should happen when you turn them on with the climate off?",
     "seatClimate.on": "Turn the climate on as well (like the Tesla app)", "seatClimate.saved": "Saved", "seatClimate.off": "Nothing – show that the climate must be on first",
     "c.seatsNeedClimate": "Turns the climate on as well – the car only heats seats while it is on", "c.seatsClimateOff": "The climate must be on – the car only heats seats while it is on",
@@ -809,6 +815,7 @@ const T = {
     "door": "dør", "window": "rude", "confirm.frunk": "Åbn frunken?", "confirm.trunkOpen": "Åbn bagklappen?", "frunkManual": "Frunken lukkes med hånden.",
     "paint.white": "Hvid", "paint.grey": "Grå", "paint.silver": "Sølv", "paint.black": "Sort", "paint.red": "Rød", "paint.blue": "Blå",
     "model.title": "Visning af bilen", "model.sub": "Hvad Bil-siden viser.",
+    "ver.update": "Version {0} er ude", "ver.how": "Opdatér på serveren: docker compose pull && docker compose up -d",
     "seatClimate.title": "Sæde- og ratvarme", "seatClimate.sub": "Bilen varmer kun sæder og rat, mens klimaet er tændt. Hvad skal der ske, når du tænder dem med klimaet slukket?",
     "seatClimate.on": "Tænd også for klimaet (som Tesla-appen)", "seatClimate.saved": "Gemt", "seatClimate.off": "Ingenting – vis at klimaet skal være tændt først",
     "c.seatsNeedClimate": "Tænder også for klimaet – bilen varmer kun sæder, mens det er tændt", "c.seatsClimateOff": "Klimaet skal være tændt – bilen varmer kun sæder, mens det er tændt",
@@ -1684,7 +1691,7 @@ function connectEvents() {
 function renderAll() {
   if (car3d) { car3d.setLabels(hsLabels()); renderPicker(); }
   renderModelStatus();
-  renderOverview(); renderControls(); renderFields(); renderRaw(); renderLog(); renderUsage(); renderSettings(); renderBle();
+  renderOverview(); renderControls(); renderFields(); renderRaw(); renderLog(); renderUsage(); renderSettings(); renderBle(); renderVersion();
   if (info) { setMqtt(info); $("cfgHint").textContent = t("data.cfgHint", info.telemetry_hostname ? `${info.telemetry_hostname}:${info.telemetry_port}` : "–"); }
   route();
 }
@@ -1712,6 +1719,7 @@ async function init() {
   loadSetup(false);
   loadModel();
   loadSettings().then(renderControls);   // the seat card's hint depends on a setting
+  loadUpdate();
 }
 
 setInterval(() => {
@@ -1719,6 +1727,26 @@ setInterval(() => {
   if (!document.querySelector('.view[data-view="overview"]').hidden) renderOverview();
 }, 5000);
 setInterval(async () => { try { info = await getJson("/api/info"); setMqtt(info); } catch {} }, 15000);
+
+// ===================================================================== version
+let update = null;
+async function loadUpdate() {
+  try { update = await getJson("/api/update"); } catch { return; }
+  renderVersion();
+}
+function renderVersion() {
+  const ver = "Tesla Bridge v" + (update?.installed_display || info?.version_display || info?.version || "?");
+  $("setupVer").innerHTML = esc(ver) + (update?.update_available ? ` · <a href="${esc(update.release_url || "https://github.com/Mfoldager17/tesla-bridge/releases")}" target="_blank" rel="noopener">${esc(t("ver.update", update.latest_version))}</a> – <code>docker compose pull && docker compose up -d</code>` : "");
+  $("verText").textContent = "v" + (update?.installed_display || info?.version_display || info?.version || "?");
+  const a = $("verUpdate");
+  a.hidden = !update?.update_available;
+  if (update?.update_available) {
+    a.textContent = t("ver.update", update.latest_version);
+    a.href = update.release_url || "https://github.com/Mfoldager17/tesla-bridge/releases";
+    a.title = t("ver.how");
+  }
+}
+setInterval(loadUpdate, 3 * 3600 * 1000);
 setInterval(() => { if (location.hash === "#usage") loadUsage(); }, 30000);
 
 init().catch((e) => { if (e.message !== "unauthorized") { $("app").hidden = false; setLive(false); $("txtLive").textContent = e.message; } });

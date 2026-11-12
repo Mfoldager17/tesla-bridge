@@ -28,7 +28,9 @@ public class IntegrationApiTests
         var mqtt = HomeAssistantDiscovery.Build(Opts().Vehicles[0], "tesla", "homeassistant", "x");
         Assert.Equal(mqtt.Count, api["vehicles"]![0]!["entities"]!.AsArray().Count);
         Assert.Equal("model_y", (string?)api["vehicles"]![0]!["slug"]);
-        Assert.Equal(7, api["bridge"]!["entities"]!.AsArray().Count);
+        Assert.Equal(8, api["bridge"]!["entities"]!.AsArray().Count);   // 7 usage sensors + the update entity
+        var update = api["bridge"]!["entities"]!.AsArray().Single(e => (string?)e!["platform"] == "update")!;
+        Assert.Equal("update", (string?)update["config"]!["state_topic"]);
     }
 
     [Fact]
@@ -122,5 +124,14 @@ public class CarModelTests
         File.WriteAllText(TeslaBridge.Web.CarModelApi.UploadedPath(o), "y");
         Assert.Equal("uploaded", TeslaBridge.Web.CarModelApi.Find(o)!.Value.Source);
         Directory.Delete(dir, true);
+    }
+
+    [Fact]
+    public void Version_numbers_compare_as_numbers()
+    {
+        Assert.True(TeslaBridge.Versioning.BuildInfo.Parse("v1.10.0") > TeslaBridge.Versioning.BuildInfo.Parse("1.9.3"));
+        Assert.Equal(new Version(1, 2, 0), TeslaBridge.Versioning.BuildInfo.Parse("1.2.0-edge+abc"));
+        Assert.Equal(new Version(0, 0, 0), TeslaBridge.Versioning.BuildInfo.Parse("nonsense"));
+        Assert.Matches(@"^\d+\.\d+\.\d+$", TeslaBridge.Versioning.BuildInfo.Version);
     }
 }

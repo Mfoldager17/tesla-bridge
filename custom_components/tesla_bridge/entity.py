@@ -44,8 +44,8 @@ class BridgeEntity(Entity):
         topic = self.cfg.get(field)
         if not isinstance(topic, str):
             return None
-        if topic == "usage":
-            return (BRIDGE, "usage")
+        if topic in ("usage", "update"):
+            return (BRIDGE, topic)
         if topic.startswith("state:"):
             return (self.vin, topic[6:])
         return None

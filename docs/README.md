@@ -19,7 +19,7 @@ Follow the steps in order – each page ends with a link to the next one. Prefer
 | [Bluetooth (ESP32)](ble.md) | Optional: free commands and wake-ups while the car is home |
 | [Entities](entities.md) | Everything you get in Home Assistant |
 | [Switching](switching.md) | From MQTT to the integration and back |
-| [Updating](updating.md) | New versions and pinning one |
+| [Versions and updating](updating.md) | Releases, what `latest`/`edge`/`v1` mean, updating and pinning |
 | [Troubleshooting](troubleshooting.md) | Symptoms and what to check |
 | [MQTT API](mqtt-api.md) | Topics and commands |
 | [HTTP API](http-api.md) | Endpoints, also for ESP32 and Node-RED |
