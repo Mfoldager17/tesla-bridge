@@ -89,6 +89,30 @@ class BridgeEntity(Entity):
         except BridgeError as err:
             raise HomeAssistantError(f"Tesla Bridge: {err}") from err
 
+    # ---------- waiting for the car ----------
+
+    def _waiting(self) -> dict[str, Any] | None:
+        """{pending, waiting_for} while a command waits for the car – the same attributes MQTT gets."""
+        if self.cfg.get("json_attributes_topic") != "state:pending":
+            return None
+        rendered = self.render("json_attributes_topic", "json_attributes_template")
+        try:
+            attrs = json.loads(rendered) if rendered else None
+        except ValueError:
+            return None
+        return attrs if isinstance(attrs, dict) else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        return self._waiting()
+
+    @property
+    def icon(self) -> str | None:
+        waiting = self._waiting()
+        if waiting and waiting.get("pending"):
+            return "mdi:sleep" if waiting.get("waiting_for") == "car to wake up" else "mdi:timer-sand"
+        return super().icon
+
     # ---------- lifecycle ----------
 
     @property

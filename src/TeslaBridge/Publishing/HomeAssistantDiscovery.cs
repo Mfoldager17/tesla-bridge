@@ -395,6 +395,19 @@ public sealed class HomeAssistantDiscovery(
 
         // ---------- Controls (samme som Teslemetry) ----------
 
+        // While a command waits for the car (being woken, or not confirmed yet), the entity gets the attributes
+        // pending: true and waiting_for: "car to wake up" / "car to confirm" – HA has no "loading" state for
+        // switches, numbers, selects or climate, so this is how dashboards can show it.
+        void Waiting(JsonObject c, params string[] keys)
+        {
+            var list = string.Join(", ", keys.Select(k => $"'{k}'"));
+            c["json_attributes_topic"] = state(TeslaBridge.State.PendingTracker.Key);
+            c["json_attributes_template"] =
+                "{% set p = value_json if value_json is mapping else {} %}" +
+                "{% set on = (p.get('keys') or []) | select('in', [" + list + "]) | list | count > 0 %}" +
+                "{{ {'pending': on, 'waiting_for': (('car to wake up' if p.get('waking') else 'car to confirm') if on else none)} | tojson }}";
+        }
+
         void Switch(string key, string name, string stateKey, string icon, string? template = null)
         {
             var c = Base(key, name);
@@ -406,6 +419,7 @@ public sealed class HomeAssistantDiscovery(
             c["state_on"] = "ON";
             c["state_off"] = "OFF";
             c["icon"] = icon;
+            Waiting(c, stateKey);
             Add("switch", key, c);
         }
 
@@ -446,6 +460,7 @@ public sealed class HomeAssistantDiscovery(
             c["unit_of_measurement"] = unit;
             c["mode"] = "slider";
             c["icon"] = icon;
+            Waiting(c, stateKey);
             Add("number", key, c);
         }
 
@@ -500,6 +515,7 @@ public sealed class HomeAssistantDiscovery(
             c["preset_mode_value_template"] =
                 "{% set m = {" + string.Join(", ", CommandParser.KeeperPresets.Select(k => $"'{k.Key}': '{k.Preset}'")) + "} %}{{ m.get(value_json, 'none') }}";
             c["preset_mode_command_topic"] = cmd("climate_keeper");
+            Waiting(c, "climate_on", "driver_temp_setting", "climate_keeper_mode");
             Add("climate", "climate", c);
         }
 
@@ -522,6 +538,7 @@ public sealed class HomeAssistantDiscovery(
             c["precision"] = 1.0;
             c["temperature_unit"] = "C";
             c["icon"] = "mdi:sun-thermometer";
+            Waiting(c, "cabin_overheat_protection", "cop_temp_limit");
             Add("climate", "cabin_overheat_protection", c);
         }
 
@@ -534,6 +551,7 @@ public sealed class HomeAssistantDiscovery(
             c["command_topic"] = cmd(key);
             c["options"] = new JsonArray(options.Select(o => (JsonNode?)JsonValue.Create(o)).ToArray());
             c["icon"] = icon;
+            Waiting(c, stateKey);
             Add("select", key, c);
         }
 

@@ -93,6 +93,42 @@ async def test_entities_follow_the_bridge(hass: HomeAssistant, socket_enabled) -
 
 
 @pytest.mark.allow_hosts(["127.0.0.1"])
+async def test_waiting_for_the_car_shows_on_the_entities(hass: HomeAssistant, socket_enabled) -> None:
+    entry = MockConfigEntry(domain="tesla_bridge", data={"url": URL, "token": None}, unique_id=VIN)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    hub = entry.runtime_data
+    for _ in range(50):   # wait for the live connection
+        await asyncio.sleep(0.1)
+        await hass.async_block_till_done()
+        if hub.connected:
+            break
+
+    # What the bridge publishes while it wakes the car for "climate on"
+    hub.set_value(VIN, "pending", {"waking": True, "keys": ["climate_on"]})
+    await hass.async_block_till_done()
+    clim = hass.states.get("climate.model_y_climate")
+    print("climate while waking", clim.state, clim.attributes)
+    assert clim.attributes["pending"] is True
+    assert clim.attributes["waiting_for"] == "car to wake up"
+    assert clim.attributes["icon"] == "mdi:sleep"
+    other = hass.states.get("switch.model_y_sentry_mode")
+    assert other.attributes["pending"] is False and other.attributes.get("waiting_for") is None
+
+    hub.set_value(VIN, "pending", {"waking": False, "keys": ["climate_on"]})
+    await hass.async_block_till_done()
+    clim = hass.states.get("climate.model_y_climate")
+    assert clim.attributes["waiting_for"] == "car to confirm"
+    assert clim.attributes["icon"] == "mdi:timer-sand"
+
+    hub.set_value(VIN, "pending", {"waking": False, "keys": []})
+    await hass.async_block_till_done()
+    assert hass.states.get("climate.model_y_climate").attributes["pending"] is False
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.allow_hosts(["127.0.0.1"])
 async def test_config_flow(hass: HomeAssistant, socket_enabled) -> None:
     result = await hass.config_entries.flow.async_init("tesla_bridge", context={"source": "user"})
     assert result["type"] == "form"

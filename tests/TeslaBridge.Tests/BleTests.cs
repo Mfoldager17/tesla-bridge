@@ -283,3 +283,40 @@ public class CabinComfortTests
         Assert.Equal(["SetSeatHeater"], car.Sent);
     }
 }
+
+public class PendingTrackerTests
+{
+    private sealed class SleepyCar : ICommandTransport
+    {
+        public bool Awake;
+        public string Name => "fleet-api";
+        public int Priority => 100;
+        public ValueTask<bool> CanReachAsync(string vin, CancellationToken ct) => ValueTask.FromResult(true);
+        public Task<CommandResult> WakeAsync(string vin, CancellationToken ct) { Awake = true; return Task.FromResult(CommandResult.Ok()); }
+        public Task<CommandResult> SendAsync(string vin, VehicleCommand c, CancellationToken ct) =>
+            Task.FromResult(Awake ? CommandResult.Ok() : CommandResult.Asleep());
+    }
+
+    [Fact]
+    public async Task Pending_shows_the_waiting_fields_and_whether_the_car_is_being_woken()
+    {
+        var store = new VehicleStateStore();
+        var o = new BridgeOptions(); o.Vehicles.Add(new VehicleOptions { Vin = "V" });
+        var svc = new CommandService(new CommandRouter([new SleepyCar()]), store,
+            Microsoft.Extensions.Options.Options.Create(o), TimeProvider.System, NullLogger<CommandService>.Instance)
+            { RetryDelay = TimeSpan.FromMilliseconds(5) };
+        var tracker = new PendingTracker(store, svc, Microsoft.Extensions.Options.Options.Create(o), TimeProvider.System);
+        await tracker.StartAsync(default);
+
+        var seen = new List<string>();
+        store.Changed += c => { if (c.Key == PendingTracker.Key) seen.Add(c.Effective!.Value!.ToJsonString()); };
+        await svc.ExecuteAsync("V", new Cmd.ClimateOn());
+
+        Assert.Contains(seen, s => s.Contains("\"waking\":true") && s.Contains("climate_on"));
+        Assert.Contains("climate_on", store.Get("V", PendingTracker.Key)!.Value!.ToJsonString());      // still waiting for the car to confirm
+        Assert.Contains("\"waking\":false", store.Get("V", PendingTracker.Key)!.Value!.ToJsonString());
+
+        store.Apply("V", "climate_on", System.Text.Json.Nodes.JsonValue.Create(true), DateTimeOffset.UtcNow);   // the car confirms
+        Assert.Equal("""{"waking":false,"keys":[]}""", store.Get("V", PendingTracker.Key)!.Value!.ToJsonString());
+    }
+}

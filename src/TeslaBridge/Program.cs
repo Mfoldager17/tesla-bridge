@@ -95,6 +95,7 @@ services.AddHostedService<HomeAssistantDiscovery>();
 services.AddHostedService<TeslaBridge.Telemetry.VehicleDataSeeder>();
 services.AddHostedService(sp => sp.GetRequiredService<TeslaBridge.Ble.BleService>());
 services.AddHostedService<CommandListener>();
+services.AddHostedService<TeslaBridge.State.PendingTracker>();
 services.AddHostedService<OptimisticExpiryService>();
 services.AddHostedService<UsageService>();
 services.AddHostedService(sp => sp.GetRequiredService<TelemetryConfigService>());

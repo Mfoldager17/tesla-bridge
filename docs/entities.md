@@ -25,4 +25,23 @@ There is also a **Tesla Bridge** device with your Fleet API usage: `sensor.tesla
 
 `sensor.<car>_command_status` shows the latest command (`pending` → `waking` → `succeeded`/`failed`) with the error as an attribute.
 
+### While a command waits for the car
+
+A sent command shows its new state straight away (optimistic), but the car may first have to wake up, or hasn't confirmed it yet. Locks and covers show this as their own states: *locking*, *unlocking*, *opening* and *closing*. Home Assistant has no such state for switches, numbers, selects and climate, so those entities get two attributes instead:
+
+| Attribute | Value |
+|---|---|
+| `pending` | `true` while the command waits for the car |
+| `waiting_for` | `car to wake up` while the car is being woken, then `car to confirm` until the car reports the new state. Empty when done |
+
+With the [integration](4-home-assistant.md#b-the-tesla-bridge-integration), the icon also changes meanwhile: 💤 `mdi:sleep` while the car wakes, ⏳ `mdi:timer-sand` until it confirms. That shows on tile cards and in the entity list without any setup. With MQTT the attributes are the same, but the icon can't change. Use them in a card, for example:
+
+```yaml
+type: tile
+entity: climate.model_y_climate
+state_content:
+  - state
+  - waiting_for
+```
+
 The names follow Teslemetry, so moving from there only means changing the entity id prefix (`sensor.tesla_battery_level` → `sensor.model_y_battery_level`). To avoid even that, give the car the same name it has in Teslemetry.

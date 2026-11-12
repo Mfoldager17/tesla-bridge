@@ -30,6 +30,16 @@ public sealed class VehicleStateStore
     /// <summary>Kaldes når en bekræftet værdi ændres (bruges til at gemme på disk).</summary>
     public event Action? ConfirmedChanged;
 
+    /// <summary>A field started or stopped waiting for the car to confirm a command (argument: VIN).</summary>
+    public event Action<string>? PendingChanged;
+
+    /// <summary>The fields of one car that are waiting for the car to confirm a command.</summary>
+    public IReadOnlyList<string> PendingKeys(string vin)
+    {
+        lock (_lock)
+            return _vehicles.TryGetValue(vin, out var f) ? f.Where(kv => kv.Value.Pending is not null).Select(kv => kv.Key).Order().ToList() : [];
+    }
+
     public IReadOnlyCollection<string> Vins
     {
         get { lock (_lock) return _vehicles.Keys.ToArray(); }
@@ -39,6 +49,7 @@ public sealed class VehicleStateStore
     public void Apply(string vin, string key, JsonNode? value, DateTimeOffset at, ValueSource source = ValueSource.Stream)
     {
         StateChange? change;
+        var confirmed = false;
         lock (_lock)
         {
             var entry = GetEntry(vin, key);
@@ -49,13 +60,17 @@ public sealed class VehicleStateStore
             // Bekræfter streamen det vi forventede? Så er vi færdige med at vente.
             // Hvis ikke (fx gammelt snapshot lige efter opvågning) holder vi den forventede værdi til den udløber.
             if (entry.Pending is { } p && p.IsConfirmedBy(value))
+            {
                 entry.Pending = null;
+                confirmed = true;
+            }
 
             change = Diff(vin, key, before, EffectiveOf(entry));
         }
 
         ConfirmedChanged?.Invoke();
         if (change is not null) Changed?.Invoke(change);
+        if (confirmed) PendingChanged?.Invoke(vin);
     }
 
     /// <summary>Forvent en værdi efter en kommando.</summary>
@@ -74,12 +89,14 @@ public sealed class VehicleStateStore
         }
 
         if (change is not null) Changed?.Invoke(change);
+        PendingChanged?.Invoke(vin);
     }
 
     /// <summary>Opgiv en forventet værdi (fx fordi kommandoen fejlede) og vis den bekræftede igen.</summary>
     public void ClearPending(string vin, string key)
     {
         StateChange? change = null;
+        var cleared = false;
         lock (_lock)
         {
             if (_vehicles.TryGetValue(vin, out var fields) && fields.TryGetValue(key, out var entry) && entry.Pending is not null)
@@ -87,10 +104,12 @@ public sealed class VehicleStateStore
                 var before = EffectiveOf(entry);
                 entry.Pending = null;
                 change = Diff(vin, key, before, EffectiveOf(entry));
+                cleared = true;
             }
         }
 
         if (change is not null) Changed?.Invoke(change);
+        if (cleared) PendingChanged?.Invoke(vin);
     }
 
     /// <summary>Lad udløbne forventninger falde tilbage til bilens bekræftede værdi.</summary>
@@ -98,6 +117,7 @@ public sealed class VehicleStateStore
     {
         var now = _time.GetUtcNow();
         var changes = new List<StateChange>();
+        var vins = new HashSet<string>();
         lock (_lock)
         {
             foreach (var (vin, fields) in _vehicles)
@@ -107,12 +127,14 @@ public sealed class VehicleStateStore
                 {
                     var before = EffectiveOf(entry);
                     entry.Pending = null;
+                    vins.Add(vin);
                     if (Diff(vin, key, before, EffectiveOf(entry)) is { } c) changes.Add(c);
                 }
             }
         }
 
         foreach (var c in changes) Changed?.Invoke(c);
+        foreach (var v in vins) PendingChanged?.Invoke(v);
         return changes.Count;
     }
 
