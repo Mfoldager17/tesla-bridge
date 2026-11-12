@@ -11,8 +11,9 @@
 > | `Model Y` / `model_y_` | the name you give your car in `.env` ([more](entities.md)) |
 > | `<server-IP>`, `192.168.0.x` | the IP address of your server and your MQTT broker |
 > | `mosquitto` | the name of *your* Mosquitto container (`docker ps`) |
-> | `~/docker-services/…` | wherever you keep your docker projects |
-> | `npm-<nr>` | the certificate number in your Nginx Proxy Manager |
+> | `~/tesla-bridge` | the folder you install the bridge in – anywhere you like |
+> | `npm-<nr>`, `<letsencrypt folder>` | where your reverse proxy keeps the certificate (the guide shows how to find it) |
+> | `/mosquitto/config/passwd` | the password file of *your* Mosquitto (the guide shows how to find it) |
 > | `<VIN>`, `<password 1>`, `<password 2>`, `<token>` | your VIN and your own passwords/token |
 >
 > Text in `<angle brackets>` must always be replaced – the brackets themselves are not included.

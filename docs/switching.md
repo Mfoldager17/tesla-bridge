@@ -26,9 +26,9 @@ Both ways can run **at the same time** while you test. The entities from the way
    Only the bridge's own topics are cleared. Zigbee2MQTT and everything else on the broker is untouched.
 3. **(Optional) Remove the MQTT users.** They do no harm if they stay:
    ```bash
-   docker exec mosquitto mosquitto_passwd -D /mosquitto/config/passwd tesla-bridge
+   docker exec mosquitto mosquitto_passwd -D /mosquitto/config/passwd tesla-bridge      # your password file
    docker exec mosquitto mosquitto_passwd -D /mosquitto/config/passwd fleet-telemetry
-   docker restart mosquitto
+   docker kill -s HUP mosquitto
    ```
 4. **Add the integration** ([step 4B](4-home-assistant.md#b-the-tesla-bridge-integration)). The entities get the same entity ids as before, so dashboards and automations keep working.
 

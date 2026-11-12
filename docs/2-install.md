@@ -62,7 +62,7 @@ Note the **Client ID** and **Client Secret**. You do *not* create keys yourself:
 The server **only** needs two files. No source code, no `git`. The bridge is pulled prebuilt from `ghcr.io`.
 
 ```bash
-mkdir -p ~/docker-services/tesla-bridge && cd ~/docker-services/tesla-bridge
+mkdir -p ~/tesla-bridge && cd ~/tesla-bridge        # any folder you like
 curl -fsSLO https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/docker-compose.yml
 curl -fsSL  https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/.env.example -o .env
 chmod 600 .env
@@ -119,9 +119,12 @@ The other MQTT fields can stay empty. The bridge starts a small broker of its ow
 The bridge and fleet-telemetry log in to your broker with a user each. The usernames `tesla-bridge` and `fleet-telemetry` are suggestions – use others if you like, as long as they match here and in `.env`. With Mosquitto in a container (replace `mosquitto` with your container's name):
 
 ```bash
+# where is the password file? (prints e.g. "password_file /mosquitto/config/passwd")
+docker exec mosquitto sh -c 'grep -h password_file /mosquitto/config/*.conf /etc/mosquitto/*.conf 2>/dev/null'
+
 docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd tesla-bridge     # <password 1>
 docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd fleet-telemetry  # <password 2>
-docker restart mosquitto
+docker kill -s HUP mosquitto                                                         # re-read users, no restart
 ```
 
 - The file-permission warning from `mosquitto_passwd` can be ignored.
@@ -132,14 +135,18 @@ docker restart mosquitto
 
 The car talks directly to fleet-telemetry on port 4443, so it needs your domain's certificate. Put `fullchain.pem` and `privkey.pem` in `config/fleet-telemetry/certs/`.
 
-From Nginx Proxy Manager. Adjust the path to where your NPM lives, and `npm-<nr>` to your certificate's number (see *SSL Certificates* in NPM, or `ls <npm folder>/letsencrypt/live/`):
+**From Nginx Proxy Manager** – find where *your* NPM keeps its certificates (the folder mounted at `/etc/letsencrypt`), then the one for your domain:
 
 ```bash
+LE=$(docker inspect <npm container> --format '{{range .Mounts}}{{if eq .Destination "/etc/letsencrypt"}}{{.Source}}{{end}}{{end}}')
+sudo grep -l "<your domain>" "$LE"/renewal/*.conf      # e.g. …/renewal/npm-21.conf → the folder is live/npm-21
+
 mkdir -p config/fleet-telemetry/certs
-NPM=~/docker-services/nginx-proxy-manager/letsencrypt/live/npm-<nr>   # example – adjust to yours
-sudo cp -L $NPM/fullchain.pem $NPM/privkey.pem config/fleet-telemetry/certs/
+sudo cp -L "$LE"/live/npm-<nr>/fullchain.pem "$LE"/live/npm-<nr>/privkey.pem config/fleet-telemetry/certs/
 sudo chown -R $(id -u):$(id -g) config/fleet-telemetry/certs
 ```
+
+**From anything else** (Caddy, Traefik, certbot, acme.sh …): copy the domain's full chain and private key to `config/fleet-telemetry/certs/fullchain.pem` and `privkey.pem` the same way. The setup script can do this for you too – it asks for the folder.
 
 Let's Encrypt renews roughly every 60 days, so put the same lines in a cron job (e.g. weekly), followed by `docker compose restart fleet-telemetry`.
 

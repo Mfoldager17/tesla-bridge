@@ -4,7 +4,7 @@
 
 **The bridge** (both ways):
 ```bash
-cd ~/docker-services/tesla-bridge
+cd ~/tesla-bridge        # your folder
 docker compose pull && docker compose up -d
 ```
 New versions are backwards compatible with your existing `.env`: new settings have defaults that keep the current behaviour.

@@ -12,12 +12,12 @@
 # What only you can do: create the Tesla app, the DNS record, the reverse proxy host, the router
 # port forward, and sign in + pair the key in the dashboard. The script tells you when and how.
 #
-# Options:  --dir <folder>   where to install (default ~/docker-services/tesla-bridge)
+# Options:  --dir <folder>   where to install (default: where it already runs, else ~/tesla-bridge)
 #           --dry-run        show what would happen, change nothing
 set -euo pipefail
 
 REPO_RAW="https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main"
-DIR="${HOME}/docker-services/tesla-bridge"
+DIR=""
 DRY_RUN=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -74,6 +74,13 @@ ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo '
 
 # ---------------------------------------------------------------- 2. folder + files
 step "Folder"
+if [[ -z "$DIR" ]]; then
+  # already installed? use the folder docker compose runs it from – everyone's folders are different
+  DIR=$(docker ps -a --filter "label=com.docker.compose.service=tesla-bridge" \
+        --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null | head -n1)
+  [[ -z "$DIR" && -f docker-compose.yml ]] && grep -q tesla-init docker-compose.yml && DIR=$PWD
+  DIR=${DIR:-$HOME/tesla-bridge}
+fi
 DIR=$(ask "Install in" "$DIR")
 run mkdir -p "$DIR"
 cd "$DIR" 2>/dev/null || { [[ $DRY_RUN == 1 ]] && cd "$(mktemp -d)"; }
@@ -142,7 +149,9 @@ case "$MODE" in
     HOSTPORT=$(docker port "$MOSQ" 1883/tcp 2>/dev/null | awk -F: 'NR==1{print $NF}')
     MQTT_PORT=${HOSTPORT:-1883}
     [[ -z "$HOSTPORT" ]] && warn "$MOSQ doesn't publish port 1883 – if it uses host networking that's fine."
-    PWFILE=$(docker exec "$MOSQ" sh -c "grep -hE '^[[:space:]]*password_file' /mosquitto/config/*.conf 2>/dev/null | awk '{print \$2}' | head -n1" || true)
+    # Where is its password file? Read the config Mosquitto was started with (-c), whatever the folder layout
+    CONF=$(docker exec "$MOSQ" sh -c "tr '\\0' ' ' < /proc/1/cmdline" 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="-c") print $(i+1)}')
+    PWFILE=$(docker exec "$MOSQ" sh -c "grep -hE '^[[:space:]]*password_file' ${CONF:-/mosquitto/config/mosquitto.conf} /mosquitto/config/*.conf /etc/mosquitto/*.conf /etc/mosquitto/conf.d/*.conf 2>/dev/null | awk '{print \$2}' | head -n1" || true)
     if [[ -z "$PWFILE" ]]; then
       ok "$MOSQ allows anonymous clients – no users needed"
     else
