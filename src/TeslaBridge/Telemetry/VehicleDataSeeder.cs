@@ -20,9 +20,11 @@ public sealed class VehicleDataSeeder(
     TeslaProxyClient proxy,
     TimeProvider time,
     IOptions<BridgeOptions> options,
-    ILogger<VehicleDataSeeder> log) : BackgroundService
+    ILogger<VehicleDataSeeder> log,
+    TeslaBridge.Settings.SettingsStore? settings = null) : BackgroundService
 {
-    public static readonly TimeSpan MinInterval = TimeSpan.FromHours(1);
+    /// <summary>Minimum time between two snapshots (settings page, default 1 hour). Zero = never.</summary>
+    private TimeSpan MinInterval => TimeSpan.FromMinutes(settings?.Current.SnapshotIntervalMinutes ?? TeslaBridge.Settings.SettingsStore.DefaultSnapshotMinutes);
 
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastSeed = new(StringComparer.OrdinalIgnoreCase);
     private readonly System.Threading.Channels.Channel<string> _queue = System.Threading.Channels.Channel.CreateUnbounded<string>();
@@ -82,6 +84,7 @@ public sealed class VehicleDataSeeder(
     public async Task SeedAsync(string vin, CancellationToken ct)
     {
         var now = time.GetUtcNow();
+        if (MinInterval <= TimeSpan.Zero) return;   // turned off on the settings page
         if (_lastSeed.TryGetValue(vin, out var last) && now - last < MinInterval) return;
         if (!NeedsSeed(vin)) return;
         _lastSeed[vin] = now;

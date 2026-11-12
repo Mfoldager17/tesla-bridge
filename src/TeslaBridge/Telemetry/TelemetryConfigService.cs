@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TeslaBridge.Commands;
 using TeslaBridge.Options;
+using TeslaBridge.Settings;
 
 namespace TeslaBridge.Telemetry;
 
@@ -16,7 +17,8 @@ public sealed class TelemetryConfigService(
     TeslaProxyClient proxy,
     IOptions<BridgeOptions> options,
     TimeProvider time,
-    ILogger<TelemetryConfigService> log) : BackgroundService
+    ILogger<TelemetryConfigService> log,
+    SettingsStore? settings = null) : BackgroundService
 {
     private readonly BridgeOptions _opts = options.Value;
 
@@ -126,10 +128,8 @@ public sealed class TelemetryConfigService(
     internal JsonObject BuildRequest(IReadOnlyList<string> vins)
     {
         var t = _opts.Telemetry;
-        var fieldsDoc = JsonNode.Parse(File.ReadAllText(t.FieldsFile))
-            ?? throw new InvalidOperationException($"Tom {t.FieldsFile}");
-        var fields = (fieldsDoc["fields"] as JsonObject)?.DeepClone() as JsonObject
-            ?? throw new InvalidOperationException($"{t.FieldsFile} mangler 'fields'");
+        // The defaults from telemetry-fields.json with the changes made on the dashboard's settings page.
+        var fields = (settings ?? new SettingsStore(null, t.FieldsFile)).EffectiveFields();
 
         var config = new JsonObject
         {

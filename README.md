@@ -372,36 +372,39 @@ Changes to `docker-compose.yml` itself (rare) are fetched with the same `curl` a
 | Commands fail with "not logged in" | Sign in with Tesla in the dashboard (step 7) |
 | Commands fail with "key not paired" | Pair the key again via the QR code (step 7) while you're at the car |
 | "Bil: venter på signal" (car: waiting for signal) | The car is asleep. The bridge asks Tesla on start; when the car wakes, data arrives |
-| Values are "unknown" | The car only sends on change. When it wakes, a snapshot is fetched (at most once an hour) |
+| Values are "unknown" | The car only sends on change. When it wakes, a snapshot is fetched (at most once an hour; see Settings). Check that the field isn't turned off under Settings |
+| Streaming costs too much | Settings → **Save money**, or make the fields marked *changes often* less frequent |
 
 ---
 
 ## The dashboard
 
-The bridge has a built-in dashboard at `http://<server-IP>:8090` (`http://localhost:8080` when testing locally). You can check that everything works before connecting HA:
+The bridge has a built-in dashboard at `http://<server-IP>:8090` (`http://localhost:8080` when testing locally). It works on a phone too, follows your system's light/dark mode, and is in English or Danish (switch in the sidebar).
 
-- **Setup**: domain, Tesla login, pairing and telemetry status, step by step
-- **Overview**: battery, climate, lock, charging, temperatures, location. Purple border = waiting for the car to confirm
-- **Commands**: every button, with a log showing *sent → waking car → done/failed*
-- **All fields**: every value with its source (`stream`, `snapshot`, `optimistic`, `restored`, `bridge`) and age
-- **Raw telemetry**: exactly what the car sent before the bridge translated it
+- **Car**: a top-down view of the car that shows open doors, frunk, trunk, windows and the charge cable live, the battery with range and charge limit, quick actions, and the latest commands with their status (*sent → waking the car → done/failed*)
+- **Controls**: everything you can do from Home Assistant – climate, Keep/Dog/Camp, seat and steering wheel heat, charging, locks, sentry, guest/valet mode, frunk, trunk, windows, HomeLink. Purple means the bridge is waiting for the car to confirm
+- **Data**: every value with its source (`stream`, `snapshot`, `optimistic`, `restored`, `bridge`) and age, the raw telemetry exactly as the car sent it, and the telemetry status on the car
 - **Usage**: the month's signals, commands, wakes and data requests, priced at Tesla's rates, with a projection to the end of the month
+- **Settings**: how often the car sends each value, and how often a snapshot is fetched – see [Fields and intervals](#fields-and-intervals)
+- **Setup**: domain, Tesla login, pairing and telemetry status, step by step
 
 The dashboard can unlock your car. Always set `Bridge__Web__Token`, and **never forward port 8090**. The public port 8091 only answers with the public key and the login callback. `Bridge__Web__Enabled=false` turns off the dashboard and the HTTP API – way B then stops working.
-
-> The dashboard UI and the bridge's log messages are currently in Danish.
 
 ---
 
 ## Fields and intervals
 
-`config/bridge/telemetry-fields.json` decides which fields the car sends and how often at most. The car **only sends on change**, so:
-- discrete fields (lock, doors, climate, charging state, gear) are set to 1 s and feel live at no extra cost
-- fast-changing fields (location, speed, battery) are the ones that cost, and are set to 60–600 s
+Open **Settings** in the dashboard to choose which values the car sends and how often at most. The car **only sends a value when it changes**, so:
+- discrete values (lock, doors, climate, charging state, gear) are set to 1 s and feel live at no extra cost
+- values that change all the time while driving or charging (location, speed, battery, charging power, temperatures, tire pressure) are the ones that cost. They are marked *changes often*
 
-The default file ships with the image. For your own intervals, put a copy in `config/bridge/telemetry-fields.json` on the server, set `Bridge__Telemetry__FieldsFile=/config/bridge/telemetry-fields.json` in `.env` and restart. The bridge notices that the fields changed and sends the new configuration to the car.
+The page shows how many signals each field has sent this month and estimates the monthly streaming cost as you change things. Three quick choices set all the costly fields at once: **Save money**, **Recommended** (the defaults) and **As live as possible**. Turning a field off stops the car from sending it, and the matching entity in Home Assistant stops updating.
 
-Fields the bridge doesn't know pass through unchanged as `snake_case` (e.g. `TpmsPressureFl` → `tpms_pressure_fl`). Valid names are in Tesla's [vehicle_data.proto](https://github.com/teslamotors/fleet-telemetry/blob/main/protos/vehicle_data.proto).
+**Save and send to car** stores the settings in `data/settings.json` (kept across updates) and sends the new configuration to the car right away. If the car or Tesla can't be reached, the bridge sends it on its next check (within 12 hours). **Reset to defaults** goes back to the intervals shipped with the bridge.
+
+The same page sets how often the bridge fetches a **snapshot** from the Fleet API when the car wakes up (default: at most once an hour, or never). A snapshot fills in values the car hasn't streamed yet, costs one data request and never wakes the car.
+
+The defaults live in `config/bridge/telemetry-fields.json` in the image. Fields the bridge doesn't know pass through unchanged as `snake_case` (e.g. `TpmsPressureFl` → `tpms_pressure_fl`). Valid names are in Tesla's [vehicle_data.proto](https://github.com/teslamotors/fleet-telemetry/blob/main/protos/vehicle_data.proto).
 
 ---
 
@@ -459,6 +462,9 @@ Token: `Authorization: Bearer <token>` (or `?token=` in the URL).
 | `GET /api/events` | Server-Sent Events: `field` (a value changed) and `command` (command status), live |
 | `POST /api/vehicles/<VIN>/cmd/<name>` | a command. Body = the same payload as on MQTT (empty body = `PRESS`) |
 | `GET /api/usage` | Fleet API usage |
+| `GET /api/settings` | telemetry fields with intervals, on/off and this month's signal count, plus the snapshot interval |
+| `PUT /api/settings` | change them: `{"fields": {"Location": {"enabled": true, "interval_seconds": 10}}, "snapshot_interval_minutes": 60}` – saved and sent to the car |
+| `POST /api/settings/reset` | back to the defaults |
 
 ```bash
 T=<token>
@@ -511,7 +517,8 @@ tesla-bridge/
 │   ├── Commands/                   commands, parser, CommandService (optimistic + wake + retry)
 │   ├── Publishing/                 HomeAssistantDiscovery (the entities – used by BOTH ways), StatePublisher
 │   ├── Mqtt/                       connection with reconnect and Last Will, embedded broker
-│   ├── Web/                        dashboard, HTTP API, live events (SSE)
+│   ├── Settings/                   settings page: stored settings + description of every telemetry field
+│   ├── Web/                        dashboard (wwwroot/index.html), HTTP API, live events (SSE)
 │   └── Auth/, Usage/               Tesla login and usage tracking
 ├── tests/TeslaBridge.Tests/        .NET tests
 └── tests/ha/                       the integration against a running bridge (pytest-homeassistant-custom-component)

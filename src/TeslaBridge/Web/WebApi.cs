@@ -43,11 +43,13 @@ public static class WebApi
 
         var api = app.MapGroup("/api");
         api.MapSetupApi(opts);
+        api.MapSettingsApi(opts);
 
         api.MapGet("/info", (MqttConnection mqtt, LiveEvents events) => Results.Json(new
         {
             started_at = events.StartedAt,
             mqtt_connected = mqtt.IsConnected,
+            embedded_broker = opts.Mqtt.EmbeddedBroker,
             auth_required = !string.IsNullOrEmpty(token),
             simulator = opts.Web.Simulator,
             telemetry_hostname = opts.Telemetry.Hostname,

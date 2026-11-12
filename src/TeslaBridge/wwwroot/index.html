@@ -1,602 +1,1248 @@
 <!doctype html>
-<html lang="da">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
 <title>Tesla Bridge</title>
 <style>
   :root {
-    --bg: #0b0d10; --panel: #13161b; --panel-2: #191d23; --line: #252a32;
-    --text: #e7eaee; --muted: #8a93a0; --faint: #5b6370;
-    --accent: #3e8bff; --ok: #2fbf71; --warn: #f0a52b; --bad: #ef5350; --opt: #b48cff;
-    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    --bg: #15191e; --surface: #1d2228; --raise: #252b33; --line: #313842; --line-soft: #262c34;
+    --text: #e6e9ec; --muted: #949da8; --faint: #6b747f;
+    --accent: #6e9cf5; --accent-ink: #0d1626;
+    --charge: #45c07a; --warn: #e9a23b; --danger: #e5484d; --pending: #a78bfa;
+    --body-off: #3a414b; --body-fill: #232930;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --r-lg: 14px; --r-md: 10px; --r-sm: 7px;
   }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #edeff2; --surface: #ffffff; --raise: #f5f6f8; --line: #dadde2; --line-soft: #e8eaee;
+      --text: #1b2026; --muted: #5f6873; --faint: #8a929c;
+      --accent: #2f66d0; --accent-ink: #ffffff;
+      --charge: #1f9a57; --warn: #b9740c; --danger: #cf2e33; --pending: #7c5ce0;
+      --body-off: #c3c8cf; --body-fill: #f1f3f5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #edeff2; --surface: #ffffff; --raise: #f5f6f8; --line: #dadde2; --line-soft: #e8eaee;
+    --text: #1b2026; --muted: #5f6873; --faint: #8a929c;
+    --accent: #2f66d0; --accent-ink: #ffffff;
+    --charge: #1f9a57; --warn: #b9740c; --danger: #cf2e33; --pending: #7c5ce0;
+    --body-off: #c3c8cf; --body-fill: #f1f3f5;
+  }
+
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
-  header { position: sticky; top: 0; z-index: 5; background: rgba(11,13,16,.92); backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--line); padding: 12px 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-  header h1 { font-size: 15px; margin: 0; letter-spacing: .02em; font-weight: 600; }
-  header h1 span { color: var(--muted); font-weight: 400; }
-  .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-  .pill { font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
-  .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); } .dot.bad { background: var(--bad); } .dot.warn { background: var(--warn); }
-  main { max-width: 1280px; margin: 0 auto; padding: 20px; display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
-  section h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  section h2 .spacer { flex: 1; }
-  .span-12 { grid-column: span 12; } .span-8 { grid-column: span 8; } .span-4 { grid-column: span 4; } .span-6 { grid-column: span 6; }
-  @media (max-width: 960px) { .span-8, .span-4, .span-6 { grid-column: span 12; } main { padding: 12px; } }
-
-  /* Overblik */
-  .hero { display: grid; grid-template-columns: 170px 1fr; gap: 20px; align-items: center; }
-  @media (max-width: 560px) { .hero { grid-template-columns: 1fr; justify-items: center; } }
-  .ring { width: 160px; height: 160px; position: relative; }
-  .ring svg { transform: rotate(-90deg); }
-  .ring .label { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
-  .ring .big { font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .ring .small { color: var(--muted); font-size: 12px; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; width: 100%; }
-  .tile { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; transition: border-color .4s; }
-  .tile .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
-  .tile .v { font-size: 18px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tile .s { font-size: 11px; color: var(--faint); margin-top: 2px; }
-  .tile.opt { border-color: var(--opt); } .tile.opt .s { color: var(--opt); }
-  .flash { animation: flash 1.2s ease-out; }
-  @keyframes flash { from { background: rgba(62,139,255,.28); } to { background: transparent; } }
-
-  /* Kommandoer */
-  .cmd-group { margin-bottom: 12px; }
-  .cmd-group .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
-  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
-  button { font: inherit; font-size: 13px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 11px; cursor: pointer; transition: background .15s, border-color .15s; }
-  button:hover { border-color: var(--accent); }
-  button:active { transform: translateY(1px); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: white; }
-  button.danger:hover { border-color: var(--bad); }
-  button:disabled { opacity: .5; cursor: default; }
-  .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
-  .row label { width: 110px; color: var(--muted); font-size: 13px; }
-  .row input[type=range] { flex: 1; accent-color: var(--accent); }
-  .row output { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
-  select { font: inherit; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
-  .cmdlog { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 12px; max-height: 190px; overflow: auto; }
-  .cmdlog div { padding: 3px 0; display: flex; gap: 8px; }
-  .cmdlog time { color: var(--faint); font-family: var(--mono); }
-  .st-pending, .st-waking { color: var(--warn); } .st-succeeded { color: var(--ok); } .st-failed { color: var(--bad); }
-
-  /* Tabeller */
-  .scroll { max-height: 460px; overflow: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); }
-  td { padding: 6px 8px; border-bottom: 1px solid #1c2027; vertical-align: top; }
-  td.mono, .mono { font-family: var(--mono); font-size: 12px; }
-  td.val { max-width: 320px; word-break: break-word; }
-  .badge { font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
-  .badge.stream { color: var(--ok); border-color: rgba(47,191,113,.4); }
-  .badge.optimistic { color: var(--opt); border-color: rgba(180,140,255,.5); }
-  .badge.restored { color: var(--warn); border-color: rgba(240,165,43,.4); }
-  .badge.bridge { color: var(--accent); border-color: rgba(62,139,255,.4); }
-  .badge.snapshot { color: var(--muted); border-color: rgba(150,150,150,.4); }
-  .age { color: var(--faint); white-space: nowrap; }
-  input.filter { font: inherit; font-size: 12px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; width: 160px; text-transform: none; letter-spacing: 0; }
-
-  .budget { position: relative; height: 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-  .budget i { position: absolute; inset: 0 auto 0 0; background: var(--ok); transition: width .4s; }
-  .budget b { position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--text); opacity: .6; display: none; }
-  table.cats { margin-top: 14px; }
-  table.cats td:nth-child(2), table.cats td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
-  .tabs { display: flex; gap: 4px; margin: 14px 0 6px; flex-wrap: wrap; }
-  .tabs button { font-size: 12px; padding: 4px 9px; }
-  .tabs button.on { border-color: var(--accent); color: var(--accent); }
-  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-  .steps li { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-  .steps .n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; border: 1px solid var(--line); color: var(--muted); }
-  .steps li.done .n { background: var(--ok); border-color: var(--ok); color: #06140c; }
-  .steps li.bad .n { background: var(--bad); border-color: var(--bad); color: white; }
-  .steps .t { font-weight: 600; }
-  .steps .d { color: var(--muted); font-size: 13px; margin-top: 2px; word-break: break-word; }
-  .steps .d code, .steps .d a { font-family: var(--mono); font-size: 12px; }
-  .steps .a { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-  .qr { background: white; border-radius: 8px; padding: 6px; width: 132px; height: 132px; margin-top: 8px; }
-  @media (max-width: 640px) { .steps li { grid-template-columns: 28px 1fr; } .steps .a { grid-column: 2; justify-content: flex-start; } }
-  .bar { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
-  .bar i { display: block; height: 100%; background: var(--accent); }
-  .stats-head { display: flex; gap: 24px; margin-bottom: 12px; flex-wrap: wrap; }
-  .stats-head div .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .stats-head div .k { color: var(--muted); font-size: 12px; }
-  pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 12px/1.45 var(--mono); max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 10px 0 0; }
-  .hint { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
-  .empty { color: var(--faint); padding: 16px 8px; text-align: center; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
   a { color: var(--accent); }
-  .vin-select { margin-left: 8px; }
+  [hidden] { display: none !important; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- shell ---------- */
+  .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+  .shell > div { min-width: 0; }
+  nav.side { position: sticky; top: 0; height: 100vh; padding: 22px 14px; border-right: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 18px; }
+  .brand { padding: 0 10px; }
+  .brand b { display: block; font-size: 16px; letter-spacing: -.01em; }
+  .brand span { color: var(--muted); font-size: 13px; }
+  .brand select { margin-top: 8px; width: 100%; }
+  .navlist { display: grid; gap: 2px; }
+  .navlist a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-sm); color: var(--muted); text-decoration: none; font-size: 14px; }
+  .navlist a:hover { color: var(--text); background: var(--surface); }
+  .navlist a[aria-current="page"] { color: var(--text); background: var(--raise); }
+  .navlist svg { width: 18px; height: 18px; flex: none; }
+  .navlist .count { margin-left: auto; font-size: 11px; padding: 0 6px; border-radius: 99px; background: var(--warn); color: #1b1305; }
+  .conn { margin-top: auto; display: grid; gap: 6px; padding: 0 10px; font-size: 13px; color: var(--muted); }
+  .conn div { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+  .dot.ok { background: var(--charge); } .dot.bad { background: var(--danger); } .dot.warn { background: var(--warn); }
+  .prefs { display: flex; gap: 6px; padding: 0 10px; }
+  .prefs button { flex: 1; font-size: 12px; padding: 4px 6px; }
+
+  main { padding: 28px 32px 120px; max-width: 1180px; width: 100%; }
+  .view > h1 { font-size: 24px; font-weight: 600; letter-spacing: -.015em; margin: 0 0 4px; }
+  .view > .lede { color: var(--muted); margin: 0 0 24px; max-width: 70ch; }
+
+  .mobile-top { display: none; }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    nav.side { position: fixed; inset: auto 0 0 0; height: auto; z-index: 20; flex-direction: row; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+      border-right: 0; border-top: 1px solid var(--line); background: var(--surface); }
+    nav.side .brand, nav.side .conn, nav.side .prefs { display: none; }
+    .navlist { grid-auto-flow: column; width: 100%; gap: 0; }
+    .navlist a { flex-direction: column; gap: 2px; font-size: 10.5px; padding: 6px 0; justify-content: center; position: relative; min-width: 0; }
+    .navlist a span:not(.count) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .navlist .count { position: absolute; top: 2px; right: 18%; }
+    .mobile-top { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line-soft); }
+    .mobile-top b { font-size: 15px; }
+    .mobile-top .conn-mini { margin-left: auto; display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; }
+    main { padding: 20px 16px 110px; }
+  }
+
+  /* ---------- controls ---------- */
+  button, select, input { font: inherit; color: inherit; }
+  button { background: var(--raise); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 7px 13px; cursor: pointer; font-size: 14px; }
+  button:hover:not(:disabled) { border-color: var(--muted); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
+  button.danger { color: var(--danger); }
+  button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+  button.ghost:hover { color: var(--text); }
+  select, input[type=number], input[type=text], input[type=password] { background: var(--raise); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 6px 9px; font-size: 14px; }
+  input[type=range] { accent-color: var(--accent); width: 100%; }
+
+  .switch { position: relative; width: 42px; height: 24px; border-radius: 99px; background: var(--body-off); border: 0; padding: 0; flex: none; transition: background .2s; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .switch[aria-checked="true"] { background: var(--accent); }
+  .switch[aria-checked="true"]::after { transform: translateX(18px); }
+  .switch.pending { background: var(--pending); }
+
+  .seg { display: inline-flex; background: var(--raise); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 2px; gap: 2px; flex-wrap: wrap; }
+  .seg button { border: 0; background: transparent; padding: 5px 11px; font-size: 13px; color: var(--muted); border-radius: 5px; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
+  .seg button.pending { color: var(--pending); box-shadow: 0 0 0 1px var(--pending); }
+
+  .panel { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-lg); padding: 20px; }
+  .panel + .panel { margin-top: 16px; }
+  .ctl-grid .panel { margin-top: 0; }
+  .panel h2 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+  .panel .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+
+  /* ---------- overview ---------- */
+  .hero { display: grid; grid-template-columns: minmax(260px, 420px) 1fr; gap: 36px; align-items: center; padding: 8px 0 28px; }
+  @media (max-width: 860px) { .hero { grid-template-columns: 1fr; gap: 18px; } }
+  .car svg { width: 100%; height: auto; display: block; }
+  .car .body { fill: var(--body-fill); stroke: var(--body-off); stroke-width: 2; }
+  .car .wheel rect { fill: var(--body-off); }
+  .car .part { fill: none; stroke: var(--body-off); stroke-width: 3; stroke-linecap: round; transition: stroke .3s; }
+  .car .glass { fill: var(--raise); stroke: var(--body-off); stroke-width: 1.5; transition: fill .3s; }
+  .car .open { stroke: var(--warn); }
+  .car .glass.open { fill: color-mix(in srgb, var(--warn) 35%, transparent); stroke: var(--warn); }
+  .car .port { fill: var(--body-off); transition: fill .3s; }
+  .car .port.open { fill: var(--warn); } .car .port.plugged { fill: var(--charge); }
+  .car .lock-badge circle { fill: var(--surface); stroke: var(--line); }
+  .car .lock-badge path { fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .car .lock-badge.unlocked path { stroke: var(--warn); }
+  .car .lock-badge.pending path { stroke: var(--pending); }
+  .car-legend { display: flex; gap: 14px; justify-content: center; font-size: 12px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+  .car-legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+
+  .battery .pct { font-size: 72px; font-weight: 250; letter-spacing: -.04em; line-height: 1; }
+  .battery .pct small { font-size: 28px; font-weight: 300; color: var(--muted); margin-left: 2px; }
+  .battery .range { font-size: 18px; color: var(--muted); margin: 6px 0 16px; }
+  .battery .range b { color: var(--text); font-weight: 500; }
+  .gauge { position: relative; height: 14px; border-radius: 7px; background: var(--raise); border: 1px solid var(--line); overflow: visible; }
+  .gauge .fill { position: absolute; inset: 0 auto 0 0; border-radius: 7px; background: var(--muted); transition: width .6s ease; }
+  .gauge .fill.charging { background: var(--charge); }
+  .gauge .fill.low { background: var(--danger); }
+  .gauge .limit { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--text); opacity: .7; border-radius: 1px; }
+  .gauge-scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--faint); margin-top: 6px; }
+  .charge-line { margin-top: 14px; font-size: 15px; }
+  .charge-line .state { font-weight: 500; }
+  .charge-line .state.on { color: var(--charge); }
+
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); border-top: 1px solid var(--line-soft); margin: 0 0 28px; }
+  .facts div { padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
+  .facts dt { color: var(--muted); font-size: 13px; }
+  .facts dd { margin: 2px 0 0; font-size: 17px; }
+  .facts dd.pending { color: var(--pending); }
+  .facts dd .sub { display: block; color: var(--faint); font-size: 13px; }
+
+  .quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+  .quick button { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; }
+  .quick button.pending { border-color: var(--pending); color: var(--pending); }
+  .quick svg { width: 16px; height: 16px; }
+
+  .log { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .log li { display: grid; grid-template-columns: 74px 1fr auto; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); align-items: baseline; }
+  .log time { color: var(--faint); font-size: 13px; }
+  .log .st { font-size: 13px; }
+  .st.pending, .st.waking { color: var(--pending); } .st.succeeded { color: var(--charge); } .st.failed { color: var(--danger); }
+  .log .err { grid-column: 2 / -1; color: var(--danger); font-size: 13px; margin-top: -4px; }
+  .empty { color: var(--faint); padding: 18px 0; }
+
+  /* ---------- car controls ---------- */
+  .ctl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+  @media (max-width: 420px) { .ctl-grid { grid-template-columns: 1fr; } }
+  .ctl { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line-soft); min-height: 50px; flex-wrap: wrap; }
+  .ctl:first-of-type { border-top: 0; }
+  .ctl > .lbl { flex: 1; min-width: 120px; hyphens: auto; overflow-wrap: anywhere; }
+  .ctl > .lbl .v { display: block; color: var(--muted); font-size: 13px; }
+  .ctl.slider { display: grid; grid-template-columns: 1fr auto; }
+  .ctl.slider input { grid-column: 1 / -1; }
+  .ctl.slider output { font-variant-numeric: tabular-nums; font-weight: 500; }
+  .btnrow { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ---------- tables ---------- */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line-soft); margin-bottom: 16px; overflow-x: auto; }
+  .tabs button { border: 0; background: none; border-radius: 0; padding: 9px 12px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+  .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .tablewrap { overflow: auto; max-height: 62vh; border: 1px solid var(--line-soft); border-radius: var(--r-md); background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 13px; padding: 9px 12px; position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 1; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.code { font-family: var(--mono); font-size: 13px; }
+  td.val { max-width: 360px; word-break: break-word; }
+  .src { font-size: 12px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .src.stream { color: var(--charge); border-color: color-mix(in srgb, var(--charge) 45%, transparent); }
+  .src.optimistic { color: var(--pending); border-color: color-mix(in srgb, var(--pending) 50%, transparent); }
+  .src.restored { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+  .src.bridge { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .age { color: var(--faint); white-space: nowrap; font-size: 13px; }
+  .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar input[type=text] { min-width: 0; flex: 1 1 180px; max-width: 320px; }
+  .toolbar .spacer { flex: 1; }
+  pre { background: var(--raise); border: 1px solid var(--line-soft); border-radius: var(--r-md); padding: 12px; font: 12.5px/1.5 var(--mono); max-height: 420px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+  .flash { animation: flash 1.4s ease-out; }
+  @keyframes flash { from { background: color-mix(in srgb, var(--accent) 22%, transparent); } to { background: transparent; } }
+
+  /* ---------- usage ---------- */
+  .money { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 24px; margin-bottom: 18px; }
+  .money .v { font-size: 30px; font-weight: 300; letter-spacing: -.02em; }
+  .money .k { color: var(--muted); font-size: 13px; }
+  .budget { position: relative; height: 10px; border-radius: 5px; background: var(--raise); border: 1px solid var(--line); }
+  .budget i { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: var(--charge); }
+  .budget b { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text); opacity: .65; }
+  .bar { height: 6px; border-radius: 3px; background: var(--raise); overflow: hidden; min-width: 60px; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+
+  /* ---------- settings ---------- */
+  .presets { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .preset { text-align: left; padding: 12px 14px; flex: 1 1 190px; max-width: 300px; }
+  .preset b { display: block; font-weight: 500; }
+  .preset span { color: var(--muted); font-size: 13px; }
+  details.fgroup { border-top: 1px solid var(--line-soft); }
+  details.fgroup:first-child { border-top: 0; }
+  details.fgroup > summary { list-style: none; cursor: pointer; padding: 14px 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  details.fgroup > summary::-webkit-details-marker { display: none; }
+  details.fgroup > summary::before { content: ""; width: 7px; height: 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; align-self: center; }
+  details.fgroup[open] > summary::before { transform: rotate(45deg); }
+  details.fgroup > summary b { font-size: 15px; font-weight: 600; }
+  details.fgroup > summary span { color: var(--muted); font-size: 13px; }
+  details.fgroup > summary .chg { color: var(--accent); }
+  details.fgroup > div { padding-bottom: 10px; }
+  .frow { display: grid; grid-template-columns: minmax(0, 1fr) 120px 92px 42px; gap: 14px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line-soft); }
+  .frow .name { min-width: 0; overflow-wrap: anywhere; }
+  .frow .name small { display: block; color: var(--faint); font-family: var(--mono); font-size: 12px; }
+  .frow .name .tag { font-size: 11px; color: var(--warn); margin-left: 6px; }
+  .frow .name .chg { font-size: 11px; color: var(--accent); margin-left: 6px; }
+  .frow .sig { text-align: right; color: var(--muted); font-size: 13px; }
+  .frow select { width: 100%; }
+  .frow.off .name, .frow.off .sig { opacity: .5; }
+  .frow.head { border-top: 0; padding: 4px 0 6px; color: var(--faint); font-size: 12px; }
+  .frow.head span:nth-child(3) { text-align: right; }
+  @media (max-width: 560px) { .frow { grid-template-columns: minmax(0, 1fr) 96px 42px; gap: 10px; } .frow .sig, .frow.head { display: none; } .preset { max-width: none; } }
+  .savebar { position: static; bottom: 16px; z-index: 10; margin-top: 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 18px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  .savebar.dirty { position: sticky; border-color: var(--accent); }
+  @media (max-width: 860px) { .savebar { bottom: 78px; padding: 12px 14px; gap: 8px; } .savebar .est { flex-basis: 100%; font-size: 13px; } .savebar .est b { font-size: 16px; } .savebar button { padding: 6px 10px; font-size: 13px; } .savebar.dirty #setReset { display: none; } }
+  .savebar .est { flex: 1; min-width: 200px; font-size: 14px; }
+  .savebar .est b { font-size: 18px; font-weight: 500; }
+  .note { border-left: 3px solid var(--accent); padding: 8px 12px; background: var(--raise); border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: 14px; margin: 12px 0; }
+  .note.bad { border-color: var(--danger); } .note.ok { border-color: var(--charge); }
+
+  /* ---------- setup ---------- */
+  .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+  .steps li { display: grid; grid-template-columns: 30px 1fr auto; gap: 14px; padding: 16px 0; border-top: 1px solid var(--line-soft); align-items: start; }
+  .steps .n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; border: 1px solid var(--line); color: var(--muted); }
+  .steps li.done .n { background: var(--charge); border-color: var(--charge); color: #04130a; }
+  .steps li.bad .n { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .steps .t { font-weight: 500; }
+  .steps .d { color: var(--muted); font-size: 14px; margin-top: 2px; word-break: break-word; }
+  .steps code { font-family: var(--mono); font-size: 12.5px; }
+  .steps .a { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .qr { background: #fff; border-radius: var(--r-sm); padding: 6px; width: 140px; height: 140px; margin-top: 10px; }
+  @media (max-width: 640px) { .steps li { grid-template-columns: 30px 1fr; } .steps .a { grid-column: 2; justify-content: flex-start; } }
+
+  /* ---------- login ---------- */
+  .login { max-width: 380px; margin: 14vh auto; padding: 28px; }
+  .login h1 { font-size: 20px; margin: 0 0 6px; }
+  .login input { width: 100%; margin: 14px 0 10px; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: var(--r-md); font-size: 14px; max-width: calc(100% - 32px); }
+  @media (max-width: 860px) { .toast { bottom: 84px; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>Tesla Bridge <span id="carName"></span></h1>
-  <select id="vinSelect" class="vin-select" hidden></select>
-  <div class="pills">
-    <span class="pill"><span class="dot" id="dotLive"></span><span id="txtLive">Forbinder…</span></span>
-    <span class="pill"><span class="dot" id="dotMqtt"></span>MQTT</span>
-    <span class="pill"><span class="dot" id="dotCar"></span><span id="txtCar">Bil: ukendt</span></span>
-    <span class="pill" id="txtSeen">Sidst set: –</span>
+
+<div class="panel login" id="login" hidden>
+  <h1 data-t="login.title"></h1>
+  <p class="muted small" data-t="login.text"></p>
+  <form id="loginForm"><input type="password" id="loginToken" autocomplete="current-password" required><button class="primary" type="submit" data-t="login.button"></button></form>
+</div>
+
+<div class="shell" id="app" hidden>
+  <nav class="side">
+    <div class="brand"><b>Tesla Bridge</b><span id="carName"></span><select id="vinSelect" hidden></select></div>
+    <div class="navlist" role="list">
+      <a href="#overview" data-view="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15.5 5.6 10a2 2 0 0 1 1.9-1.5h9a2 2 0 0 1 1.9 1.5l1.6 5.5M3.5 15.5h17v3h-17zM7 18.5V20M17 18.5V20"/></svg><span data-t="nav.overview"></span></a>
+      <a href="#controls" data-view="controls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 7h14M5 17h14"/><circle cx="9" cy="7" r="2.2" fill="var(--bg)"/><circle cx="15" cy="17" r="2.2" fill="var(--bg)"/></svg><span data-t="nav.controls"></span></a>
+      <a href="#data" data-view="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span data-t="nav.data"></span></a>
+      <a href="#usage" data-view="usage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V11M12 19V5M19 19v-6"/></svg><span data-t="nav.usage"></span></a>
+      <a href="#settings" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg><span data-t="nav.settings"></span></a>
+      <a href="#setup" data-view="setup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12.5 9.5 17 19 7.5"/></svg><span data-t="nav.setup"></span><span class="count" id="setupCount" hidden></span></a>
+    </div>
+    <div class="conn">
+      <div><span class="dot" id="dotLive"></span><span id="txtLive"></span></div>
+      <div><span class="dot" id="dotMqtt"></span><span id="txtMqtt"></span></div>
+      <div><span class="dot" id="dotCar"></span><span id="txtCar"></span></div>
+    </div>
+    <div class="prefs"><button id="btnLang" type="button"></button><button id="btnTheme" type="button"></button></div>
+  </nav>
+
+  <div>
+    <div class="mobile-top"><b id="mCar">Tesla Bridge</b><div class="conn-mini"><span class="dot" id="mDotLive"></span><span id="mTxtCar"></span></div></div>
+    <main>
+      <!-- ============ Overview ============ -->
+      <section class="view" data-view="overview">
+        <div class="hero">
+          <div class="car">
+            <svg viewBox="0 0 420 200" role="img" id="carSvg">
+              <title id="carTitle"></title>
+              <!-- top view, front to the right -->
+              <g class="wheel"><rect x="84" y="12" width="50" height="16" rx="6"/><rect x="84" y="172" width="50" height="16" rx="6"/><rect x="292" y="12" width="50" height="16" rx="6"/><rect x="292" y="172" width="50" height="16" rx="6"/></g>
+              <rect class="body" x="20" y="22" width="380" height="156" rx="64"/>
+              <rect class="glass" id="g-windshield" x="268" y="44" width="40" height="112" rx="14"/>
+              <rect class="glass" id="g-roof" x="150" y="44" width="112" height="112" rx="10"/>
+              <rect class="glass" id="g-rear" x="102" y="50" width="40" height="100" rx="12"/>
+              <!-- side windows (open = highlighted) -->
+              <rect class="glass" id="w-df" x="212" y="34" width="54" height="7" rx="3"/>
+              <rect class="glass" id="w-dr" x="152" y="34" width="54" height="7" rx="3"/>
+              <rect class="glass" id="w-pf" x="212" y="159" width="54" height="7" rx="3"/>
+              <rect class="glass" id="w-pr" x="152" y="159" width="54" height="7" rx="3"/>
+              <!-- doors, frunk, trunk -->
+              <path class="part" id="d-df" d="M214 23 H 268"/>
+              <path class="part" id="d-dr" d="M150 23 H 206"/>
+              <path class="part" id="d-pf" d="M214 177 H 268"/>
+              <path class="part" id="d-pr" d="M150 177 H 206"/>
+              <path class="part" id="d-frunk" d="M340 34 Q 396 100 340 166"/>
+              <path class="part" id="d-trunk" d="M78 34 Q 22 100 78 166"/>
+              <circle class="port" id="d-port" cx="64" cy="40" r="6"/>
+              <g class="lock-badge" id="lockBadge" transform="translate(206 100)">
+                <circle r="19"/>
+                <path id="lockShackle" d="M-6 -2 V-7 a6 6 0 0 1 12 0 V-2"/>
+                <path d="M-8 -2 h16 v12 h-16 z"/>
+              </g>
+            </svg>
+            <div class="car-legend"><span><i style="background:var(--warn)"></i><span data-t="car.open"></span></span><span><i style="background:var(--charge)"></i><span data-t="car.plugged"></span></span><span><i style="background:var(--pending)"></i><span data-t="car.pending"></span></span></div>
+          </div>
+          <div class="battery">
+            <div class="pct num" id="bPct">–</div>
+            <div class="range" id="bRange"></div>
+            <div class="gauge" aria-hidden="true"><div class="fill" id="bFill"></div><div class="limit" id="bLimit" hidden></div></div>
+            <div class="gauge-scale"><span>0</span><span id="bLimitTxt"></span><span>100 %</span></div>
+            <div class="charge-line" id="bCharge"></div>
+          </div>
+        </div>
+
+        <div class="quick" id="quick"></div>
+        <dl class="facts" id="facts"></dl>
+
+        <div class="panel">
+          <h2 data-t="log.title"></h2>
+          <p class="sub" data-t="log.sub"></p>
+          <ul class="log" id="cmdlog"></ul>
+        </div>
+      </section>
+
+      <!-- ============ Controls ============ -->
+      <section class="view" data-view="controls" hidden>
+        <h1 data-t="nav.controls"></h1>
+        <p class="lede" data-t="controls.lede"></p>
+        <div class="ctl-grid" id="ctlGrid"></div>
+      </section>
+
+      <!-- ============ Data ============ -->
+      <section class="view" data-view="data" hidden>
+        <h1 data-t="nav.data"></h1>
+        <p class="lede" data-t="data.lede"></p>
+        <div class="tabs" role="tablist" id="dataTabs">
+          <button role="tab" data-tab="fields" aria-selected="true" data-t="data.fields"></button>
+          <button role="tab" data-tab="raw" data-t="data.raw"></button>
+          <button role="tab" data-tab="car" data-t="data.car"></button>
+        </div>
+        <div data-pane="fields">
+          <div class="toolbar"><input type="text" id="fieldFilter"><span class="spacer"></span><span class="muted small" id="fieldCount"></span></div>
+          <div class="tablewrap"><table><thead><tr><th data-t="th.field"></th><th data-t="th.value"></th><th data-t="th.source"></th><th data-t="th.updated"></th></tr></thead><tbody id="fieldRows"></tbody></table></div>
+        </div>
+        <div data-pane="raw" hidden>
+          <div class="toolbar"><span class="muted small" data-t="data.rawhint"></span><span class="spacer"></span><button id="btnPause" type="button"></button><button id="btnSim" type="button" hidden data-t="data.sim"></button></div>
+          <div class="tablewrap"><table><thead><tr><th data-t="th.time"></th><th data-t="th.type"></th><th data-t="th.data"></th></tr></thead><tbody id="rawRows"></tbody></table></div>
+        </div>
+        <div data-pane="car" hidden>
+          <p class="muted small" id="cfgHint"></p>
+          <div class="toolbar"><button id="btnCfg" type="button" data-t="data.cfg"></button><button id="btnErr" type="button" data-t="data.err"></button><button id="btnPush" type="button" class="primary" data-t="data.push"></button></div>
+          <pre id="cfgOut" hidden></pre>
+        </div>
+      </section>
+
+      <!-- ============ Usage ============ -->
+      <section class="view" data-view="usage" hidden>
+        <h1 data-t="nav.usage"></h1>
+        <p class="lede" data-t="usage.lede"></p>
+        <div class="panel">
+          <div class="money">
+            <div><div class="v num" id="usTotal">–</div><div class="k" id="usMonth"></div></div>
+            <div><div class="v num" id="usProj">–</div><div class="k" data-t="usage.proj"></div></div>
+            <div><div class="v num" id="usLeft">–</div><div class="k" data-t="usage.left"></div></div>
+          </div>
+          <div class="budget"><i id="usBar"></i><b id="usMark" hidden></b></div>
+          <p class="muted small" id="usHint"></p>
+        </div>
+        <div class="panel">
+          <div class="tablewrap" style="border:0;max-height:none"><table><thead><tr><th data-t="th.category"></th><th style="text-align:right" data-t="th.count"></th><th data-t="th.rate"></th><th style="text-align:right" data-t="th.price"></th></tr></thead><tbody id="usCats"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <div class="tabs" role="tablist" id="usTabs">
+            <button role="tab" data-tab="signals_by_field" aria-selected="true" data-t="usage.byfield"></button>
+            <button role="tab" data-tab="commands_by_name" data-t="usage.commands"></button>
+            <button role="tab" data-tab="data_by_name" data-t="usage.data"></button>
+            <button role="tab" data-tab="history" data-t="usage.history"></button>
+          </div>
+          <div class="tablewrap" style="border:0"><table><tbody id="usRows"></tbody></table></div>
+          <p class="muted small" data-t="usage.note"></p>
+        </div>
+      </section>
+
+      <!-- ============ Settings ============ -->
+      <section class="view" data-view="settings" hidden>
+        <h1 data-t="nav.settings"></h1>
+        <p class="lede" data-t="settings.lede"></p>
+
+        <div class="panel">
+          <h2 data-t="settings.presets"></h2>
+          <p class="sub" data-t="settings.presetsSub"></p>
+          <div class="presets">
+            <button class="preset" type="button" data-preset="economy"><b data-t="preset.economy"></b><span data-t="preset.economySub"></span></button>
+            <button class="preset" type="button" data-preset="default"><b data-t="preset.default"></b><span data-t="preset.defaultSub"></span></button>
+            <button class="preset" type="button" data-preset="live"><b data-t="preset.live"></b><span data-t="preset.liveSub"></span></button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2 data-t="settings.fields"></h2>
+          <p class="sub" data-t="settings.fieldsSub"></p>
+          <div class="toolbar"><input type="text" id="setFilter"><span class="spacer"></span><label class="small muted"><input type="checkbox" id="setOnlyCost"> <span data-t="settings.onlyCost"></span></label></div>
+          <div id="setGroups"></div>
+        </div>
+
+        <div class="panel">
+          <h2 data-t="settings.snapshot"></h2>
+          <p class="sub" data-t="settings.snapshotSub"></p>
+          <select id="setSnapshot"></select>
+        </div>
+
+        <div class="savebar" id="saveBar">
+          <div class="est" id="setEst"></div>
+          <button type="button" class="ghost" id="setReset" data-t="settings.reset"></button>
+          <button type="button" id="setUndo" data-t="settings.undo" disabled></button>
+          <button type="button" class="primary" id="setSave" data-t="settings.save" disabled></button>
+        </div>
+        <div id="setResult"></div>
+      </section>
+
+      <!-- ============ Setup ============ -->
+      <section class="view" data-view="setup" hidden>
+        <h1 data-t="nav.setup"></h1>
+        <p class="lede" data-t="setup.lede"></p>
+        <div class="panel">
+          <div class="toolbar"><span id="setupSummary" class="muted"></span><span class="spacer"></span><button id="btnSetupCheck" type="button" data-t="setup.check"></button></div>
+          <ol class="steps" id="setupSteps"></ol>
+        </div>
+      </section>
+    </main>
   </div>
-</header>
-
-<main>
-  <section class="span-12" id="setup" hidden>
-    <h2>Opsætning <span id="setupSummary" class="badge"></span><span class="spacer"></span><button id="btnSetupCheck">Tjek status hos Tesla</button><button id="btnSetupHide">Skjul</button></h2>
-    <ol class="steps" id="setupSteps"></ol>
-  </section>
-  <section class="span-8">
-    <h2>Overblik <span class="spacer"></span><button id="btnSim" hidden title="Sender falske telemetri-beskeder gennem MQTT, ligesom fleet-telemetry">Send testdata</button></h2>
-    <div class="hero">
-      <div class="ring">
-        <svg width="160" height="160" viewBox="0 0 160 160">
-          <circle cx="80" cy="80" r="68" fill="none" stroke="#1f242b" stroke-width="12"/>
-          <circle id="ringArc" cx="80" cy="80" r="68" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 999"/>
-        </svg>
-        <div class="label"><div class="big" id="ringPct">–</div><div class="small" id="ringRange">– km</div></div>
-      </div>
-      <div class="tiles" id="tiles"></div>
-    </div>
-  </section>
-
-  <section class="span-4">
-    <h2>Kommandoer</h2>
-    <div class="cmd-group"><div class="k">Klima</div><div class="btns">
-      <button data-cmd="climate" data-p="on">Tænd</button><button data-cmd="climate" data-p="off">Sluk</button>
-      <button data-cmd="defrost" data-p="on">Afrim</button><button data-cmd="steering_wheel_heat" data-p="on">Rattvarme</button>
-    </div></div>
-    <div class="row"><label>Temperatur</label><input type="range" min="15" max="28" step="0.5" value="21" id="rTemp"><output id="oTemp">21 °C</output></div>
-    <div class="row"><label>Sædevarme</label>
-      <select data-seat="seat_heater_left"><option>off</option><option>low</option><option>medium</option><option>high</option></select>
-      <select data-seat="seat_heater_right"><option>off</option><option>low</option><option>medium</option><option>high</option></select>
-    </div>
-    <div class="cmd-group"><div class="k">Sikkerhed</div><div class="btns">
-      <button data-cmd="lock" data-p="LOCK">Lås</button><button data-cmd="lock" data-p="UNLOCK" class="danger">Lås op</button>
-      <button data-cmd="sentry" data-p="on">Sentry til</button><button data-cmd="sentry" data-p="off">Sentry fra</button>
-    </div></div>
-    <div class="cmd-group"><div class="k">Opladning</div><div class="btns">
-      <button data-cmd="charging" data-p="on">Start</button><button data-cmd="charging" data-p="off">Stop</button>
-      <button data-cmd="charge_port_open">Åbn port</button><button data-cmd="charge_port_close">Luk port</button>
-    </div></div>
-    <div class="row"><label>Ladegrænse</label><input type="range" min="50" max="100" step="1" value="80" id="rLimit"><output id="oLimit">80 %</output></div>
-    <div class="row"><label>Ladestrøm</label><input type="range" min="5" max="32" step="1" value="16" id="rAmps"><output id="oAmps">16 A</output></div>
-    <div class="cmd-group"><div class="k">Andet</div><div class="btns">
-      <button data-cmd="wake" class="primary">Væk bilen</button><button data-cmd="flash_lights">Blink</button>
-      <button data-cmd="honk_horn">Dyt</button><button data-cmd="frunk">Frunk</button><button data-cmd="trunk">Bagagerum</button>
-      <button data-cmd="vent_windows">Luft ud</button><button data-cmd="close_windows">Luk ruder</button>
-    </div></div>
-    <div class="cmdlog" id="cmdlog"><div class="empty">Ingen kommandoer endnu</div></div>
-  </section>
-
-  <section class="span-6">
-    <h2>Alle felter <span class="spacer"></span><input class="filter" id="fieldFilter" placeholder="Filtrér…"></h2>
-    <div class="scroll"><table>
-      <thead><tr><th>Felt</th><th>Værdi</th><th>Kilde</th><th>Opdateret</th></tr></thead>
-      <tbody id="fieldRows"><tr><td colspan="4" class="empty">Ingen data endnu</td></tr></tbody>
-    </table></div>
-  </section>
-
-  <section class="span-6">
-    <h2>Rå telemetri fra bilen <span class="spacer"></span><button id="btnPause">Pause</button></h2>
-    <p class="hint">Præcis hvad fleet-telemetry modtog, før bridgen oversatte det.</p>
-    <div class="scroll"><table>
-      <thead><tr><th>Tid</th><th>Type</th><th>Felt / data</th></tr></thead>
-      <tbody id="rawRows"><tr><td colspan="3" class="empty">Venter på data fra bilen…</td></tr></tbody>
-    </table></div>
-  </section>
-
-  <section class="span-6">
-    <h2>Forbrug <span id="usMonth"></span> <span class="spacer"></span><button id="btnStats">Opdatér</button></h2>
-    <div class="stats-head">
-      <div><div class="v" id="usTotal">$0.00</div><div class="k">brugt denne måned</div></div>
-      <div><div class="v" id="usProj">–</div><div class="k">forventet ved månedens udgang</div></div>
-      <div><div class="v" id="usLeft">$10.00</div><div class="k">tilbage af gratis $10</div></div>
-    </div>
-    <div class="budget"><i id="usBar"></i><b id="usProjMark"></b></div>
-    <p class="hint" id="usHint" style="margin-top:6px">Fremskrivningen vises efter første døgn.</p>
-    <table class="cats"><thead><tr><th>Kategori</th><th style="text-align:right">Antal</th><th>Takst</th><th style="text-align:right">Pris</th></tr></thead><tbody id="usCats"></tbody></table>
-    <div class="tabs">
-      <button data-tab="signals_by_field" class="on">Signaler pr. felt</button><button data-tab="commands_by_name">Kommandoer</button><button data-tab="data_by_name">Data</button><button data-tab="history">Tidligere måneder</button>
-    </div>
-    <div class="scroll" style="max-height:220px"><table><tbody id="usRows"></tbody></table></div>
-    <p class="hint" style="margin:10px 0 0">Tæller kun det, bridgen sender til og modtager fra Teslas servere, uanset om kommandoen kom fra dashboardet, HA eller et panel via MQTT. Lokale Bluetooth-kommandoer koster intet og tælles ikke. Andre apps (fx <b>tesla_fleet</b> i HA) ses ikke; det endelige tal står under Usage på developer.tesla.com.</p>
-  </section>
-
-  <section class="span-6">
-    <h2>Telemetri-konfiguration på bilen</h2>
-    <p class="hint">Bilen sender til <span class="mono" id="cfgHost">–</span>. Status skal vise <span class="mono">"synced": true</span>.</p>
-    <div class="btns">
-      <button id="btnCfg">Hent status</button>
-      <button id="btnErr">Hent fejl</button>
-      <button id="btnPush" class="primary">Send konfiguration nu</button>
-    </div>
-    <pre id="cfgOut" hidden></pre>
-  </section>
-</main>
+</div>
 
 <script>
 (() => {
-  const $ = (id) => document.getElementById(id);
-  let token = localStorage.getItem("tb_token") || "";
-  let vin = null, info = null, paused = false;
-  const fields = new Map();          // key -> {value, updated_at, source}
-  const rawRows = [];
+"use strict";
+const $ = (id) => document.getElementById(id);
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  // ---------- API ----------
-  async function api(path, opts = {}) {
-    const headers = Object.assign({}, opts.headers || {});
-    if (token) headers.Authorization = "Bearer " + token;
-    const r = await fetch(path, Object.assign({}, opts, { headers }));
-    if (r.status === 401) {
-      token = prompt("Bridgen kræver et token (Bridge__Web__Token):") || "";
-      localStorage.setItem("tb_token", token);
-      return api(path, opts);
-    }
-    return r;
+// ===================================================================== i18n
+const T = {
+  en: {
+    "login.title": "Sign in", "login.text": "Enter the token from Bridge__Web__Token in your .env.", "login.button": "Sign in",
+    "nav.overview": "Car", "nav.controls": "Controls", "nav.data": "Data", "nav.usage": "Usage", "nav.settings": "Settings", "nav.setup": "Setup",
+    "live.on": "Live", "live.off": "Reconnecting…", "mqtt": "MQTT", "mqtt.embedded": "MQTT (built-in)",
+    "car.awake": "Car awake", "car.asleep": "Car asleep", "car.waiting": "Waiting for the car", "car.unknown": "Car status unknown",
+    "car.open": "Open", "car.plugged": "Cable plugged in", "car.pending": "Waiting for the car",
+    "lang": "Dansk", "theme.dark": "Dark", "theme.light": "Light", "theme.auto": "Auto",
+    "range": "{0} km range", "range.none": "No range yet", "limit": "Limit {0} %",
+    "charging": "Charging", "charging.until": "{0} to {1} %", "charging.done": "Charge complete", "charging.stopped": "Charging stopped",
+    "charging.plugged": "Plugged in, not charging", "charging.unplugged": "Not plugged in", "charging.starting": "Starting to charge",
+    "f.climate": "Climate", "f.inside": "Inside", "f.outside": "outside", "f.lock": "Doors", "f.sentry": "Sentry", "f.drive": "Driving",
+    "f.location": "Location", "f.seen": "Last seen", "f.odometer": "Odometer", "f.software": "Software", "f.destination": "Navigating to",
+    "on": "On", "off": "Off", "locked": "Locked", "unlocked": "Unlocked", "locking": "Locking…", "unlocking": "Unlocking…",
+    "parked": "Parked", "showmap": "Show on map", "nonav": "No active route", "pending": "waiting for the car…", "arrive": "arrives {0}",
+    "q.lock": "Lock", "q.unlock": "Unlock", "q.climateOn": "Turn on climate", "q.climateOff": "Turn off climate", "q.frunk": "Open frunk",
+    "q.trunk": "Open trunk", "q.trunkClose": "Close trunk", "q.port": "Open charge port", "q.portClose": "Close charge port", "q.flash": "Flash lights",
+    "q.honk": "Honk", "q.wake": "Wake up", "confirm.unlock": "Unlock the car?",
+    "log.title": "Recent commands", "log.sub": "From this dashboard, Home Assistant or anything else that talks to the bridge.", "log.empty": "No commands yet.",
+    "st.pending": "sent", "st.waking": "waking the car…", "st.succeeded": "done", "st.failed": "failed",
+    "controls.lede": "Everything here is also available as entities in Home Assistant. Purple means the bridge is waiting for the car to confirm.",
+    "c.climate": "Climate", "c.seats": "Seats and steering wheel", "c.charging": "Charging", "c.security": "Security", "c.openings": "Doors, windows and ports", "c.more": "More",
+    "c.climateOn": "Climate", "c.temp": "Temperature", "c.defrost": "Defrost", "c.keeper": "Keep climate", "c.cop": "Cabin overheat protection", "c.copTemp": "Overheat protection limit",
+    "c.keep": "Keep", "c.dog": "Dog", "c.camp": "Camp", "c.fanOnly": "Fan only",
+    "c.seatFL": "Front left", "c.seatFR": "Front right", "c.seatRL": "Rear left", "c.seatRC": "Rear center", "c.seatRR": "Rear right",
+    "c.autoL": "Auto seat climate left", "c.autoR": "Auto seat climate right", "c.wheel": "Steering wheel", "c.wheelAuto": "Auto steering wheel heat",
+    "lvl.off": "Off", "lvl.low": "Low", "lvl.medium": "Med", "lvl.high": "High",
+    "c.charge": "Charging", "c.limit": "Charge limit", "c.amps": "Charge current", "c.port": "Charge port", "c.open": "Open", "c.close": "Close", "c.unlockCable": "Release cable",
+    "c.lock": "Lock", "c.sentry": "Sentry mode", "c.guest": "Guest mode", "c.valet": "Valet mode",
+    "c.frunk": "Frunk", "c.trunk": "Trunk", "c.windows": "Windows", "c.vent": "Vent", "c.homelink": "HomeLink", "c.press": "Press",
+    "c.wake": "Wake up", "c.flash": "Flash lights", "c.honk": "Honk", "c.keyless": "Keyless driving", "c.fart": "Fart",
+    "data.lede": "Every value the bridge knows, where it came from, and the raw stream from the car.",
+    "data.fields": "All fields", "data.raw": "Raw telemetry", "data.car": "Telemetry on the car", "data.filter": "Filter fields…",
+    "data.count": "{0} fields", "data.rawhint": "Exactly what the car sent before the bridge translated it.", "data.pause": "Pause", "data.resume": "Resume",
+    "data.sim": "Send test data", "data.cfg": "Get status", "data.err": "Get errors", "data.push": "Send configuration now",
+    "data.cfgHint": "The car sends to {0}. The status should say \"synced\": true.", "data.noData": "No data yet.", "data.waiting": "Waiting for data from the car…",
+    "confirm.push": "Send the telemetry configuration to the car now?", "loading": "Loading…",
+    "th.field": "Field", "th.value": "Value", "th.source": "Source", "th.updated": "Updated", "th.time": "Time", "th.type": "Type", "th.data": "Data",
+    "th.category": "Category", "th.count": "Count", "th.rate": "Rate", "th.price": "Price",
+    "usage.lede": "What the bridge has used of Tesla's Fleet API this month, priced at Tesla's rates. The first $10 each month are free.",
+    "usage.spent": "spent in {0}", "usage.proj": "expected by the end of the month", "usage.left": "left of the free $10",
+    "usage.hintNone": "The projection appears after the first day of the month.", "usage.hintOver": "At this rate you will go over the free credit. Make the busiest fields less frequent under Settings.",
+    "usage.hintOk": "At this rate you will use {0} % of the free credit.",
+    "usage.byfield": "Signals per field", "usage.commands": "Commands", "usage.data": "Data requests", "usage.history": "Earlier months", "usage.none": "Nothing yet this month.",
+    "usage.note": "Only counts what goes through the bridge. Other apps using your Tesla account are not included; the final number is under Usage on developer.tesla.com.",
+    "cat.signals": "Streamed signals", "cat.commands": "Commands", "cat.wakes": "Wake-ups", "cat.data": "Data requests", "total": "Total",
+    "settings.lede": "Choose which values the car sends and how often. The car only sends a value when it changes, so fields that rarely change cost nothing even at 1 second. Driving and charging values are the ones that add up.",
+    "settings.presets": "Quick choices", "settings.presetsSub": "Sets every field that changes all the time while driving or charging. Other fields stay at 1 second.",
+    "preset.economy": "Save money", "preset.economySub": "Updates every 30 s to a few minutes while driving", "preset.default": "Recommended", "preset.defaultSub": "The bridge's defaults, around $2–5 a month",
+    "preset.live": "As live as possible", "preset.liveSub": "Location and speed every second – costs more",
+    "settings.fields": "Fields", "settings.fieldsSub": "Off means the car stops sending the value, and the matching entity in Home Assistant stops updating.",
+    "settings.filter": "Search…", "settings.onlyCost": "Only fields that cost", "settings.costly": "changes often", "settings.changed": "changed",
+    "settings.signals": "{0} this month", "settings.groupInfo": "{0} fields · {1} change often", "settings.groupOff": "{0} off", "settings.colInterval": "At most every", "settings.colSignals": "This month", "settings.colOn": "On", "settings.groupChanged": "{0} changed",
+    "g.driving": "Driving", "g.battery": "Battery", "g.charging": "Charging", "g.climate": "Climate", "g.security": "Locks, doors and windows", "g.navigation": "Navigation", "g.tires": "Tires", "g.other": "Other",
+    "settings.snapshot": "Snapshot when the car wakes", "settings.snapshotSub": "Fills in values the car hasn't streamed yet (one data request, $0.002). Never wakes the car.",
+    "snap.off": "Never", "snap.every": "At most every {0}",
+    "settings.est": "Streaming estimate: <b>{0}</b> a month", "settings.estFrom": "now {0}", "settings.estNone": "The estimate appears once the car has streamed for a while.",
+    "settings.save": "Save and send to car", "settings.undo": "Undo changes", "settings.reset": "Reset to defaults", "settings.saving": "Saving…",
+    "settings.saved": "Saved and sent to the car. It picks up the change the next time it is online.", "settings.savedLocal": "Saved.",
+    "settings.pushFail": "Saved, but it couldn't be sent to the car: {0}. The bridge tries again within 12 hours.",
+    "confirm.reset": "Reset every field to the bridge's defaults and send them to the car?", "unsaved": "You have unsaved changes on the settings page.",
+    "setup.lede": "The steps to connect the bridge to your car. Everything here is a one-time job.", "setup.check": "Check status at Tesla", "setup.summary": "{0} of {1} done",
+    "s.key": "The app's key", "s.keyOk": "Fingerprint {0}. Published at {1}", "s.keyMissing": "No key in {0}. Restart the bridge and it will be created.",
+    "s.app": "App details in .env", "s.appOk": "Partner domain {0}, redirect {1}", "s.appMissing": "Set Bridge__Tesla__ClientId, Bridge__Tesla__ClientSecret and Bridge__Telemetry__Hostname in .env and restart.",
+    "s.reg": "Domain registered with Tesla", "s.regUnknown": "Not checked yet. The public key must be reachable from the internet before you register.", "s.regOk": "Tesla has the same key as the bridge.",
+    "s.regOther": "Tesla has a DIFFERENT key registered for the domain. Press Register to update it.", "s.regNo": "Not registered yet.", "s.register": "Register",
+    "s.login": "Signed in with Tesla", "s.loginOk": "The bridge has access to your car.", "s.loginNo": "Opens Tesla's sign-in page, then a page that confirms the sign-in.",
+    "s.loginBtn": "Sign in with Tesla", "s.loginAgain": "Sign in again",
+    "s.pair": "Virtual key in the car", "s.pairOk": "The car has the app's key.", "s.pairNo": "Scan with the phone that has the Tesla app, or open the link. Then tap your key card in the car.",
+    "s.tele": "The car sends telemetry", "s.teleOk": "Synced – the car sends to {0}.", "s.teleWait": "The configuration was sent, but the car hasn't picked it up. Wake the car in the Tesla app and wait a few minutes.",
+    "s.teleNone": "Sent automatically after sign-in. Press Check status to see whether the car has it.", "s.send": "Send configuration", "working": "Working…",
+    "err.register": "Registration failed:\n{0}", "err.push": "Couldn't send:\n{0}", "err.cmd": "{0} failed: {1}",
+    "ago.s": "{0} s ago", "ago.m": "{0} min ago", "ago.h": "{0} h ago", "ago.d": "{0} d ago", "yes": "yes", "no": "no",
+  },
+  da: {
+    "login.title": "Log ind", "login.text": "Skriv tokenet fra Bridge__Web__Token i din .env.", "login.button": "Log ind",
+    "nav.overview": "Bil", "nav.controls": "Styring", "nav.data": "Data", "nav.usage": "Forbrug", "nav.settings": "Indstillinger", "nav.setup": "Opsætning",
+    "live.on": "Live", "live.off": "Forbinder igen…", "mqtt": "MQTT", "mqtt.embedded": "MQTT (indbygget)",
+    "car.awake": "Bilen er vågen", "car.asleep": "Bilen sover", "car.waiting": "Venter på bilen", "car.unknown": "Bilens status er ukendt",
+    "car.open": "Åben", "car.plugged": "Kabel sat i", "car.pending": "Venter på bilen",
+    "lang": "English", "theme.dark": "Mørk", "theme.light": "Lys", "theme.auto": "Auto",
+    "range": "{0} km rækkevidde", "range.none": "Ingen rækkevidde endnu", "limit": "Grænse {0} %",
+    "charging": "Lader", "charging.until": "{0} til {1} %", "charging.done": "Fuldt opladet", "charging.stopped": "Opladning stoppet",
+    "charging.plugged": "Sat til, lader ikke", "charging.unplugged": "Ikke sat til", "charging.starting": "Starter opladning",
+    "f.climate": "Klima", "f.inside": "Inde", "f.outside": "ude", "f.lock": "Døre", "f.sentry": "Sentry", "f.drive": "Kørsel",
+    "f.location": "Position", "f.seen": "Sidst set", "f.odometer": "Kilometertæller", "f.software": "Software", "f.destination": "Navigerer til",
+    "on": "Til", "off": "Fra", "locked": "Låst", "unlocked": "Ulåst", "locking": "Låser…", "unlocking": "Låser op…",
+    "parked": "Parkeret", "showmap": "Vis på kort", "nonav": "Ingen aktiv rute", "pending": "venter på bilen…", "arrive": "ankommer {0}",
+    "q.lock": "Lås", "q.unlock": "Lås op", "q.climateOn": "Tænd klima", "q.climateOff": "Sluk klima", "q.frunk": "Åbn frunk",
+    "q.trunk": "Åbn bagklap", "q.trunkClose": "Luk bagklap", "q.port": "Åbn ladeport", "q.portClose": "Luk ladeport", "q.flash": "Blink",
+    "q.honk": "Dyt", "q.wake": "Væk bilen", "confirm.unlock": "Lås bilen op?",
+    "log.title": "Seneste kommandoer", "log.sub": "Fra dashboardet, Home Assistant eller andet, der taler med bridgen.", "log.empty": "Ingen kommandoer endnu.",
+    "st.pending": "sendt", "st.waking": "vækker bilen…", "st.succeeded": "udført", "st.failed": "fejlede",
+    "controls.lede": "Alt her findes også som entiteter i Home Assistant. Lilla betyder, at bridgen venter på, at bilen bekræfter.",
+    "c.climate": "Klima", "c.seats": "Sæder og rat", "c.charging": "Opladning", "c.security": "Sikkerhed", "c.openings": "Døre, ruder og porte", "c.more": "Mere",
+    "c.climateOn": "Klima", "c.temp": "Temperatur", "c.defrost": "Afrimning", "c.keeper": "Hold klima", "c.cop": "Overophedningsbeskyttelse", "c.copTemp": "Grænse for overophedning",
+    "c.keep": "Keep", "c.dog": "Dog", "c.camp": "Camp", "c.fanOnly": "Kun blæser",
+    "c.seatFL": "Foran venstre", "c.seatFR": "Foran højre", "c.seatRL": "Bag venstre", "c.seatRC": "Bag midt", "c.seatRR": "Bag højre",
+    "c.autoL": "Auto sædeklima venstre", "c.autoR": "Auto sædeklima højre", "c.wheel": "Rattvarme", "c.wheelAuto": "Auto rattvarme",
+    "lvl.off": "Fra", "lvl.low": "Lav", "lvl.medium": "Mel", "lvl.high": "Høj",
+    "c.charge": "Opladning", "c.limit": "Ladegrænse", "c.amps": "Ladestrøm", "c.port": "Ladeport", "c.open": "Åbn", "c.close": "Luk", "c.unlockCable": "Frigiv kabel",
+    "c.lock": "Lås", "c.sentry": "Sentry", "c.guest": "Gæstetilstand", "c.valet": "Valet-tilstand",
+    "c.frunk": "Frunk", "c.trunk": "Bagklap", "c.windows": "Ruder", "c.vent": "Luft ud", "c.homelink": "HomeLink", "c.press": "Tryk",
+    "c.wake": "Væk bilen", "c.flash": "Blink", "c.honk": "Dyt", "c.keyless": "Kør uden nøgle", "c.fart": "Prut",
+    "data.lede": "Alle værdier bridgen kender, hvor de kom fra, og den rå strøm fra bilen.",
+    "data.fields": "Alle felter", "data.raw": "Rå telemetri", "data.car": "Telemetri på bilen", "data.filter": "Filtrér felter…",
+    "data.count": "{0} felter", "data.rawhint": "Præcis hvad bilen sendte, før bridgen oversatte det.", "data.pause": "Pause", "data.resume": "Fortsæt",
+    "data.sim": "Send testdata", "data.cfg": "Hent status", "data.err": "Hent fejl", "data.push": "Send konfiguration nu",
+    "data.cfgHint": "Bilen sender til {0}. Status skal vise \"synced\": true.", "data.noData": "Ingen data endnu.", "data.waiting": "Venter på data fra bilen…",
+    "confirm.push": "Send telemetri-konfigurationen til bilen nu?", "loading": "Henter…",
+    "th.field": "Felt", "th.value": "Værdi", "th.source": "Kilde", "th.updated": "Opdateret", "th.time": "Tid", "th.type": "Type", "th.data": "Data",
+    "th.category": "Kategori", "th.count": "Antal", "th.rate": "Takst", "th.price": "Pris",
+    "usage.lede": "Hvad bridgen har brugt af Teslas Fleet API denne måned, efter Teslas takster. De første $10 hver måned er gratis.",
+    "usage.spent": "brugt i {0}", "usage.proj": "forventet ved månedens udgang", "usage.left": "tilbage af de gratis $10",
+    "usage.hintNone": "Fremskrivningen vises efter månedens første døgn.", "usage.hintOver": "Med dette forbrug går du over den gratis rabat. Gør de travleste felter mindre hyppige under Indstillinger.",
+    "usage.hintOk": "Med dette forbrug bruger du {0} % af den gratis rabat.",
+    "usage.byfield": "Signaler pr. felt", "usage.commands": "Kommandoer", "usage.data": "Data-forespørgsler", "usage.history": "Tidligere måneder", "usage.none": "Intet endnu denne måned.",
+    "usage.note": "Tæller kun det, der går gennem bridgen. Andre apps på din Tesla-konto er ikke med; det endelige tal står under Usage på developer.tesla.com.",
+    "cat.signals": "Streamede signaler", "cat.commands": "Kommandoer", "cat.wakes": "Vækninger", "cat.data": "Data-forespørgsler", "total": "I alt",
+    "settings.lede": "Vælg hvilke værdier bilen sender, og hvor ofte. Bilen sender kun en værdi, når den ændrer sig, så felter der sjældent ændrer sig koster intet, selv ved 1 sekund. Det er kørsel og opladning, der løber op.",
+    "settings.presets": "Hurtige valg", "settings.presetsSub": "Sætter alle felter, der ændrer sig hele tiden under kørsel eller opladning. Andre felter bliver på 1 sekund.",
+    "preset.economy": "Spar penge", "preset.economySub": "Opdaterer hvert 30. sek. til få minutter under kørsel", "preset.default": "Anbefalet", "preset.defaultSub": "Bridgens standard, omkring $2–5 om måneden",
+    "preset.live": "Så live som muligt", "preset.liveSub": "Position og hastighed hvert sekund – koster mere",
+    "settings.fields": "Felter", "settings.fieldsSub": "Fra betyder, at bilen holder op med at sende værdien, og den tilhørende entitet i Home Assistant ikke opdateres mere.",
+    "settings.filter": "Søg…", "settings.onlyCost": "Kun felter der koster", "settings.costly": "ændrer sig ofte", "settings.changed": "ændret",
+    "settings.signals": "{0} denne måned", "settings.groupInfo": "{0} felter · {1} ændrer sig ofte", "settings.groupOff": "{0} slået fra", "settings.colInterval": "Højst hvert", "settings.colSignals": "Denne måned", "settings.colOn": "Til", "settings.groupChanged": "{0} ændret",
+    "g.driving": "Kørsel", "g.battery": "Batteri", "g.charging": "Opladning", "g.climate": "Klima", "g.security": "Lås, døre og ruder", "g.navigation": "Navigation", "g.tires": "Dæk", "g.other": "Andet",
+    "settings.snapshot": "Snapshot når bilen vågner", "settings.snapshotSub": "Udfylder værdier, bilen ikke har streamet endnu (én data-forespørgsel, $0,002). Vækker aldrig bilen.",
+    "snap.off": "Aldrig", "snap.every": "Højst hvert {0}",
+    "settings.est": "Anslået streaming: <b>{0}</b> om måneden", "settings.estFrom": "nu {0}", "settings.estNone": "Overslaget vises, når bilen har streamet et stykke tid.",
+    "settings.save": "Gem og send til bilen", "settings.undo": "Fortryd ændringer", "settings.reset": "Nulstil til standard", "settings.saving": "Gemmer…",
+    "settings.saved": "Gemt og sendt til bilen. Den tager ændringen i brug, næste gang den er online.", "settings.savedLocal": "Gemt.",
+    "settings.pushFail": "Gemt, men kunne ikke sendes til bilen: {0}. Bridgen prøver igen inden for 12 timer.",
+    "confirm.reset": "Nulstil alle felter til bridgens standard og send dem til bilen?", "unsaved": "Du har ændringer på indstillingssiden, der ikke er gemt.",
+    "setup.lede": "Trinene der forbinder bridgen med din bil. Det er noget, man gør én gang.", "setup.check": "Tjek status hos Tesla", "setup.summary": "{0} af {1} færdige",
+    "s.key": "Appens nøgle", "s.keyOk": "Fingeraftryk {0}. Offentliggjort på {1}", "s.keyMissing": "Ingen nøgle i {0}. Genstart bridgen, så laves den.",
+    "s.app": "App-oplysninger i .env", "s.appOk": "Partnerdomæne {0}, redirect {1}", "s.appMissing": "Sæt Bridge__Tesla__ClientId, Bridge__Tesla__ClientSecret og Bridge__Telemetry__Hostname i .env, og genstart.",
+    "s.reg": "Domænet registreret hos Tesla", "s.regUnknown": "Ikke tjekket endnu. Den offentlige nøgle skal kunne hentes fra internettet, før du registrerer.", "s.regOk": "Tesla har samme nøgle som bridgen.",
+    "s.regOther": "Tesla har en ANDEN nøgle registreret på domænet. Tryk Registrér for at opdatere.", "s.regNo": "Ikke registreret endnu.", "s.register": "Registrér",
+    "s.login": "Logget ind hos Tesla", "s.loginOk": "Bridgen har adgang til din bil.", "s.loginNo": "Åbner Teslas login og derefter en side, der bekræfter det.",
+    "s.loginBtn": "Log ind med Tesla", "s.loginAgain": "Log ind igen",
+    "s.pair": "Virtuel nøgle i bilen", "s.pairOk": "Bilen har appens nøgle.", "s.pairNo": "Scan med telefonen, hvor Tesla-appen er, eller åbn linket. Bip derefter nøglekortet i bilen.",
+    "s.tele": "Bilen sender telemetri", "s.teleOk": "Synkroniseret – bilen sender til {0}.", "s.teleWait": "Konfigurationen er sendt, men bilen har ikke hentet den. Væk bilen i Tesla-appen, og vent et par minutter.",
+    "s.teleNone": "Sendes automatisk efter login. Tryk Tjek status for at se, om bilen har den.", "s.send": "Send konfiguration", "working": "Arbejder…",
+    "err.register": "Registrering fejlede:\n{0}", "err.push": "Kunne ikke sende:\n{0}", "err.cmd": "{0} fejlede: {1}",
+    "ago.s": "{0} s siden", "ago.m": "{0} min siden", "ago.h": "{0} t siden", "ago.d": "{0} d siden", "yes": "ja", "no": "nej",
+  },
+};
+let lang = store.get("tb_lang") || ((navigator.language || "").toLowerCase().startsWith("da") ? "da" : "en");
+const t = (k, ...a) => (T[lang][k] ?? T.en[k] ?? k).replace(/\{(\d)\}/g, (_, i) => a[i] ?? "");
+const locale = () => (lang === "da" ? "da-DK" : "en-GB");
+function applyStatic() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
+  $("fieldFilter").placeholder = t("data.filter");
+  $("setFilter").placeholder = t("settings.filter");
+  $("btnLang").textContent = t("lang");
+  $("btnTheme").textContent = t("theme." + (store.get("tb_theme") || "auto"));
+}
+
+// ===================================================================== theme
+function applyTheme() {
+  const th = store.get("tb_theme") || "auto";
+  if (th === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.dataset.theme = th;
+}
+$("btnTheme").onclick = () => {
+  const order = ["auto", "dark", "light"];
+  store.set("tb_theme", order[(order.indexOf(store.get("tb_theme") || "auto") + 1) % 3]);
+  applyTheme(); applyStatic();
+};
+$("btnLang").onclick = () => { lang = lang === "da" ? "en" : "da"; store.set("tb_lang", lang); applyStatic(); renderAll(); };
+
+// ===================================================================== API
+let token = store.get("tb_token") || "";
+async function api(path, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {});
+  if (token) headers.Authorization = "Bearer " + token;
+  const r = await fetch(path, Object.assign({}, opts, { headers }));
+  if (r.status === 401) { showLogin(); throw new Error("unauthorized"); }
+  return r;
+}
+const getJson = async (p) => (await api(p)).json();
+function showLogin() { $("app").hidden = true; $("login").hidden = false; $("loginToken").focus(); }
+$("loginForm").onsubmit = (e) => { e.preventDefault(); token = $("loginToken").value.trim(); store.set("tb_token", token); location.reload(); };
+
+let toastTimer;
+function toast(msg) {
+  let el = document.querySelector(".toast");
+  if (!el) { el = document.createElement("div"); el.className = "toast"; el.setAttribute("role", "status"); document.body.append(el); }
+  el.textContent = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 4500);
+}
+
+// ===================================================================== state
+let info = null, cars = [], vin = null;
+const fields = new Map();
+const val = (k) => fields.get(k)?.value;
+const isPending = (k) => fields.get(k)?.source === "optimistic";
+const motion = (k) => val(k + "_motion");
+
+function ago(iso) {
+  if (!iso) return "–";
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000));
+  if (s < 60) return t("ago.s", s);
+  if (s < 3600) return t("ago.m", Math.floor(s / 60));
+  if (s < 86400) return t("ago.h", Math.floor(s / 3600));
+  return t("ago.d", Math.floor(s / 86400));
+}
+const clock = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const nf = (n, d = 0) => Number(n).toLocaleString(locale(), { maximumFractionDigits: d, minimumFractionDigits: d });
+const usd = (v) => "$" + (v > 0 && v < 0.01 ? v.toFixed(4) : nf(v, 2));
+function hm(hours) { if (hours == null) return "–"; const m = Math.round(hours * 60); return m >= 60 ? `${Math.floor(m / 60)} t ${m % 60} min`.replace(" t ", lang === "da" ? " t " : " h ") : `${m} min`; }
+
+// ===================================================================== routing
+const views = ["overview", "controls", "data", "usage", "settings", "setup"];
+function route() {
+  const v = views.includes(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
+  document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== v));
+  document.querySelectorAll(".navlist a").forEach((a) => a.toggleAttribute("aria-current", a.dataset.view === v) || a.dataset.view === v && a.setAttribute("aria-current", "page"));
+  if (v === "usage") loadUsage();
+  if (v === "settings" && !settings) loadSettings();
+  if (v === "setup") loadSetup(false);
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+
+// ===================================================================== overview
+const ICON = {
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+  unlock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/></svg>',
+  fan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2"/><path d="M12 10c0-4 1-6 3-6s2 3-1 6M14 12c4 0 6 1 6 3s-3 2-6-1M12 14c0 4-1 6-3 6s-2-3 1-6M10 12c-4 0-6-1-6-3s3-2 6 1"/></svg>',
+  box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9h16v9H4zM4 9l2-4h12l2 4"/></svg>',
+  plug: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg>',
+  horn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10v4h3l6 4V6L7 10zM17 9a4 4 0 0 1 0 6"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>',
+};
+
+function renderOverview() {
+  const car = cars.find((c) => c.vin === vin);
+  $("carName").textContent = car ? car.name : "";
+  $("mCar").textContent = car ? car.name : "Tesla Bridge";
+
+  // ---- schematic
+  const set = (id, on, cls = "open") => $(id)?.classList.toggle(cls, !!on);
+  set("d-df", val("door_driver_front_open")); set("d-dr", val("door_driver_rear_open"));
+  set("d-pf", val("door_passenger_front_open")); set("d-pr", val("door_passenger_rear_open"));
+  set("d-frunk", val("frunk_open")); set("d-trunk", val("trunk_open"));
+  set("w-df", val("window_driver_front_open")); set("w-dr", val("window_driver_rear_open"));
+  set("w-pf", val("window_passenger_front_open")); set("w-pr", val("window_passenger_rear_open"));
+  set("d-port", val("charge_port_open") && !val("charge_cable_connected"));
+  set("d-port", val("charge_cable_connected"), "plugged");
+  const lk = val("locked"), lm = motion("locked");
+  const badge = $("lockBadge");
+  badge.classList.toggle("unlocked", lk === false);
+  badge.classList.toggle("pending", lm === "LOCKING" || lm === "UNLOCKING" || isPending("locked"));
+  $("lockShackle").setAttribute("d", lk === false ? "M-6 -2 V-7 a6 6 0 0 1 11 -3" : "M-6 -2 V-7 a6 6 0 0 1 12 0 V-2");
+  $("carTitle").textContent = [car?.name, lk ? t("locked") : lk === false ? t("unlocked") : ""].filter(Boolean).join(", ");
+
+  // ---- battery
+  const pct = val("battery_level"), limit = val("charge_limit"), cs = val("charging_state");
+  const charging = cs === "charging" || cs === "starting";
+  $("bPct").innerHTML = pct == null ? "–" : `${Math.round(pct)}<small>%</small>`;
+  $("bRange").innerHTML = val("est_range") != null ? t("range", `<b class="num">${nf(val("est_range"))}</b>`)
+    : val("ideal_range") != null ? t("range", `<b class="num">${nf(val("ideal_range"))}</b>`) : t("range.none");
+  const fill = $("bFill");
+  fill.style.width = `${Math.max(0, Math.min(100, pct || 0))}%`;
+  fill.className = "fill" + (charging ? " charging" : pct != null && pct < 20 ? " low" : "");
+  $("bLimit").hidden = limit == null;
+  if (limit != null) $("bLimit").style.left = `calc(${limit}% - 1px)`;
+  $("bLimitTxt").textContent = limit == null ? "" : t("limit", limit);
+  const power = (val("ac_charging_power") || 0) + (val("dc_charging_power") || 0);
+  let cl;
+  if (cs === "charging") {
+    const parts = [`<span class="state on">${t("charging")}</span>`];
+    if (power) parts.push(`${nf(power, 1)} kW`);
+    if (val("time_to_full_charge") && limit != null) parts.push(t("charging.until", hm(val("time_to_full_charge")), limit));
+    cl = parts.join(" · ");
   }
+  else if (cs === "starting") cl = `<span class="state on">${t("charging.starting")}</span>`;
+  else if (cs === "complete") cl = `<span class="state">${t("charging.done")}</span>`;
+  else if (cs === "stopped") cl = `<span class="state">${t("charging.stopped")}</span>`;
+  else if (val("charge_cable_connected")) cl = `<span class="state">${t("charging.plugged")}</span>`;
+  else cl = `<span class="muted">${t("charging.unplugged")}</span>`;
+  $("bCharge").innerHTML = cl;
 
-  // ---------- formatering ----------
-  const units = { battery_level: "%", soc: "%", charge_limit: "%", est_range: "km", ideal_range: "km", rated_range: "km",
-    odometer: "km", speed: "km/t", inside_temp: "°C", outside_temp: "°C", driver_temp_setting: "°C",
-    ac_charging_power: "kW", dc_charging_power: "kW", charger_current: "A", charger_voltage: "V",
-    charge_current_request: "A", ac_charging_energy_in: "kWh", dc_charging_energy_in: "kWh", time_to_full_charge: "t",
-    minutes_to_arrival: "min", km_to_arrival: "km", heading: "°" };
+  // ---- quick actions
+  const quick = [];
+  const lockBusy = lm === "LOCKING" || lm === "UNLOCKING";
+  quick.push(lk === false ? ["lock", "LOCK", t("q.lock"), "lock", lockBusy] : ["lock", "UNLOCK", t("q.unlock"), "unlock", lockBusy, true]);
+  quick.push(val("climate_on") ? ["climate", "off", t("q.climateOff"), "fan", isPending("climate_on")] : ["climate", "on", t("q.climateOn"), "fan", isPending("climate_on")]);
+  if (!val("frunk_open")) quick.push(["frunk", "OPEN", t("q.frunk"), "box", motion("frunk_open") === "opening"]);
+  quick.push(val("trunk_open") ? ["trunk", "CLOSE", t("q.trunkClose"), "box", motion("trunk_open") === "closing"] : ["trunk", "OPEN", t("q.trunk"), "box", motion("trunk_open") === "opening"]);
+  quick.push(val("charge_port_open") ? ["charge_port_door", "CLOSE", t("q.portClose"), "plug"] : ["charge_port_door", "OPEN", t("q.port"), "plug"]);
+  quick.push(["flash_lights", "PRESS", t("q.flash"), "sun"], ["honk_horn", "PRESS", t("q.honk"), "horn"]);
+  if (val("online") !== true) quick.push(["wake", "PRESS", t("q.wake"), "bolt"]);
+  $("quick").innerHTML = quick.map(([c, p, l, i, busy, confirm]) =>
+    `<button type="button" class="${busy ? "pending" : ""}" data-cmd="${c}" data-p="${p}" ${confirm ? 'data-confirm="1"' : ""}>${ICON[i]}${esc(l)}</button>`).join("");
 
-  function fmt(key, v) {
-    if (v === null || v === undefined) return "–";
-    if (typeof v === "boolean") return v ? "ja" : "nej";
-    if (typeof v === "object") return key === "location" ? `${v.latitude.toFixed(5)}, ${v.longitude.toFixed(5)}` : JSON.stringify(v);
-    if (key === "last_seen") return new Date(v).toLocaleTimeString("da-DK");
-    return units[key] ? `${v} ${units[key]}` : String(v);
-  }
-
-  function ago(iso) {
-    if (!iso) return "–";
-    const s = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000));
-    if (s < 60) return `${s} s siden`;
-    if (s < 3600) return `${Math.floor(s / 60)} min siden`;
-    if (s < 86400) return `${Math.floor(s / 3600)} t siden`;
-    return `${Math.floor(s / 86400)} d siden`;
-  }
-
-  const time = (iso) => new Date(iso).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const val = (k) => fields.get(k)?.value;
-
-  // ---------- overblik ----------
-  const tileDefs = [
-    ["climate_on", "Klima", (v) => v === true ? "Tændt" : v === false ? "Slukket" : "–"],
-    ["locked", "Lås", (v) => v === true ? "Låst" : v === false ? "Ulåst" : "–"],
-    ["charging_state", "Opladning", (v) => ({ charging: "Lader", starting: "Starter", complete: "Færdig", stopped: "Stoppet", no_power: "Ingen strøm", disconnected: "Frakoblet" }[v] || v || "–")],
-    ["inside_temp", "Inde", (v) => v == null ? "–" : `${v} °C`],
-    ["outside_temp", "Ude", (v) => v == null ? "–" : `${v} °C`],
-    ["sentry_mode", "Sentry", (v) => v === true ? "Til" : v === false ? "Fra" : "–"],
-    ["gear", "Gear", (v) => v || "–"],
-    ["speed", "Hastighed", (v) => v == null ? "–" : `${v} km/t`],
-    ["charge_limit", "Ladegrænse", (v) => v == null ? "–" : `${v} %`],
-    ["ac_charging_power", "Ladeeffekt", (v) => v == null ? "–" : `${v} kW`],
-    ["destination", "Destination", (v) => v || "–"],
-    ["location", "Position", (v) => v ? `<a href="https://www.openstreetmap.org/?mlat=${v.latitude}&mlon=${v.longitude}#map=16/${v.latitude}/${v.longitude}" target="_blank" rel="noopener">Vis kort</a>` : "–"],
+  // ---- facts
+  const yes = (v) => (v === true ? t("on") : v === false ? t("off") : "–");
+  const loc = val("location");
+  const dest = val("destination");
+  const facts = [
+    [t("f.climate"), yes(val("climate_on")), `${val("inside_temp") ?? "–"} °C ${t("f.inside").toLowerCase()} · ${val("outside_temp") ?? "–"} °C ${t("f.outside")}`, "climate_on"],
+    [t("f.lock"), lm === "LOCKING" ? t("locking") : lm === "UNLOCKING" ? t("unlocking") : lk === true ? t("locked") : lk === false ? t("unlocked") : "–", "", "locked"],
+    [t("f.sentry"), yes(val("sentry_mode")), "", "sentry_mode"],
+    [t("f.drive"), !val("gear") || val("gear") === "P" ? t("parked") : `${val("gear")} · ${val("speed") ?? 0} km/h`, "", "gear"],
+    [t("f.location"), loc ? `<a href="https://www.openstreetmap.org/?mlat=${loc.latitude}&mlon=${loc.longitude}#map=16/${loc.latitude}/${loc.longitude}" target="_blank" rel="noopener">${t("showmap")}</a>` : "–", "", null, true],
+    [t("f.destination"), dest ? esc(dest) : t("nonav"), dest && val("minutes_to_arrival") != null ? t("arrive", new Date(Date.now() + val("minutes_to_arrival") * 60000).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })) : "", null, true],
+    [t("f.seen"), ago(val("last_seen")), "", null],
+    [t("f.odometer"), val("odometer") != null ? `${nf(val("odometer"))} km` : "–", "", null],
+    [t("f.software"), val("software_version") ?? "–", "", null],
   ];
+  $("facts").innerHTML = facts.map(([k, v, sub, key, html]) =>
+    `<div><dt>${esc(k)}</dt><dd class="${key && isPending(key) ? "pending" : ""}">${html ? v : esc(v)}${sub ? `<span class="sub">${esc(sub)}</span>` : ""}</dd></div>`).join("");
 
-  function renderTiles(changedKey) {
-    $("tiles").innerHTML = tileDefs.map(([k, label, f]) => {
-      const fv = fields.get(k);
-      const cls = fv?.source === "optimistic" ? "tile opt" : "tile";
-      const sub = fv ? (fv.source === "optimistic" ? "venter på bilen…" : ago(fv.updated_at)) : "ingen data";
-      return `<div class="${cls}" data-k="${k}"><div class="k">${label}</div><div class="v">${f(fv?.value)}</div><div class="s">${sub}</div></div>`;
-    }).join("");
-    if (changedKey) document.querySelector(`.tile[data-k="${changedKey}"]`)?.classList.add("flash");
+  // ---- connection
+  const online = val("online");
+  const carTxt = online === true ? t("car.awake") : online === false ? t("car.asleep") : val("last_seen") ? t("car.waiting") : t("car.unknown");
+  $("dotCar").className = "dot " + (online === true ? "ok" : online === false ? "warn" : "");
+  $("txtCar").textContent = carTxt; $("mTxtCar").textContent = carTxt;
+}
 
-    const pct = val("battery_level");
-    $("ringPct").textContent = pct == null ? "–" : `${Math.round(pct)}%`;
-    $("ringRange").textContent = val("est_range") == null ? "– km" : `${val("est_range")} km`;
-    const len = 2 * Math.PI * 68 * Math.max(0, Math.min(1, (pct || 0) / 100));
-    $("ringArc").setAttribute("stroke-dasharray", `${len} 999`);
-    $("ringArc").style.visibility = pct == null ? "hidden" : "visible";   // runde linjeender tegner ellers en prik ved 0
-    $("ringArc").setAttribute("stroke", ["charging", "starting"].includes(val("charging_state")) ? "var(--ok)" : pct != null && pct < 20 ? "var(--bad)" : "var(--accent)");
-
-    const online = val("online");
-    $("dotCar").className = "dot " + (online === true ? "ok" : online === false ? "warn" : "");
-    $("txtCar").textContent = online === true ? "Bil: vågen" : online === false ? "Bil: sover/offline"
-      : val("last_seen") ? "Bil: venter på signal" : "Bil: ukendt";
-    $("txtSeen").textContent = "Sidst set: " + ago(val("last_seen"));
-
-    // Synk kontroller med bilen (kun når brugeren ikke trækker i dem)
-    syncRange("rLimit", "oLimit", val("charge_limit"), "%");
-    syncRange("rAmps", "oAmps", val("charge_current_request"), "A");
-    syncRange("rTemp", "oTemp", val("driver_temp_setting"), "°C");
-    document.querySelectorAll("select[data-seat]").forEach((s) => {
-      const lvl = val(s.dataset.seat);
-      if (lvl != null && document.activeElement !== s) s.selectedIndex = lvl;
-    });
-  }
-
-  function syncRange(id, outId, v, unit) {
-    const el = $(id);
-    if (v == null || document.activeElement === el) return;
-    el.value = v; $(outId).textContent = `${v} ${unit}`;
-  }
-
-  // ---------- felttabel ----------
-  function renderFields(changedKey) {
-    const q = $("fieldFilter").value.toLowerCase();
-    const keys = [...fields.keys()].sort().filter((k) => !q || k.includes(q));
-    if (!keys.length) { $("fieldRows").innerHTML = `<tr><td colspan="4" class="empty">${fields.size ? "Ingen match" : "Ingen data endnu"}</td></tr>`; return; }
-    $("fieldRows").innerHTML = keys.map((k) => {
-      const f = fields.get(k);
-      return `<tr data-k="${k}"><td class="mono">${k}</td><td class="val">${esc(fmt(k, f.value))}</td>` +
-        `<td><span class="badge ${f.source}">${f.source || "–"}</span></td><td class="age" data-at="${f.updated_at || ""}">${ago(f.updated_at)}</td></tr>`;
-    }).join("");
-    if (changedKey) document.querySelector(`tr[data-k="${changedKey}"]`)?.classList.add("flash");
-  }
-
-  // ---------- rå feed ----------
-  function addRaw(e) {
-    rawRows.unshift(e);
-    if (rawRows.length > 200) rawRows.pop();
-    if (!paused) renderRaw();
-  }
-
-  function renderRaw() {
-    if (!rawRows.length) return;
-    $("rawRows").innerHTML = rawRows.map((e) => {
-      let what;
-      if (e.type === "raw") what = `<span class="mono">${esc(e.data.field)}</span> = <span class="mono">${esc(JSON.stringify(e.data.value))}</span>`;
-      else if (e.type === "connectivity") what = `forbindelse: <b>${esc(e.data.status)}</b>`;
-      else what = `<span class="mono">${esc(JSON.stringify(e.data))}</span>`;
-      return `<tr><td class="mono age">${time(e.at)}</td><td>${e.type === "telemetry_error" ? '<span class="badge" style="color:var(--bad)">fejl</span>' : esc(e.type)}</td><td class="val">${what}</td></tr>`;
-    }).join("");
-  }
-
-  // ---------- kommandolog ----------
-  const phaseText = { pending: "sendt", waking: "vækker bilen…", succeeded: "udført", failed: "fejlede" };
-  function addCommand(e) {
-    const log = $("cmdlog");
-    if (log.querySelector(".empty")) log.innerHTML = "";
+// ===================================================================== command log
+const cmdLog = [];
+function addCommand(e) {
+  cmdLog.unshift(e); if (cmdLog.length > 40) cmdLog.pop();
+  renderLog();
+}
+function renderLog() {
+  $("cmdlog").innerHTML = cmdLog.length ? cmdLog.map((e) => {
     const d = e.data;
-    const row = document.createElement("div");
-    row.innerHTML = `<time>${time(e.at)}</time><span>${esc(d.command)}</span><span class="st-${d.status}">${phaseText[d.status] || d.status}${d.transport ? " · " + esc(d.transport) : ""}${d.error ? " · " + esc(d.error) : ""}</span>`;
-    log.prepend(row);
-  }
+    return `<li><time class="num">${clock(e.at)}</time><span>${esc(d.command)}</span><span class="st ${esc(d.status)}">${esc(t("st." + d.status))}${d.transport ? " · " + esc(d.transport) : ""}</span>${d.error ? `<span class="err">${esc(d.error)}</span>` : ""}</li>`;
+  }).join("") : `<li class="empty" style="display:block">${t("log.empty")}</li>`;
+}
 
-  async function send(name, payload = "PRESS") {
-    if (!vin) return;
-    const r = await api(`/api/vehicles/${vin}/cmd/${name}`, { method: "POST", body: payload });
+async function send(name, payload = "PRESS") {
+  if (!vin) return;
+  try {
+    const r = await api(`/api/vehicles/${vin}/cmd/${name}`, { method: "POST", body: String(payload) });
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
-      addCommand({ at: new Date().toISOString(), data: { command: name, status: "failed", error: err.error || r.status } });
+      toast(t("err.cmd", name, err.error || r.status));
     }
-  }
+  } catch (e) { if (e.message !== "unauthorized") toast(t("err.cmd", name, e.message)); }
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-cmd]");
+  if (!b) return;
+  if (b.dataset.confirm && !confirm(t("confirm.unlock"))) return;
+  send(b.dataset.cmd, b.dataset.p || "PRESS");
+});
 
-  // ---------- events ----------
-  function connectEvents() {
-    const es = new EventSource("/api/events" + (token ? `?token=${encodeURIComponent(token)}` : ""));
-    es.onopen = () => { $("dotLive").className = "dot ok"; $("txtLive").textContent = "Live"; };
-    es.onerror = () => { $("dotLive").className = "dot bad"; $("txtLive").textContent = "Afbrudt – prøver igen"; };
-    es.onmessage = (m) => {
-      const e = JSON.parse(m.data);
-      if (e.vin && vin && e.vin.toUpperCase() !== vin.toUpperCase()) return;
-      if (e.type === "field") {
-        if (e.data.value === undefined && !e.data.source) fields.delete(e.data.key);
-        else fields.set(e.data.key, { value: e.data.value, updated_at: e.data.updated_at, source: e.data.source });
-        renderTiles(e.data.key); renderFields(e.data.key);
-      } else if (e.type === "command") addCommand(e);
-      else addRaw(e);
-    };
-  }
+// ===================================================================== controls
+const LVL = ["off", "low", "medium", "high"];
+function controlDefs() {
+  const sw = (label, key, cmd) => ({ kind: "switch", label, key, cmd });
+  const seg = (label, key, cmd, opts, read) => ({ kind: "seg", label, key, cmd, opts, read });
+  const seat = (label, key, cmd) => seg(label, key, cmd, LVL.map((l) => [l, t("lvl." + l)]), (v) => (v == null ? null : LVL[v] ?? null));
+  const btns = (label, key, list, sub) => ({ kind: "btns", label, key, list, sub });
+  const slider = (label, key, cmd, min, max, step, unit) => ({ kind: "slider", label, key, cmd, min, max, step, unit });
+  return [
+    [t("c.climate"), [
+      sw(t("c.climateOn"), "climate_on", "climate"),
+      slider(t("c.temp"), "driver_temp_setting", "driver_temp", 15, 28, 0.5, "°C"),
+      seg(t("c.keeper"), "climate_keeper_mode", "climate_keeper", [["off", t("lvl.off")], ["keep", t("c.keep")], ["dog", t("c.dog")], ["camp", t("c.camp")]], (v) => v ?? null),
+      sw(t("c.defrost"), "defrost", "defrost"),
+      seg(t("c.cop"), "cabin_overheat_protection", "cabin_overheat_protection", [["off", t("lvl.off")], ["on", t("on")], ["fan_only", t("c.fanOnly")]], (v) => v ?? null),
+      seg(t("c.copTemp"), "cop_temp_limit", "cop_temp", [["30", "30 °C"], ["35", "35 °C"], ["40", "40 °C"]], (v) => (v == null ? null : String(v))),
+    ]],
+    [t("c.seats"), [
+      seat(t("c.seatFL"), "seat_heater_left", "seat_heater_left"),
+      seat(t("c.seatFR"), "seat_heater_right", "seat_heater_right"),
+      seat(t("c.seatRL"), "seat_heater_rear_left", "seat_heater_rear_left"),
+      seat(t("c.seatRC"), "seat_heater_rear_center", "seat_heater_rear_center"),
+      seat(t("c.seatRR"), "seat_heater_rear_right", "seat_heater_rear_right"),
+      seg(t("c.wheel"), "steering_wheel_heat_level", "steering_wheel_heater", [["off", t("lvl.off")], ["low", t("lvl.low")], ["high", t("lvl.high")]], (v) => (v == null ? null : v === 0 ? "off" : v === 1 ? "low" : "high")),
+      sw(t("c.autoL"), "auto_seat_climate_left", "auto_seat_climate_left"),
+      sw(t("c.autoR"), "auto_seat_climate_right", "auto_seat_climate_right"),
+      sw(t("c.wheelAuto"), "auto_steering_wheel_heat", "auto_steering_wheel_heater"),
+    ]],
+    [t("c.charging"), [
+      sw(t("c.charge"), "__charging", "charge"),
+      slider(t("c.limit"), "charge_limit", "charge_limit", 50, 100, 1, "%"),
+      slider(t("c.amps"), "charge_current_request", "charge_current", 5, 32, 1, "A"),
+      btns(t("c.port"), "charge_port_open", [["charge_port_door", "OPEN", t("c.open")], ["charge_port_door", "CLOSE", t("c.close")], ["charge_cable_lock", "UNLOCK", t("c.unlockCable")]]),
+    ]],
+    [t("c.security"), [
+      btns(t("c.lock"), "locked", [["lock", "LOCK", t("q.lock")], ["lock", "UNLOCK", t("q.unlock"), true]]),
+      sw(t("c.sentry"), "sentry_mode", "sentry_mode"),
+      sw(t("c.guest"), "guest_mode", "guest_mode"),
+      sw(t("c.valet"), "valet_mode", "valet_mode"),
+    ]],
+    [t("c.openings"), [
+      btns(t("c.frunk"), "frunk_open", [["frunk", "OPEN", t("c.open")]]),
+      btns(t("c.trunk"), "trunk_open", [["trunk", "OPEN", t("c.open")], ["trunk", "CLOSE", t("c.close")]]),
+      btns(t("c.windows"), "windows_open", [["windows", "OPEN", t("c.vent")], ["windows", "CLOSE", t("c.close")]]),
+      btns(t("c.homelink"), null, [["homelink", "PRESS", t("c.press")]]),
+    ]],
+    [t("c.more"), [
+      btns(t("c.wake"), null, [["wake", "PRESS", t("c.press")]]),
+      btns(t("c.flash"), null, [["flash_lights", "PRESS", t("c.press")]]),
+      btns(t("c.honk"), null, [["honk_horn", "PRESS", t("c.press")]]),
+      btns(t("c.keyless"), null, [["keyless_driving", "PRESS", t("c.press")]]),
+      btns(t("c.fart"), null, [["play_fart", "PRESS", t("c.press")]]),
+    ]],
+  ];
+}
+function stateText(key) {
+  if (!key) return "";
+  const v = val(key), m = motion(key);
+  if (m && /ING$/i.test(m)) return t("pending");
+  if (isPending(key)) return t("pending");
+  if (key === "locked") return v === true ? t("locked") : v === false ? t("unlocked") : "";
+  if (typeof v === "boolean") return v ? (key.endsWith("_open") ? t("car.open") : t("on")) : (key.endsWith("_open") ? t("c.close") + "d".slice(lang === "da" ? 1 : 0) : t("off"));
+  return v == null ? "" : String(v);
+}
+function chargingOn() { const cs = val("charging_state"); return cs === "charging" || cs === "starting" ? true : cs == null ? null : false; }
 
-  let usage = null, usTab = "signals_by_field";
-  const usd = (v) => "$" + (v < 0.01 && v > 0 ? v.toFixed(4) : v.toFixed(2));
-
-  async function loadStats() {
-    usage = await (await api("/api/usage")).json();
-    const u = usage, credit = u.credit_usd;
-    const monthName = new Date(u.month_start).toLocaleDateString("da-DK", { month: "long", year: "numeric", timeZone: "UTC" });
-    $("usMonth").textContent = "· " + monthName;
-    $("usTotal").textContent = usd(u.total_usd);
-    $("usLeft").textContent = usd(Math.max(0, credit - u.total_usd));
-    const p = u.projected_usd;
-    $("usProj").textContent = p == null ? "–" : usd(p);
-    $("usProj").style.color = p == null ? "" : p > credit ? "var(--bad)" : p > credit * 0.75 ? "var(--warn)" : "var(--ok)";
-    $("usHint").textContent = p == null ? "Fremskrivningen vises efter første døgn af måneden."
-      : p > credit ? "Med det nuværende forbrug overskrider du den gratis rabat. Sæt intervallerne op i telemetry-fields.json."
-      : `Med det nuværende forbrug bruger du ${Math.round(p / credit * 100)} % af den gratis rabat.`;
-    const pct = Math.min(100, u.total_usd / credit * 100);
-    $("usBar").style.width = pct + "%";
-    $("usBar").style.background = pct > 100 ? "var(--bad)" : pct > 75 ? "var(--warn)" : "var(--ok)";
-    const mark = $("usProjMark");
-    if (p != null) { mark.style.display = "block"; mark.style.left = `calc(${Math.min(100, p / credit * 100)}% - 1px)`; } else mark.style.display = "none";
-    $("usCats").innerHTML = Object.values(u.categories).map((c) =>
-      `<tr><td>${esc(c.name)}</td><td>${c.count.toLocaleString("da-DK")}</td><td class="age">${esc(c.rate)}</td><td>${usd(c.cost_usd)}</td></tr>`).join("") +
-      `<tr><td><b>I alt</b></td><td></td><td></td><td><b>${usd(u.total_usd)}</b></td></tr>`;
-    renderUsageRows();
-  }
-
-  function renderUsageRows() {
-    if (!usage) return;
-    document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === usTab));
-    let rows;
-    if (usTab === "history") {
-      rows = usage.history.map((h) => [new Date(h.month + "-01T00:00:00Z").toLocaleDateString("da-DK", { month: "long", year: "numeric", timeZone: "UTC" }), usd(h.total_usd), h.total_usd / usage.credit_usd]);
-    } else {
-      const entries = Object.entries(usage[usTab]);
-      const max = Math.max(1, ...entries.map(([, n]) => n));
-      rows = entries.map(([k, n]) => [k, n.toLocaleString("da-DK"), n / max]);
+function renderControls() {
+  const grid = $("ctlGrid");
+  const active = document.activeElement?.closest?.("[data-slider]")?.dataset.slider;
+  grid.innerHTML = controlDefs().map(([title, items]) => `<div class="panel"><h2>${esc(title)}</h2>${items.map((c) => {
+    if (c.kind === "switch") {
+      const v = c.key === "__charging" ? chargingOn() : val(c.key);
+      const p = c.key === "__charging" ? false : isPending(c.key);
+      return `<div class="ctl"><span class="lbl">${esc(c.label)}${p ? `<span class="v">${t("pending")}</span>` : ""}</span><button type="button" class="switch ${p ? "pending" : ""}" role="switch" aria-checked="${v === true}" aria-label="${esc(c.label)}" data-cmd="${c.cmd}" data-p="${v === true ? "off" : "on"}"></button></div>`;
     }
-    $("usRows").innerHTML = rows.map(([k, v, f]) =>
-      `<tr><td class="mono" style="width:45%">${esc(k)}</td><td style="width:15%;text-align:right">${v}</td><td><div class="bar"><i style="width:${Math.min(100, f * 100)}%"></i></div></td></tr>`).join("")
-      || `<tr><td class="empty">Intet endnu denne måned</td></tr>`;
-  }
-  document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { usTab = b.dataset.tab; renderUsageRows(); });
-
-  async function showJson(path, method = "GET") {
-    const out = $("cfgOut");
-    out.hidden = false; out.textContent = "Henter…";
-    const r = await api(path, { method });
-    out.textContent = JSON.stringify(await r.json().catch(() => ({ error: r.statusText })), null, 2);
-  }
-
-  // ---------- opsætning ----------
-  let setupHidden = localGet("tb_setup_hidden") === "1";
-  function localGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
-  function localSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
-
-  async function loadSetup(check = false) {
-    const r = await api("/api/setup" + (check ? "?check=true" : ""));
-    if (!r.ok) return;
-    renderSetup(await r.json(), check);
-  }
-
-  function renderSetup(st, checked) {
-    const v = st.vehicles[0] || {};
-    const reg = st.registration;
-    const tokenQ = token ? `?token=${encodeURIComponent(token)}` : "";
-    const steps = [
-      {
-        t: "Appens nøgle",
-        state: st.key.present ? "done" : "bad",
-        d: st.key.present
-          ? `Fingeraftryk <code>${esc(st.key.fingerprint)}</code>. Vises offentligt på <a href="${esc(st.public_key_url)}" target="_blank" rel="noopener">${esc(st.public_key_url)}</a>`
-          : `Ingen nøgle i <code>${esc(st.key.file)}</code>${st.key.error ? " – " + esc(st.key.error) : ""}. Genstart bridgen, så laves den automatisk.`,
-      },
-      {
-        t: "App-oplysninger i .env",
-        state: st.credentials_set ? "done" : "bad",
-        d: st.credentials_set
-          ? `Partnerdomæne <code>${esc(st.partner_domain)}</code>, redirect <code>${esc(st.redirect_uri)}</code>`
-          : "Sæt <code>Bridge__Tesla__ClientId</code>, <code>Bridge__Tesla__ClientSecret</code> og <code>Bridge__Telemetry__Hostname</code> i .env, og genstart.",
-      },
-      {
-        t: "Partnerdomæne registreret hos Tesla",
-        state: !reg ? "" : reg.matches ? "done" : "bad",
-        d: !reg ? "Ikke tjekket endnu. Den offentlige nøgle skal kunne hentes udefra, før du registrerer."
-          : reg.error ? esc(reg.error)
-          : reg.matches ? "Tesla har samme nøgle som bridgen."
-          : reg.registered ? "Tesla har en ANDEN nøgle registreret på domænet. Tryk Registrér for at opdatere."
-          : "Ikke registreret endnu.",
-        a: `<button data-setup="register" ${st.key.present && st.credentials_set ? "" : "disabled"}>Registrér</button>`,
-      },
-      {
-        t: "Logget ind hos Tesla",
-        state: st.logged_in ? "done" : "",
-        d: st.logged_in ? "Bridgen har adgang til din bil." : "Åbner Teslas login. Bagefter sendes du til en side, der bekræfter login.",
-        a: `<a href="/api/auth/start${tokenQ}" target="_blank" rel="noopener"><button class="${st.logged_in ? "" : "primary"}" ${st.credentials_set ? "" : "disabled"}>${st.logged_in ? "Log ind igen" : "Log ind med Tesla"}</button></a>`,
-      },
-      {
-        t: "Virtuel nøgle i bilen",
-        state: v.key_paired === true ? "done" : v.key_paired === false ? "bad" : "",
-        d: (v.key_paired === true ? "Bilen har appens nøgle." : "Scan med telefonen, hvor Tesla-appen er, eller åbn linket. Bip derefter nøglekortet i bilen.")
-          + `<br><a href="${esc(st.pairing_url)}" target="_blank" rel="noopener">${esc(st.pairing_url)}</a>`
-          + (v.key_paired === true ? "" : `<br><img class="qr" alt="QR-kode til parring" src="/api/setup/pair-qr.svg${tokenQ}">`),
-      },
-      {
-        t: "Bilen sender telemetri",
-        state: v.synced === true ? "done" : v.error ? "bad" : "",
-        d: v.error ? esc(v.error)
-          : v.synced === true ? `Synkroniseret – bilen sender til <code>${esc(v.hostname || "")}</code>.`
-          : v.synced === false ? "Konfigurationen er sendt, men bilen har ikke hentet den endnu. Væk bilen via Tesla-appen og vent et par minutter."
-          : "Sendes automatisk efter login. Tryk Tjek status for at se, om bilen har fået den.",
-        a: `<button data-setup="push" ${st.logged_in ? "" : "disabled"}>Send konfiguration</button>`,
-      },
-    ];
-    const done = steps.filter((x) => x.state === "done").length;
-    $("setupSummary").textContent = `${done} af ${steps.length}`;
-    $("setupSteps").innerHTML = steps.map((x, i) =>
-      `<li class="${x.state}"><div class="n">${x.state === "done" ? "✓" : x.state === "bad" ? "!" : i + 1}</div><div><div class="t">${x.t}</div><div class="d">${x.d}</div></div><div class="a">${x.a || ""}</div></li>`).join("");
-    $("setup").hidden = setupHidden && done === steps.length;
-    document.querySelectorAll("button[data-setup]").forEach((b) => b.onclick = () => setupAction(b.dataset.setup, b));
-  }
-
-  async function setupAction(what, btn) {
-    btn.disabled = true;
-    const old = btn.textContent;
-    btn.textContent = "Arbejder…";
-    try {
-      if (what === "register") {
-        const r = await api("/api/setup/register", { method: "POST" });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok) alert("Registrering fejlede:\n" + (j.error || r.status));
-      } else if (what === "push" && vin) {
-        const r = await api(`/api/vehicles/${vin}/telemetry-config`, { method: "POST" });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok) alert("Kunne ikke sende:\n" + (j.error || r.status));
-      }
-      await loadSetup(true);
-    } finally {
-      btn.textContent = old; btn.disabled = false;
+    if (c.kind === "seg") {
+      const cur = c.read(val(c.key)), p = isPending(c.key);
+      return `<div class="ctl"><span class="lbl">${esc(c.label)}</span><div class="seg" role="group" aria-label="${esc(c.label)}">${c.opts.map(([v, l]) =>
+        `<button type="button" aria-pressed="${cur === v}" class="${p && cur === v ? "pending" : ""}" data-cmd="${c.cmd}" data-p="${v}">${esc(l)}</button>`).join("")}</div></div>`;
     }
+    if (c.kind === "slider") {
+      const known = val(c.key), v = known ?? c.min;
+      return `<div class="ctl slider" data-slider="${c.key}"><span class="lbl">${esc(c.label)}</span><output class="${isPending(c.key) ? "st pending" : ""}">${known == null ? "–" : `${v} ${c.unit}`}</output><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" data-key="${c.key}" data-cmd="${c.cmd}" data-unit="${c.unit}" aria-label="${esc(c.label)}"></div>`;
+    }
+    return `<div class="ctl"><span class="lbl">${esc(c.label)}<span class="v">${esc(stateText(c.key))}</span></span><div class="btnrow">${c.list.map(([cmd, p, l, danger]) =>
+      `<button type="button" class="${danger ? "danger" : ""}" data-cmd="${cmd}" data-p="${p}" ${danger ? 'data-confirm="1"' : ""}>${esc(l)}</button>`).join("")}</div></div>`;
+  }).join("")}</div>`).join("");
+  if (active) grid.querySelector(`[data-slider="${active}"] input`)?.focus();
+}
+$("ctlGrid").addEventListener("input", (e) => { if (e.target.type === "range") e.target.previousElementSibling.textContent = `${e.target.value} ${e.target.dataset.unit}`; });
+$("ctlGrid").addEventListener("change", (e) => { if (e.target.type === "range") send(e.target.dataset.cmd, e.target.value); });
+let sliding = false;
+$("ctlGrid").addEventListener("pointerdown", (e) => { if (e.target.type === "range") sliding = true; });
+document.addEventListener("pointerup", () => { if (sliding) { sliding = false; setTimeout(renderControls, 50); } });
+
+// ===================================================================== data
+function fmt(key, v) {
+  if (v === null || v === undefined) return "–";
+  if (typeof v === "boolean") return v ? t("yes") : t("no");
+  if (typeof v === "object") return key.includes("location") && v.latitude != null ? `${v.latitude.toFixed(5)}, ${v.longitude.toFixed(5)}` : JSON.stringify(v);
+  return String(v);
+}
+function renderFields(changed) {
+  const q = $("fieldFilter").value.toLowerCase();
+  const keys = [...fields.keys()].sort().filter((k) => !q || k.includes(q));
+  $("fieldCount").textContent = t("data.count", keys.length);
+  $("fieldRows").innerHTML = keys.length ? keys.map((k) => {
+    const f = fields.get(k);
+    return `<tr data-k="${esc(k)}" class="${k === changed ? "flash" : ""}"><td class="code">${esc(k)}</td><td class="val">${esc(fmt(k, f.value))}</td><td><span class="src ${esc(f.source)}">${esc(f.source || "–")}</span></td><td class="age" data-at="${esc(f.updated_at || "")}">${ago(f.updated_at)}</td></tr>`;
+  }).join("") : `<tr><td colspan="4" class="empty">${t("data.noData")}</td></tr>`;
+}
+$("fieldFilter").oninput = () => renderFields();
+
+const rawRows = []; let paused = false;
+function addRaw(e) { rawRows.unshift(e); if (rawRows.length > 300) rawRows.pop(); if (!paused) renderRaw(); }
+function renderRaw() {
+  $("btnPause").textContent = paused ? t("data.resume") : t("data.pause");
+  $("rawRows").innerHTML = rawRows.length ? rawRows.slice(0, 200).map((e) => {
+    let what;
+    if (e.type === "raw") what = `<span class="code">${esc(e.data.field)}</span> = <span class="code">${esc(JSON.stringify(e.data.value))}</span>`;
+    else if (e.type === "connectivity") what = esc(e.data.status);
+    else what = `<span class="code">${esc(JSON.stringify(e.data))}</span>`;
+    return `<tr><td class="age num">${clock(e.at)}</td><td>${e.type === "telemetry_error" ? `<span class="st failed">${esc(e.type)}</span>` : esc(e.type)}</td><td class="val">${what}</td></tr>`;
+  }).join("") : `<tr><td colspan="3" class="empty">${t("data.waiting")}</td></tr>`;
+}
+$("btnPause").onclick = () => { paused = !paused; renderRaw(); };
+function tabs(container, onSelect) {
+  container.addEventListener("click", (e) => {
+    const b = e.target.closest("[role=tab]"); if (!b) return;
+    container.querySelectorAll("[role=tab]").forEach((x) => x.setAttribute("aria-selected", x === b));
+    onSelect(b.dataset.tab);
+  });
+}
+tabs($("dataTabs"), (tab) => document.querySelectorAll("[data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== tab)));
+async function showJson(path, method = "GET") {
+  const out = $("cfgOut"); out.hidden = false; out.textContent = t("loading");
+  const r = await api(path, { method });
+  out.textContent = JSON.stringify(await r.json().catch(() => ({ error: r.statusText })), null, 2);
+}
+$("btnCfg").onclick = () => vin && showJson(`/api/vehicles/${vin}/telemetry-config`);
+$("btnErr").onclick = () => vin && showJson(`/api/vehicles/${vin}/telemetry-errors`);
+$("btnPush").onclick = () => vin && confirm(t("confirm.push")) && showJson(`/api/vehicles/${vin}/telemetry-config`, "POST");
+$("btnSim").onclick = async () => { if (vin) await api(`/api/vehicles/${vin}/simulate`, { method: "POST" }); };
+
+// ===================================================================== usage
+let usage = null, usTab = "signals_by_field";
+async function loadUsage() {
+  try { usage = await getJson("/api/usage"); } catch { return; }
+  renderUsage();
+}
+function renderUsage() {
+  if (!usage) return;
+  const u = usage, credit = u.credit_usd, p = u.projected_usd;
+  const month = new Date(u.month_start).toLocaleDateString(locale(), { month: "long", timeZone: "UTC" });
+  $("usTotal").textContent = usd(u.total_usd);
+  $("usMonth").textContent = t("usage.spent", month);
+  $("usLeft").textContent = usd(Math.max(0, credit - u.total_usd));
+  $("usProj").textContent = p == null ? "–" : usd(p);
+  $("usProj").style.color = p == null ? "" : p > credit ? "var(--danger)" : p > credit * 0.75 ? "var(--warn)" : "";
+  $("usHint").textContent = p == null ? t("usage.hintNone") : p > credit ? t("usage.hintOver") : t("usage.hintOk", Math.round((p / credit) * 100));
+  const pct = Math.min(100, (u.total_usd / credit) * 100);
+  $("usBar").style.width = pct + "%";
+  $("usBar").style.background = pct > 75 ? "var(--warn)" : "var(--charge)";
+  $("usMark").hidden = p == null;
+  if (p != null) $("usMark").style.left = `calc(${Math.min(100, (p / credit) * 100)}% - 1px)`;
+  $("usCats").innerHTML = Object.entries(u.categories).map(([k, c]) =>
+    `<tr><td>${esc(t("cat." + k) === "cat." + k ? c.name : t("cat." + k))}</td><td style="text-align:right" class="num">${nf(c.count)}</td><td class="age">${esc(c.rate)}</td><td style="text-align:right" class="num">${usd(c.cost_usd)}</td></tr>`).join("") +
+    `<tr><td><b>${t("total")}</b></td><td></td><td></td><td style="text-align:right" class="num"><b>${usd(u.total_usd)}</b></td></tr>`;
+  let rows;
+  if (usTab === "history") rows = u.history.map((h) => [new Date(h.month + "-01T00:00:00Z").toLocaleDateString(locale(), { month: "long", year: "numeric", timeZone: "UTC" }), usd(h.total_usd), h.total_usd / credit]);
+  else { const e = Object.entries(u[usTab] || {}); const max = Math.max(1, ...e.map(([, n]) => n)); rows = e.map(([k, n]) => [k, nf(n), n / max]); }
+  $("usRows").innerHTML = rows.length ? rows.map(([k, v, f]) => `<tr><td class="code" style="width:42%">${esc(k)}</td><td style="width:16%;text-align:right" class="num">${v}</td><td><div class="bar"><i style="width:${Math.min(100, f * 100)}%"></i></div></td></tr>`).join("")
+    : `<tr><td class="empty">${t("usage.none")}</td></tr>`;
+}
+tabs($("usTabs"), (tab) => { usTab = tab; renderUsage(); });
+
+// ===================================================================== settings
+let settings = null;          // from the server
+const openGroups = new Set(["driving", "charging"]);
+let draft = null;             // field -> {enabled, interval}
+let draftSnapshot = null;
+const INTERVALS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 21600, 86400];
+const SNAPSHOTS = [0, 15, 30, 60, 120, 360, 720, 1440];
+function dur(sec) {
+  if (sec < 60) return `${sec} s`;
+  if (sec < 3600) return `${sec / 60} min`;
+  const h = sec / 3600; return `${nf(h, h % 1 ? 1 : 0)} ${lang === "da" ? "t" : "h"}`;
+}
+async function loadSettings() {
+  try { settings = await getJson("/api/settings"); } catch { return; }
+  resetDraft();
+}
+function resetDraft() {
+  draft = Object.fromEntries(settings.fields.map((f) => [f.field, { enabled: f.enabled, interval: f.interval }]));
+  draftSnapshot = settings.snapshot_interval_minutes;
+  renderSettings();
+}
+function changedFields() {
+  return settings.fields.filter((f) => draft[f.field].enabled !== f.enabled || draft[f.field].interval !== f.interval);
+}
+function isDirty() { return settings && draft && (changedFields().length > 0 || draftSnapshot !== settings.snapshot_interval_minutes); }
+
+/** Monthly signal cost now and with the draft, from this month's real signal counts. */
+function estimate() {
+  const start = new Date(settings.month_start), end = new Date(settings.month_end), now = new Date(settings.now);
+  const elapsedDays = (now - start) / 86400000;
+  if (elapsedDays < 0.25) return null;
+  const factor = (end - start) / (now - start);
+  let current = 0, next = 0, any = false;
+  for (const f of settings.fields) {
+    const monthly = f.signals_month * factor;
+    if (f.signals_month > 0) any = true;
+    current += monthly;
+    const d = draft[f.field];
+    if (!d.enabled) continue;
+    if (!f.enabled) { next += f.continuous ? (86400 * 30) / d.interval * 0.05 : 0; continue; }   // re-enabled: rough guess
+    next += f.continuous ? monthly * (f.interval / d.interval) : monthly;
   }
+  if (!any) return null;
+  return { current: current / settings.signals_per_dollar, next: next / settings.signals_per_dollar };
+}
 
-  $("btnSetupCheck").onclick = async (e) => { e.target.disabled = true; try { await loadSetup(true); } finally { e.target.disabled = false; } };
-  $("btnSetupHide").onclick = () => { setupHidden = true; localSet("tb_setup_hidden", "1"); $("setup").hidden = true; };
-  // Når login-fanen lukkes og man kommer tilbage, opdateres status.
-  window.addEventListener("focus", () => loadSetup(false));
-
-  // ---------- opstart ----------
-  async function init() {
-    info = await (await api("/api/info")).json();
-    $("dotMqtt").className = "dot " + (info.mqtt_connected ? "ok" : "bad");
-    $("cfgHost").textContent = info.telemetry_hostname ? `${info.telemetry_hostname}:${info.telemetry_port}` : "(ikke sat)";
-    $("btnSim").hidden = !info.simulator;
-
-    const state = await (await api("/api/state")).json();
-    const sel = $("vinSelect");
-    sel.innerHTML = state.map((v) => `<option value="${v.vin}">${esc(v.name)} · ${v.vin}</option>`).join("");
-    sel.hidden = state.length < 2;
-    const pick = (v) => {
-      vin = v; fields.clear();
-      const car = state.find((x) => x.vin === v);
-      Object.entries(car?.fields || {}).forEach(([k, f]) => fields.set(k, f));
-      $("carName").textContent = car ? "· " + car.name : "";
-      renderTiles(); renderFields();
-    };
-    sel.onchange = () => pick(sel.value);
-    if (state.length) pick(state[0].vin);
-
-    (await (await api("/api/events/recent")).json()).forEach((e) => e.type === "command" ? addCommand(e) : addRaw(e));
-    connectEvents();
-    loadStats();
-    $("setup").hidden = false;
-    loadSetup(false);
+function renderSettings() {
+  if (!settings) return;
+  const q = $("setFilter").value.toLowerCase(), onlyCost = $("setOnlyCost").checked;
+  const name = (f) => (lang === "da" ? f.da : f.en);
+  const html = settings.groups.map((g) => {
+    const rows = settings.fields.filter((f) => f.group === g && (!onlyCost || f.continuous) && (!q || name(f).toLowerCase().includes(q) || f.field.toLowerCase().includes(q)));
+    if (!rows.length) return "";
+    const costly = rows.filter((f) => f.continuous).length;
+    const nChanged = rows.filter((f) => draft[f.field].enabled !== f.enabled || draft[f.field].interval !== f.interval).length;
+    const off = rows.filter((f) => !draft[f.field].enabled).length;
+    const open = openGroups.has(g) || !!q;
+    return `<details class="fgroup" data-group="${g}" ${open ? "open" : ""}><summary><b>${esc(t("g." + g))}</b><span>${t("settings.groupInfo", rows.length, costly)}${off ? " · " + t("settings.groupOff", off) : ""}</span>${nChanged ? `<span class="chg">${t("settings.groupChanged", nChanged)}</span>` : ""}</summary><div>${rows.map((f) => {
+      const d = draft[f.field];
+      const changed = d.enabled !== f.enabled || d.interval !== f.interval;
+      const opts = [...new Set([...INTERVALS, d.interval, f.default_interval])].sort((a, b) => a - b);
+      return `<div class="frow ${d.enabled ? "" : "off"}" data-field="${f.field}">
+        <div class="name">${esc(name(f))}${f.continuous ? `<span class="tag">${t("settings.costly")}</span>` : ""}${changed ? `<span class="chg">${t("settings.changed")}</span>` : ""}<small>${f.field}</small></div>
+        <select aria-label="${esc(name(f))}" ${d.enabled ? "" : "disabled"}>${opts.map((s) => `<option value="${s}" ${s === d.interval ? "selected" : ""}>${dur(s)}${s === f.default_interval ? " ★" : ""}</option>`).join("")}</select>
+        <div class="sig num" title="${esc(t("settings.signals", nf(f.signals_month)))}">${f.signals_month ? nf(f.signals_month) : "–"}</div>
+        <button type="button" class="switch" role="switch" aria-checked="${d.enabled}" aria-label="${esc(name(f))}"></button>
+      </div>`;
+    }).join("")}</div></details>`;
+  }).join("");
+  $("setGroups").innerHTML = html ? `<div class="frow head"><span></span><span>${t("settings.colInterval")}</span><span>${t("settings.colSignals")}</span><span>${t("settings.colOn")}</span></div>` + html : `<p class="empty">–</p>`;
+  $("setSnapshot").innerHTML = [...new Set([...SNAPSHOTS, draftSnapshot])].sort((a, b) => a - b).map((m) =>
+    `<option value="${m}" ${m === draftSnapshot ? "selected" : ""}>${m === 0 ? t("snap.off") : t("snap.every", dur(m * 60))}${m === settings.snapshot_default_minutes ? " ★" : ""}</option>`).join("");
+  renderSaveBar();
+}
+function renderSaveBar() {
+  const est = estimate(), dirty = isDirty();
+  $("setEst").innerHTML = est ? t("settings.est", usd(est.next)) + (dirty ? ` <span class="muted small">(${t("settings.estFrom", usd(est.current))})</span>` : "") : `<span class="muted small">${t("settings.estNone")}</span>`;
+  $("setSave").disabled = !dirty; $("setUndo").disabled = !dirty;
+  $("saveBar").classList.toggle("dirty", dirty);
+}
+$("setGroups").addEventListener("change", (e) => {
+  const row = e.target.closest(".frow"); if (!row) return;
+  draft[row.dataset.field].interval = Number(e.target.value); renderSettings();
+});
+$("setGroups").addEventListener("click", (e) => {
+  const b = e.target.closest(".switch"); if (!b) return;
+  const f = b.closest(".frow").dataset.field; draft[f].enabled = !draft[f].enabled; renderSettings();
+});
+$("setGroups").addEventListener("toggle", (e) => {
+  const d = e.target.closest?.("details.fgroup"); if (!d) return;
+  if (d.open) openGroups.add(d.dataset.group); else openGroups.delete(d.dataset.group);
+}, true);
+$("setSnapshot").onchange = (e) => { draftSnapshot = Number(e.target.value); renderSaveBar(); };
+$("setFilter").oninput = renderSettings;
+$("setOnlyCost").onchange = renderSettings;
+$("setUndo").onclick = resetDraft;
+document.querySelectorAll("[data-preset]").forEach((b) => (b.onclick = () => {
+  if (!settings) return;
+  for (const f of settings.fields) {
+    if (!f.continuous) continue;
+    const def = f.default_interval;
+    const target = b.dataset.preset === "economy" ? Math.min(3600, Math.max(30, def * 5))
+      : b.dataset.preset === "live" ? Math.max(1, Math.round(def / 10)) : def;
+    draft[f.field] = { enabled: true, interval: INTERVALS.reduce((a, c) => (Math.abs(c - target) < Math.abs(a - target) ? c : a), INTERVALS[0]) };
   }
+  renderSettings();
+}));
+function pushResult(res) {
+  const failed = (res.push || []).filter((p) => !p.ok);
+  $("setResult").innerHTML = !res.push ? `<div class="note ok">${t("settings.savedLocal")}</div>`
+    : failed.length ? `<div class="note bad">${esc(t("settings.pushFail", failed.map((f) => String(f.error).replace(/\.+$/, "")).join("; ")))}</div>`
+    : `<div class="note ok">${t("settings.saved")}</div>`;
+}
+$("setSave").onclick = async () => {
+  const btn = $("setSave"); btn.disabled = true; btn.textContent = t("settings.saving");
+  try {
+    const body = { fields: Object.fromEntries(changedFields().map((f) => [f.field, { enabled: draft[f.field].enabled, interval_seconds: draft[f.field].interval }])) };
+    if (draftSnapshot !== settings.snapshot_interval_minutes) body.snapshot_interval_minutes = draftSnapshot;
+    const r = await api("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await r.json();
+    if (!r.ok) { $("setResult").innerHTML = `<div class="note bad">${esc(res.error || r.status)}</div>`; return; }
+    settings = res; resetDraft(); pushResult(res);
+  } finally { btn.textContent = t("settings.save"); renderSaveBar(); }
+};
+$("setReset").onclick = async () => {
+  if (!confirm(t("confirm.reset"))) return;
+  const r = await api("/api/settings/reset", { method: "POST" });
+  const res = await r.json(); settings = res; resetDraft(); pushResult(res);
+};
+window.addEventListener("beforeunload", (e) => { if (isDirty()) { e.preventDefault(); e.returnValue = t("unsaved"); } });
 
-  // ---------- kontroller ----------
-  document.querySelectorAll("button[data-cmd]").forEach((b) => b.onclick = () => send(b.dataset.cmd, b.dataset.p || "PRESS"));
-  document.querySelectorAll("select[data-seat]").forEach((s) => s.onchange = () => send(s.dataset.seat, s.value));
-  [["rTemp", "oTemp", "°C", "driver_temp"], ["rLimit", "oLimit", "%", "charge_limit"], ["rAmps", "oAmps", "A", "charging_amps"]]
-    .forEach(([id, out, unit, cmd]) => {
-      $(id).oninput = () => $(out).textContent = `${$(id).value} ${unit}`;
-      $(id).onchange = () => send(cmd, $(id).value);
-    });
-  $("fieldFilter").oninput = () => renderFields();
-  $("btnPause").onclick = () => { paused = !paused; $("btnPause").textContent = paused ? "Fortsæt" : "Pause"; if (!paused) renderRaw(); };
-  $("btnStats").onclick = loadStats;
-  $("btnCfg").onclick = () => vin && showJson(`/api/vehicles/${vin}/telemetry-config`);
-  $("btnErr").onclick = () => vin && showJson(`/api/vehicles/${vin}/telemetry-errors`);
-  $("btnPush").onclick = () => vin && confirm("Send telemetri-konfiguration til bilen nu?") && showJson(`/api/vehicles/${vin}/telemetry-config`, "POST");
-  $("btnSim").onclick = async () => { if (vin) { await api(`/api/vehicles/${vin}/simulate`, { method: "POST" }); setTimeout(loadStats, 500); } };
+// ===================================================================== setup
+async function loadSetup(check) {
+  try { const r = await api("/api/setup" + (check ? "?check=true" : "")); if (r.ok) renderSetup(await r.json()); } catch {}
+}
+function renderSetup(st) {
+  const v = st.vehicles[0] || {}, reg = st.registration;
+  const tq = token ? `?token=${encodeURIComponent(token)}` : "";
+  const c = (s) => `<code>${esc(s)}</code>`;
+  const steps = [
+    { t: t("s.key"), s: st.key.present ? "done" : "bad",
+      d: st.key.present ? t("s.keyOk", c(st.key.fingerprint), `<a href="${esc(st.public_key_url)}" target="_blank" rel="noopener">${esc(st.public_key_url)}</a>`) : t("s.keyMissing", c(st.key.file)) + (st.key.error ? " " + esc(st.key.error) : "") },
+    { t: t("s.app"), s: st.credentials_set ? "done" : "bad", d: st.credentials_set ? t("s.appOk", c(st.partner_domain), c(st.redirect_uri)) : esc(t("s.appMissing")) },
+    { t: t("s.reg"), s: !reg ? "" : reg.matches ? "done" : "bad",
+      d: !reg ? t("s.regUnknown") : reg.error ? esc(reg.error) : reg.matches ? t("s.regOk") : reg.registered ? t("s.regOther") : t("s.regNo"),
+      a: `<button type="button" data-setup="register" ${st.key.present && st.credentials_set ? "" : "disabled"}>${t("s.register")}</button>` },
+    { t: t("s.login"), s: st.logged_in ? "done" : "", d: st.logged_in ? t("s.loginOk") : t("s.loginNo"),
+      a: `<a href="/api/auth/start${tq}" target="_blank" rel="noopener"><button type="button" class="${st.logged_in ? "" : "primary"}" ${st.credentials_set ? "" : "disabled"}>${st.logged_in ? t("s.loginAgain") : t("s.loginBtn")}</button></a>` },
+    { t: t("s.pair"), s: v.key_paired === true ? "done" : v.key_paired === false ? "bad" : "",
+      d: (v.key_paired === true ? t("s.pairOk") : t("s.pairNo")) + `<br><a href="${esc(st.pairing_url)}" target="_blank" rel="noopener">${esc(st.pairing_url)}</a>` + (v.key_paired === true ? "" : `<br><img class="qr" alt="QR" src="/api/setup/pair-qr.svg${tq}">`) },
+    { t: t("s.tele"), s: v.synced === true ? "done" : v.error ? "bad" : "",
+      d: v.error ? esc(v.error) : v.synced === true ? t("s.teleOk", c(v.hostname || "")) : v.synced === false ? t("s.teleWait") : t("s.teleNone"),
+      a: `<button type="button" data-setup="push" ${st.logged_in ? "" : "disabled"}>${t("s.send")}</button>` },
+  ];
+  const done = steps.filter((x) => x.s === "done").length;
+  $("setupSummary").textContent = t("setup.summary", done, steps.length);
+  $("setupCount").hidden = done === steps.length; $("setupCount").textContent = steps.length - done;
+  $("setupSteps").innerHTML = steps.map((x, i) => `<li class="${x.s}"><div class="n">${x.s === "done" ? "✓" : x.s === "bad" ? "!" : i + 1}</div><div><div class="t">${x.t}</div><div class="d">${x.d}</div></div><div class="a">${x.a || ""}</div></li>`).join("");
+  document.querySelectorAll("button[data-setup]").forEach((b) => (b.onclick = () => setupAction(b.dataset.setup, b)));
+}
+async function setupAction(what, btn) {
+  btn.disabled = true; const old = btn.textContent; btn.textContent = t("working");
+  try {
+    const path = what === "register" ? "/api/setup/register" : `/api/vehicles/${vin}/telemetry-config`;
+    const r = await api(path, { method: "POST" });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); alert(t(what === "register" ? "err.register" : "err.push", j.error || r.status)); }
+    await loadSetup(true);
+  } finally { btn.textContent = old; btn.disabled = false; }
+}
+$("btnSetupCheck").onclick = async (e) => { e.target.disabled = true; try { await loadSetup(true); } finally { e.target.disabled = false; } };
+window.addEventListener("focus", () => { if (location.hash === "#setup") loadSetup(false); });
 
-  // "x s siden" tæller live, og MQTT-status opdateres
-  setInterval(() => {
-    document.querySelectorAll("td.age[data-at]").forEach((td) => td.textContent = ago(td.dataset.at));
-    document.querySelectorAll(".tile .s").forEach((s, i) => {
-      const f = fields.get(tileDefs[i]?.[0]);
-      if (f && f.source !== "optimistic") s.textContent = ago(f.updated_at);
-    });
-    $("txtSeen").textContent = "Sidst set: " + ago(val("last_seen"));
-  }, 1000);
-  setInterval(async () => {
-    try { const i = await (await api("/api/info")).json(); $("dotMqtt").className = "dot " + (i.mqtt_connected ? "ok" : "bad"); } catch {}
-  }, 10000);
-  setInterval(loadStats, 30000);
+// ===================================================================== live
+function setLive(ok) {
+  for (const id of ["dotLive", "mDotLive"]) $(id).className = "dot " + (ok ? "ok" : "bad");
+  $("txtLive").textContent = ok ? t("live.on") : t("live.off");
+}
+function setMqtt(i) {
+  $("dotMqtt").className = "dot " + (i.mqtt_connected ? "ok" : "bad");
+  $("txtMqtt").textContent = i.embedded_broker ? t("mqtt.embedded") : t("mqtt");
+}
+let renderQueued = false, lastChanged = null;
+function scheduleRender(key) {
+  lastChanged = key;
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    renderOverview();
+    if (!$("ctlGrid").closest(".view").hidden && !sliding) renderControls();
+    if (!document.querySelector('[data-pane="fields"]').closest(".view").hidden) renderFields(lastChanged);
+  });
+}
+function connectEvents() {
+  const es = new EventSource("/api/events" + (token ? `?token=${encodeURIComponent(token)}` : ""));
+  es.onopen = () => setLive(true);
+  es.onerror = () => setLive(false);
+  es.onmessage = (m) => {
+    const e = JSON.parse(m.data);
+    if (e.vin && vin && e.vin.toUpperCase() !== vin.toUpperCase()) return;
+    if (e.type === "field") {
+      if (e.data.value === undefined && !e.data.source) fields.delete(e.data.key);
+      else fields.set(e.data.key, { value: e.data.value, updated_at: e.data.updated_at, source: e.data.source });
+      scheduleRender(e.data.key);
+    } else if (e.type === "command") addCommand(e);
+    else addRaw(e);
+  };
+}
 
-  init().catch((e) => { $("txtLive").textContent = "Fejl: " + e.message; $("dotLive").className = "dot bad"; });
+function renderAll() {
+  renderOverview(); renderControls(); renderFields(); renderRaw(); renderLog(); renderUsage(); renderSettings();
+  if (info) { setMqtt(info); $("cfgHint").textContent = t("data.cfgHint", info.telemetry_hostname ? `${info.telemetry_hostname}:${info.telemetry_port}` : "–"); }
+  route();
+}
+
+async function init() {
+  applyTheme(); applyStatic();
+  info = await getJson("/api/info");
+  if (info.auth_required && !token) { showLogin(); return; }
+  cars = await getJson("/api/state");
+  $("login").hidden = true; $("app").hidden = false;
+  $("btnSim").hidden = !info.simulator;
+  const sel = $("vinSelect");
+  sel.innerHTML = cars.map((c) => `<option value="${esc(c.vin)}">${esc(c.name)}</option>`).join("");
+  sel.hidden = cars.length < 2;
+  const pick = (v) => {
+    vin = v; fields.clear();
+    Object.entries(cars.find((c) => c.vin === v)?.fields || {}).forEach(([k, f]) => fields.set(k, f));
+    renderAll();
+  };
+  sel.onchange = () => pick(sel.value);
+  if (cars.length) pick(cars[0].vin); else renderAll();
+  (await getJson("/api/events/recent")).forEach((e) => (e.type === "command" ? cmdLog.push(e) : rawRows.push(e)));
+  cmdLog.reverse(); rawRows.reverse(); renderLog(); renderRaw();
+  connectEvents();
+  loadSetup(false);
+}
+
+setInterval(() => {
+  document.querySelectorAll("td.age[data-at]").forEach((td) => (td.textContent = ago(td.dataset.at)));
+  if (!document.querySelector('.view[data-view="overview"]').hidden) renderOverview();
+}, 5000);
+setInterval(async () => { try { info = await getJson("/api/info"); setMqtt(info); } catch {} }, 15000);
+setInterval(() => { if (location.hash === "#usage") loadUsage(); }, 30000);
+
+init().catch((e) => { if (e.message !== "unauthorized") { $("app").hidden = false; setLive(false); $("txtLive").textContent = e.message; } });
 })();
 </script>
 </body>

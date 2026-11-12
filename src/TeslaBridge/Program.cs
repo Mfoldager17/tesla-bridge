@@ -26,6 +26,7 @@ var services = builder.Services;
 services.AddSingleton(TimeProvider.System);
 services.AddSingleton<VehicleStateStore>(sp => new VehicleStateStore(sp.GetRequiredService<TimeProvider>()));
 services.AddSingleton<UsageTracker>();
+services.AddSingleton<TeslaBridge.Settings.SettingsStore>();
 
 // Tesla: auth + proxy. Singletons – refresh tokens roterer, så der må kun være én der fornyer.
 services.AddHttpClient("tesla-auth");
