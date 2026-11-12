@@ -1,23 +1,28 @@
-import { createEffect, createResource, createSignal, Match, onCleanup, onMount, Switch, type ParentProps } from "solid-js";
+import { createEffect, createResource, Match, onCleanup, onMount, Switch, type ParentProps } from "solid-js";
 import { HashRouter, Route, Navigate } from "@solidjs/router";
 import { getJson, needsLogin, eventsUrl } from "./api/client";
 import type { CarState, Info, LiveEvent } from "./api/types";
-import { addEvents, connect, setCars, setInfo, state } from "./state/live";
+import { addEvents, connect, connected, setCars, setInfo, state } from "./state/live";
+import { vin, setVin } from "./state/selection";
 import { loadUpdate } from "./state/update";
-import { Nav } from "./components/Nav";
+import { loadModelInfo } from "./state/carModel";
+import { loadSettings } from "./state/settings";
+import { Nav, carStatus } from "./components/Nav";
 import { Login } from "./components/Login";
+import { Toast } from "./components/Toast";
 import { Placeholder } from "./views/Placeholder";
-
-const [vin, setVin] = createSignal<string>();
-export { vin };
+import { Overview } from "./views/Overview";
+import { Controls } from "./views/Controls";
 
 async function boot(): Promise<Info> {
   const info = await getJson<Info>("/api/info");
   setInfo(info);
   const cars = await getJson<CarState[]>("/api/state");
   setCars(cars);
-  setVin(cars[0]?.vin);
+  if (!vin() || !cars.some((c) => c.vin === vin())) setVin(cars[0]?.vin);
   addEvents((await getJson<LiveEvent[]>("/api/events/recent")).reverse());
+  void loadModelInfo();
+  void loadSettings();
   return info;
 }
 
@@ -26,7 +31,13 @@ function Shell(props: ParentProps) {
   return (
     <div class="shell">
       <Nav carName={carName()} />
-      <div><main>{props.children}</main></div>
+      <div>
+        <div class="mobile-top">
+          <b>{carName() ?? "Tesla Bridge"}</b>
+          <div class="conn-mini"><span class={`dot ${connected() ? "ok" : "bad"}`} /><span>{carStatus().text}</span></div>
+        </div>
+        <main>{props.children}</main>
+      </div>
     </div>
   );
 }
@@ -48,24 +59,27 @@ export function App() {
   onCleanup(() => stop?.());
 
   return (
-    <Switch>
-      <Match when={needsLogin()}>
-        <Login onDone={() => { void refetch(); }} />
-      </Match>
-      <Match when={ready.error}>
-        <div class="panel login"><h1>Tesla Bridge</h1><p class="muted">{String(ready.error?.message ?? ready.error)}</p></div>
-      </Match>
-      <Match when={ready()}>
-        <HashRouter root={Shell}>
-          <Route path="/overview" component={() => <Placeholder view="overview" phase="2.2" />} />
-          <Route path="/controls" component={() => <Placeholder view="controls" phase="2.2" />} />
-          <Route path="/data" component={() => <Placeholder view="data" phase="2.3" />} />
-          <Route path="/usage" component={() => <Placeholder view="usage" phase="2.3" />} />
-          <Route path="/settings" component={() => <Placeholder view="settings" phase="2.4" />} />
-          <Route path="/setup" component={() => <Placeholder view="setup" phase="2.4" />} />
-          <Route path="*" component={() => <Navigate href="/overview" />} />
-        </HashRouter>
-      </Match>
-    </Switch>
+    <>
+      <Switch>
+        <Match when={needsLogin()}>
+          <Login onDone={() => { void refetch(); }} />
+        </Match>
+        <Match when={ready.error}>
+          <div class="panel login"><h1>Tesla Bridge</h1><p class="muted">{String(ready.error?.message ?? ready.error)}</p></div>
+        </Match>
+        <Match when={ready()}>
+          <HashRouter root={Shell}>
+            <Route path="/overview" component={Overview} />
+            <Route path="/controls" component={Controls} />
+            <Route path="/data" component={() => <Placeholder view="data" phase="2.3" />} />
+            <Route path="/usage" component={() => <Placeholder view="usage" phase="2.3" />} />
+            <Route path="/settings" component={() => <Placeholder view="settings" phase="2.4" />} />
+            <Route path="/setup" component={() => <Placeholder view="setup" phase="2.4" />} />
+            <Route path="*" component={() => <Navigate href="/overview" />} />
+          </HashRouter>
+        </Match>
+      </Switch>
+      <Toast />
+    </>
   );
 }

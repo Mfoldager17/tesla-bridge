@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import { createStore, produce, reconcile } from "solid-js/store";
 import type { CarState, CommandStatus, Field, Info, LiveEvent } from "../api/types";
 
-export interface CommandEntry extends CommandStatus { vin: string }
+export interface CommandEntry extends CommandStatus { vin: string; at: string }
 
 export interface LiveState {
   info: Info | null;
@@ -24,7 +24,7 @@ export function applyEvent(s: LiveState, e: LiveEvent): void {
     if (d.value === undefined && !d.source) delete car.fields[d.key];
     else car.fields[d.key] = { value: d.value ?? null, updated_at: d.updated_at ?? e.at, source: d.source ?? "stream" };
   } else if (e.type === "command" && e.vin) {
-    s.commands.unshift({ ...(e.data as unknown as CommandStatus), vin: e.vin });
+    s.commands.unshift({ ...(e.data as unknown as CommandStatus), vin: e.vin, at: e.at });
     if (s.commands.length > MAX_LOG) s.commands.length = MAX_LOG;
   } else {
     s.raw.unshift(e);

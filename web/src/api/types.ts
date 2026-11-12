@@ -39,11 +39,10 @@ export type CommandPhase = "pending" | "waking" | "succeeded" | "failed";
 /** data of a "command" event */
 export interface CommandStatus {
   command: string;
-  phase: CommandPhase;
+  status: CommandPhase;
   transport: string | null;
   error: string | null;
   note: string | null;
-  at: string;
 }
 
 /** GET /api/events (SSE) and /api/events/recent */

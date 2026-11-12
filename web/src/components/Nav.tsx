@@ -4,18 +4,32 @@ import icons from "./navIcons.json";
 import { t, lang, setLang, type Key } from "../i18n";
 import { theme, cycleTheme } from "../theme";
 import { connected, state } from "../state/live";
+import { vin, setVin, val } from "../state/selection";
 import { update } from "../state/update";
 
 export const VIEWS = ["overview", "controls", "data", "usage", "settings", "setup"] as const;
 export type View = (typeof VIEWS)[number];
 
+/** Awake / asleep / waiting for the car – shown in the menu and the phone's top bar. */
+export function carStatus(): { cls: string; text: string } {
+  const online = val<boolean>("online");
+  const text = online === true ? t("car.awake") : online === false ? t("car.asleep") : val("last_seen") ? t("car.waiting") : t("car.unknown");
+  return { cls: online === true ? "ok" : online === false ? "warn" : "", text };
+}
+
 export function Nav(props: { carName?: string }) {
+  const cars = () => Object.entries(state.cars);
   const version = () => update()?.installed_display ?? state.info?.version_display ?? state.info?.version ?? "?";
   return (
     <nav class="side">
       <div class="brand">
         <b>Tesla Bridge</b>
         <span>{props.carName}</span>
+        <Show when={cars().length > 1}>
+          <select value={vin()?.toUpperCase()} onChange={(e) => setVin(e.currentTarget.value)}>
+            <For each={cars()}>{([v, c]) => <option value={v}>{c.name}</option>}</For>
+          </select>
+        </Show>
       </div>
       <div class="navlist" role="list">
         <For each={VIEWS}>
@@ -34,6 +48,7 @@ export function Nav(props: { carName?: string }) {
           <span class={`dot ${state.info?.mqtt_connected ? "ok" : "bad"}`} />
           {state.info?.embedded_broker ? t("mqtt.embedded") : t("mqtt")}
         </div>
+        <div><span class={`dot ${carStatus().cls}`} />{carStatus().text}</div>
       </div>
       <div class="prefs">
         <button type="button" onClick={() => setLang(lang() === "da" ? "en" : "da")}>{t("lang")}</button>

@@ -18,7 +18,7 @@ describe("applyEvent", () => {
   it("keeps a bounded command log, newest first", () => {
     const s = empty();
     for (let i = 0; i < MAX_LOG + 5; i++)
-      applyEvent(s, { type: "command", vin: "VIN1", at: "t", data: { command: `C${i}`, phase: "succeeded", transport: "ble", error: null, note: null, at: "t" } } as LiveEvent);
+      applyEvent(s, { type: "command", vin: "VIN1", at: "t", data: { command: `C${i}`, status: "succeeded", transport: "ble", error: null, note: null } } as LiveEvent);
     expect(s.commands).toHaveLength(MAX_LOG);
     expect(s.commands[0].command).toBe(`C${MAX_LOG + 4}`);
     expect(s.commands[0].vin).toBe("VIN1");

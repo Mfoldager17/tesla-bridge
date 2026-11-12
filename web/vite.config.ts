@@ -10,6 +10,8 @@ export default defineConfig({
     outDir: "../src/TeslaBridge/wwwroot/next",
     emptyOutDir: true,
     target: "es2022",
+    // three.js is its own chunk, only loaded when the 3D car is shown
+    chunkSizeWarningLimit: 700,
   },
   server: {
     port: 5173,
