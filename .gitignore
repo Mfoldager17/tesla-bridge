@@ -15,3 +15,5 @@ __pycache__/
 
 # Your own 3D car model – never commit it (usually licensed per person)
 *.glb
+# …except the bundled Model Y (CC BY-NC 4.0, see its NOTICE.md)
+!src/TeslaBridge/wwwroot/models/model-y.glb

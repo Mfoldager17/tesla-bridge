@@ -4,9 +4,8 @@ using TeslaBridge.Options;
 namespace TeslaBridge.Web;
 
 /// <summary>
-/// Optional 3D model of the car for the dashboard. The bridge ships none (car models are usually
-/// licensed per user); you bring your own .glb, either as a file in ./config/bridge/car.glb or by
-/// uploading it on the dashboard's settings page.
+/// 3D model of the car for the dashboard: the bundled Model Y (CC BY-NC 4.0), or your own .glb –
+/// either as a file in ./config/bridge/car.glb or uploaded on the dashboard's settings page.
 /// </summary>
 public static class CarModelApi
 {
@@ -24,6 +23,19 @@ public static class CarModelApi
         return null;
     }
 
+    public static string BuiltinPath(IWebHostEnvironment env) =>
+        Path.Combine(env.WebRootPath ?? Path.Combine(AppContext.BaseDirectory, "wwwroot"), "models", "model-y.glb");
+
+    public static readonly object BuiltinCredit = new
+    {
+        title = "2025 Tesla Model Y",
+        author = "BloxBloger",
+        url = "https://sketchfab.com/3d-models/2025-tesla-model-y-619601e7800d418da5922c4fa7833f74",
+        license = "CC BY-NC 4.0",
+        license_url = "https://creativecommons.org/licenses/by-nc/4.0/",
+        modified = true,
+    };
+
     /// <summary>glTF binary starts with "glTF" and version 2.</summary>
     internal static bool LooksLikeGlb(ReadOnlySpan<byte> head) =>
         head.Length >= 8 && head[0] == (byte)'g' && head[1] == (byte)'l' && head[2] == (byte)'T' && head[3] == (byte)'F'
@@ -31,13 +43,29 @@ public static class CarModelApi
 
     public static void MapCarModelApi(this RouteGroupBuilder api, BridgeOptions opts)
     {
-        api.MapGet("/car-model/info", () =>
+        // What the Car page shows (settings: builtin / custom / drawing) and which models exist.
+        api.MapGet("/car-model/info", (TeslaBridge.Settings.SettingsStore settings, IWebHostEnvironment env) =>
         {
             var m = Find(opts);
-            return Results.Json(m is null
-                ? new { present = false, source = (string?)null, size = 0L, updated_at = (string?)null, file = opts.Web.CarModelFile }
-                : new { present = true, source = (string?)m.Value.Source, size = new FileInfo(m.Value.Path).Length,
-                        updated_at = (string?)File.GetLastWriteTimeUtc(m.Value.Path).ToString("O"), file = opts.Web.CarModelFile });
+            return Results.Json(new
+            {
+                view = settings.Current.CarView,
+                builtin = File.Exists(BuiltinPath(env)),
+                builtin_credit = BuiltinCredit,
+                present = m is not null,
+                source = m?.Source,
+                size = m is null ? 0L : new FileInfo(m.Value.Path).Length,
+                updated_at = m is null ? null : File.GetLastWriteTimeUtc(m.Value.Path).ToString("O"),
+                file = opts.Web.CarModelFile,
+            });
+        });
+
+        // The Model Y that ships with the bridge (CC BY-NC 4.0 – see wwwroot/models/NOTICE.md).
+        api.MapGet("/car-model/builtin", (IWebHostEnvironment env) =>
+        {
+            var path = BuiltinPath(env);
+            if (!File.Exists(path)) return Results.NotFound();
+            return Results.File(path, "model/gltf-binary", lastModified: File.GetLastWriteTimeUtc(path));
         });
 
         api.MapGet("/car-model", (HttpContext ctx) =>

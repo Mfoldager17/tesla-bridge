@@ -9,3 +9,5 @@ tests
 
 # Never bake a personal 3D model into the image
 **/*.glb
+# …except the bundled Model Y (CC BY-NC 4.0, see its NOTICE.md)
+!src/TeslaBridge/wwwroot/models/model-y.glb

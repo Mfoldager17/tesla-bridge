@@ -16,7 +16,7 @@ public static class SettingsApi
     /// Body: { "fields": { "Location": { "enabled": true, "interval_seconds": 10 } },
     ///         "snapshot_interval_minutes": 60, "push": true } – every part optional.
     /// </summary>
-    internal static (Dictionary<string, FieldSetting>? Fields, int? Snapshot, bool Push) Parse(JsonNode? body)
+    internal static (Dictionary<string, FieldSetting>? Fields, int? Snapshot, bool Push, string? CarView) Parse(JsonNode? body)
     {
         if (body is not JsonObject o) throw new ArgumentException("Expected a JSON object");
         Dictionary<string, FieldSetting>? fields = null;
@@ -33,7 +33,8 @@ public static class SettingsApi
         }
         int? snapshot = o["snapshot_interval_minutes"] is JsonValue sv && sv.TryGetValue(out int m) ? m : null;
         var push = o["push"] is not JsonValue pv || !pv.TryGetValue(out bool p) || p;
-        return (fields, snapshot, push);
+        var carView = o["car_view"] is JsonValue cv && cv.TryGetValue(out string? c) ? c : null;
+        return (fields, snapshot, push, carView);
     }
 
     public static void MapSettingsApi(this RouteGroupBuilder api, BridgeOptions opts)
@@ -47,8 +48,8 @@ public static class SettingsApi
             bool push;
             try
             {
-                (fields, var snapshot, push) = Parse(await JsonNode.ParseAsync(req.Body, cancellationToken: ct));
-                store.Update(fields, snapshot);
+                (fields, var snapshot, push, var carView) = Parse(await JsonNode.ParseAsync(req.Body, cancellationToken: ct));
+                store.Update(fields, snapshot, carView);
             }
             catch (Exception ex) when (ex is ArgumentException or System.Text.Json.JsonException)
             {
@@ -120,6 +121,7 @@ public static class SettingsApi
             ["fields"] = fields,
             ["groups"] = new JsonArray(TelemetryFieldCatalog.Groups.Select(g => (JsonNode?)g).ToArray()),
             ["snapshot_interval_minutes"] = s.SnapshotIntervalMinutes,
+            ["car_view"] = s.CarView,
             ["snapshot_default_minutes"] = SettingsStore.DefaultSnapshotMinutes,
             ["signals_per_dollar"] = UsageTracker.SignalsPerDollar,
             ["credit_usd"] = u.CreditUsd,

@@ -39,11 +39,11 @@ The bridge has its own dashboard on your local network, so you can see and contr
 
 <table>
 <tr>
-<td width="66%"><img src="docs/screenshots/car.png" alt="The car page: a top-down view of the car showing an open rear window and the charge cable plugged in, 68 % battery charging at 10.8 kW towards an 80 % limit, quick actions and status"></td>
+<td width="66%"><img src="docs/screenshots/car.png" alt="The car page: a 3D Model Y with an open rear window marked, 68 % battery charging at 10.8 kW towards an 80 % limit, quick actions and status"></td>
 <td><img src="docs/screenshots/phone-car.png" alt="The car page on a phone in light mode"></td>
 </tr>
 <tr>
-<td><b>Car</b> – live view of doors, frunk, trunk, windows, charge cable and lock; battery, range and charging; quick actions.</td>
+<td><b>Car</b> – the car in 3D with open doors, windows, frunk, trunk and charge port live; battery, range and charging; quick actions.</td>
 <td><b>On a phone</b></td>
 </tr>
 <tr>
@@ -64,7 +64,7 @@ The bridge has its own dashboard on your local network, so you can see and contr
 </tr>
 </table>
 
-<sub>Screenshots use test data from the built-in simulator.</sub>
+<sub>Screenshots use test data from the built-in simulator. 3D model: “2025 Tesla Model Y” by BloxBloger, CC BY-NC 4.0, modified – see <a href="#car-view-3d-model-or-drawing">Credits</a>.</sub>
 
 ---
 
@@ -414,23 +414,26 @@ Changes to `docker-compose.yml` itself (rare) are fetched with the same `curl` a
 
 The bridge has a built-in dashboard at `http://<server-IP>:8090` (`http://localhost:8080` when testing locally). It works on a phone too, follows your system's light/dark mode, and is in English or Danish (switch in the sidebar).
 
-- **Car**: a top-down view of the car – or [your own 3D model](#your-own-3d-model) – that shows open doors, frunk, trunk, windows and the charge cable live, the battery with range and charge limit, quick actions, and the latest commands with their status (*sent → waking the car → done/failed*)
+- **Car**: the car in 3D – or a drawing, see [Car view](#car-view-3d-model-or-drawing) – showing open doors, frunk, trunk, windows and the charge cable live, the battery with range and charge limit, quick actions, and the latest commands with their status (*sent → waking the car → done/failed*)
 - **Controls**: everything you can do from Home Assistant – climate, Keep/Dog/Camp, seat and steering wheel heat, charging, locks, sentry, guest/valet mode, frunk, trunk, windows, HomeLink. Purple means the bridge is waiting for the car to confirm
 - **Data**: every value with its source (`stream`, `snapshot`, `optimistic`, `restored`, `bridge`) and age, the raw telemetry exactly as the car sent it, and the telemetry status on the car
 - **Usage**: the month's signals, commands, wakes and data requests, priced at Tesla's rates, with a projection to the end of the month
 - **Settings**: how often the car sends each value, and how often a snapshot is fetched – see [Fields and intervals](#fields-and-intervals)
 - **Setup**: domain, Tesla login, pairing and telemetry status, step by step
 
-### Your own 3D model
+### Car view: 3D model or drawing
 
-The Car page can show your car in 3D instead of the drawing: it turns slowly, you can drag it around, doors swing open when they are open, wheels spin while driving, the cabin glows warm or cool when climate is on, and you can tap the frunk, trunk and charge port to open them. A palette button changes the paint and interior colour.
+Under **Settings → Car view** you choose what the Car page shows:
 
-The bridge doesn't include a model, because 3D car models are usually licensed to the person who bought them. Add your own glTF binary (`.glb`, up to 80 MB) in one of two ways:
+| Option | |
+|---|---|
+| **Model Y in 3D** (default) | The Model Y that ships with the bridge. It turns slowly, you can drag it around, doors swing open when they are open, wheels spin while driving, the cabin glows warm or cool when climate is on, and you can tap the frunk, trunk and charge port to open them. A palette button changes the paint and interior colour |
+| **Your own 3D model** | Upload a `.glb` of your own car – same features if it is prepared as described below |
+| **Drawing** | A simple top-down drawing. No 3D, light on old devices |
 
-- **Settings → 3D model of the car → Upload .glb file** (saved as `data/car-model.glb`), or
-- put the file on the server as `config/bridge/car.glb`.
+If a 3D model can't be loaded (or the device has no WebGL), the page shows the drawing.
 
-Any `.glb` is shown. Convert `.obj`, `.fbx` or `.gltf` in Blender (*File → Export → glTF 2.0*, format *glTF Binary*). For the animations and colour picker, name the parts like this:
+**Your own model.** Upload a glTF binary (`.glb`, up to 80 MB) under Settings – it is saved as `data/car-model.glb` – or put the file on the server as `config/bridge/car.glb`. Convert `.obj`, `.fbx` or `.gltf` in Blender (*File → Export → glTF 2.0*, format *glTF Binary*). Any `.glb` is shown; for the animations and colour picker, name the parts like this:
 
 | What | Name |
 |---|---|
@@ -440,7 +443,9 @@ Any `.glb` is shown. Convert `.obj`, `.fbx` or `.gltf` in Blender (*File → Exp
 | Interior colour | materials `seats` (and `trim2`) |
 | Orientation | front towards +Z, driver's side (left) towards +X, wheels on Y = 0, metres |
 
-Without a model, or if it can't be loaded, the page shows the drawing. `*.glb` is in `.gitignore` and `.dockerignore`, so a model never ends up in Git or in an image you build yourself. The 3D view uses [three.js](https://threejs.org) (MIT), bundled in the image, so it works without internet.
+Other `.glb` files are kept out of Git and out of images you build yourself (`.gitignore`, `.dockerignore`), so a model you bought can't end up public by accident. Check the licence before you share a model.
+
+**Credits.** The bundled model is [“2025 Tesla Model Y”](https://sketchfab.com/3d-models/2025-tesla-model-y-619601e7800d418da5922c4fa7833f74) by **BloxBloger**, licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), modified for Tesla Bridge (converted to `.glb`, simplified, doors, wheels and seats split into animatable parts, new materials). The model is **not** covered by the rest of this repository's licence and may only be used non-commercially – see [`src/TeslaBridge/wwwroot/models/NOTICE.md`](src/TeslaBridge/wwwroot/models/NOTICE.md). The 3D view uses [three.js](https://threejs.org) (MIT), bundled in the image so it works without internet. Tesla and Model Y are trademarks of Tesla, Inc.; this project is not affiliated with Tesla.
 
 The dashboard can unlock your car. Always set `Bridge__Web__Token`, and **never forward port 8090**. The public port 8091 only answers with the public key and the login callback. `Bridge__Web__Enabled=false` turns off the dashboard and the HTTP API – way B then stops working.
 
@@ -519,7 +524,8 @@ Token: `Authorization: Bearer <token>` (or `?token=` in the URL).
 | `GET /api/settings` | telemetry fields with intervals, on/off and this month's signal count, plus the snapshot interval |
 | `PUT /api/settings` | change them: `{"fields": {"Location": {"enabled": true, "interval_seconds": 10}}, "snapshot_interval_minutes": 60}` – saved and sent to the car |
 | `POST /api/settings/reset` | back to the defaults |
-| `GET /api/car-model` · `/api/car-model/info` | your 3D model (if any) and its status |
+| `GET /api/car-model/info` | the chosen car view and which models exist |
+| `GET /api/car-model` · `/api/car-model/builtin` | your uploaded model, or the bundled Model Y |
 | `POST /api/car-model` · `DELETE /api/car-model` | upload (body = the .glb) or remove the uploaded model |
 
 ```bash
@@ -575,7 +581,7 @@ tesla-bridge/
 │   ├── Mqtt/                       connection with reconnect and Last Will, embedded broker
 │   ├── Settings/                   settings page: stored settings + description of every telemetry field
 │   ├── Web/                        HTTP API, live events (SSE), 3D model upload
-│   ├── wwwroot/                    dashboard: index.html, car3d.js (3D view), vendor/three (three.js, MIT)
+│   ├── wwwroot/                    dashboard: index.html, car3d.js (3D view), models/ (bundled Model Y, CC BY-NC), vendor/three (MIT)
 │   └── Auth/, Usage/               Tesla login and usage tracking
 ├── tests/TeslaBridge.Tests/        .NET tests
 └── tests/ha/                       the integration against a running bridge (pytest-homeassistant-custom-component)

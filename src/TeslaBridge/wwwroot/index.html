@@ -270,6 +270,14 @@
   @media (max-width: 860px) { .savebar { bottom: 78px; padding: 12px 14px; gap: 8px; } .savebar .est { flex-basis: 100%; font-size: 13px; } .savebar .est b { font-size: 16px; } .savebar button { padding: 6px 10px; font-size: 13px; } .savebar.dirty #setReset { display: none; } }
   .savebar .est { flex: 1; min-width: 200px; font-size: 14px; }
   .savebar .est b { font-size: 18px; font-weight: 500; }
+  .views { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .view-opt { text-align: left; padding: 12px 14px; display: grid; gap: 2px; }
+  .view-opt b { font-weight: 500; }
+  .view-opt span { color: var(--muted); font-size: 13px; }
+  .view-opt[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .view-opt:disabled { opacity: .5; }
+  .credit { font-size: 12px; color: var(--faint); text-align: center; margin-top: 4px; }
+  .credit a { color: inherit; }
   .btnlike { display: inline-block; background: var(--accent); color: var(--accent-ink); border-radius: var(--r-sm); padding: 7px 13px; font-size: 14px; font-weight: 500; }
   label:focus-within .btnlike { outline: 2px solid var(--accent); outline-offset: 2px; }
   .note { border-left: 3px solid var(--accent); padding: 8px 12px; background: var(--raise); border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: 14px; margin: 12px 0; }
@@ -364,6 +372,7 @@
               </g>
             </svg>
             <div class="car-legend" id="legend3d" hidden></div>
+            <div class="credit" id="credit3d" hidden></div>
             <div class="car-legend" id="legendPlan"><span><i style="background:var(--warn)"></i><span data-t="car.open"></span></span><span><i style="background:var(--charge)"></i><span data-t="car.plugged"></span></span><span><i style="background:var(--pending)"></i><span data-t="car.pending"></span></span></div>
           </div>
           <div class="battery">
@@ -469,9 +478,12 @@
         <div class="panel">
           <h2 data-t="model.title"></h2>
           <p class="sub" data-t="model.sub"></p>
+          <div class="views" id="carViews" role="radiogroup"></div>
+          <div id="customBox">
           <p id="modelStatus" class="small"></p>
           <div class="toolbar"><label class="primary" id="modelPick" style="cursor:pointer"><input type="file" id="modelFile" accept=".glb,model/gltf-binary" hidden><span class="btnlike" data-t="model.upload"></span></label><button type="button" class="danger" id="modelRemove" data-t="model.remove" hidden></button></div>
           <details class="small muted"><summary data-t="model.howTitle"></summary><p data-t="model.how1"></p><p data-t="model.how2"></p></details>
+          </div>
         </div>
 
         <div class="panel">
@@ -587,7 +599,10 @@ const T = {
     "hs.frunk": "Frunk", "hs.trunk": "Trunk", "hs.port": "Charge port", "hs.fl": "Front left", "hs.fr": "Front right", "hs.rl": "Rear left", "hs.rr": "Rear right",
     "door": "door", "window": "window", "confirm.frunk": "Open the frunk?", "confirm.trunkOpen": "Open the trunk?", "frunkManual": "The frunk is closed by hand.",
     "paint.white": "White", "paint.grey": "Grey", "paint.silver": "Silver", "paint.black": "Black", "paint.red": "Red", "paint.blue": "Blue",
-    "model.title": "3D model of the car", "model.sub": "Show your car in 3D on the Car page instead of the drawing. The bridge doesn't include a model – car models are usually licensed per person – so you add your own .glb file.",
+    "model.title": "Car view", "model.sub": "What the Car page shows.",
+    "view.builtin": "Model Y in 3D", "view.builtinSub": "Included with the bridge", "view.custom": "Your own 3D model", "view.customSub": "Upload a .glb of your car",
+    "view.drawing": "Drawing", "view.drawingSub": "Simple and light, no 3D", "view.noCustom": "Upload a model first",
+    "credit": "3D model: <a href=\"{0}\" target=\"_blank\" rel=\"noopener\">“{1}”</a> by {2}, <a href=\"{3}\" target=\"_blank\" rel=\"noopener\">{4}</a>, modified",
     "model.none": "No model yet – the Car page shows the drawing.", "model.has": "Using {0} ({1} MB, {2}).", "model.srcUploaded": "the uploaded model", "model.srcFile": "{0}",
     "model.upload": "Upload .glb file", "model.replace": "Replace model", "model.remove": "Remove uploaded model", "model.uploading": "Uploading…", "model.uploaded": "Uploaded.",
     "model.howTitle": "Which models work?", "model.how1": "Any glTF binary (.glb) shows, up to 80 MB. Convert .obj, .fbx or .gltf to .glb in Blender (File → Export → glTF 2.0, format glTF Binary). Instead of uploading, you can also put the file in ./config/bridge/car.glb on the server.",
@@ -671,7 +686,10 @@ const T = {
     "hs.frunk": "Frunk", "hs.trunk": "Bagklap", "hs.port": "Ladeport", "hs.fl": "Foran venstre", "hs.fr": "Foran højre", "hs.rl": "Bag venstre", "hs.rr": "Bag højre",
     "door": "dør", "window": "rude", "confirm.frunk": "Åbn frunken?", "confirm.trunkOpen": "Åbn bagklappen?", "frunkManual": "Frunken lukkes med hånden.",
     "paint.white": "Hvid", "paint.grey": "Grå", "paint.silver": "Sølv", "paint.black": "Sort", "paint.red": "Rød", "paint.blue": "Blå",
-    "model.title": "3D-model af bilen", "model.sub": "Vis din bil i 3D på Bil-siden i stedet for tegningen. Bridgen har ingen model med – bilmodeller er som regel licenseret til den enkelte – så du lægger din egen .glb-fil ind.",
+    "model.title": "Visning af bilen", "model.sub": "Hvad Bil-siden viser.",
+    "view.builtin": "Model Y i 3D", "view.builtinSub": "Følger med bridgen", "view.custom": "Din egen 3D-model", "view.customSub": "Upload en .glb af din bil",
+    "view.drawing": "Tegning", "view.drawingSub": "Enkel og let, uden 3D", "view.noCustom": "Upload en model først",
+    "credit": "3D-model: <a href=\"{0}\" target=\"_blank\" rel=\"noopener\">“{1}”</a> af {2}, <a href=\"{3}\" target=\"_blank\" rel=\"noopener\">{4}</a>, ændret",
     "model.none": "Ingen model endnu – Bil-siden viser tegningen.", "model.has": "Bruger {0} ({1} MB, {2}).", "model.srcUploaded": "den uploadede model", "model.srcFile": "{0}",
     "model.upload": "Upload .glb-fil", "model.replace": "Udskift model", "model.remove": "Fjern uploadet model", "model.uploading": "Uploader…", "model.uploaded": "Uploadet.",
     "model.howTitle": "Hvilke modeller virker?", "model.how1": "Alle glTF binary-filer (.glb) vises, op til 80 MB. Konvertér .obj, .fbx eller .gltf til .glb i Blender (File → Export → glTF 2.0, format glTF Binary). I stedet for at uploade kan du også lægge filen i ./config/bridge/car.glb på serveren.",
@@ -1297,37 +1315,65 @@ async function loadModel() {
   try { modelInfo = await getJson("/api/car-model/info"); } catch { modelInfo = null; }
   renderModelStatus();
   if (car3d) { car3d.dispose(); car3d = null; $("c3d").classList.remove("ready"); }
-  if (!modelInfo?.present || !window.WebGLRenderingContext) { showPlan(true); return; }
+  const m = modelInfo;
+  // the chosen view, falling back when its model is missing
+  let src = null;
+  if (m && m.view === "custom" && m.present) src = "/api/car-model";
+  else if (m && m.view !== "drawing" && m.builtin) src = "/api/car-model/builtin";
+  const builtin = src === "/api/car-model/builtin";
+  $("credit3d").hidden = !builtin;
+  if (builtin && m.builtin_credit) { const c = m.builtin_credit; $("credit3d").innerHTML = t("credit", esc(c.url), esc(c.title), esc(c.author), esc(c.license_url), esc(c.license)); }
+  if (!src || !window.WebGLRenderingContext) { showPlan(true); return; }
   showPlan(false);
   try {
-    const [buf, mod] = await Promise.all([(await api("/api/car-model")).arrayBuffer(), import("./car3d.js")]);
+    const [buf, mod] = await Promise.all([(await api(src)).arrayBuffer(), import("./car3d.js")]);
     window.__PAINTS = mod.PAINTS.map(([k, c]) => [k, c]); window.__INTERIORS = mod.INTERIORS;
     car3d = await mod.mount($("c3d"), buf, { labels: hsLabels(), onHotspot });
     car3d.setColors(carColors); renderPicker(); update3d();
   } catch (e) {
     console.warn("3D model could not be shown, falling back to the drawing", e);
-    showPlan(true);
+    showPlan(true); $("credit3d").hidden = true;
   }
 }
 function renderModelStatus() {
   const m = modelInfo;
   if (!m) return;
+  const opts = [["builtin", m.builtin], ["custom", m.present], ["drawing", true]];
+  $("carViews").innerHTML = opts.map(([v, ok]) =>
+    `<button type="button" class="view-opt" role="radio" aria-checked="${m.view === v}" data-view-opt="${v}" ${ok || v === "custom" ? "" : "disabled"}><b>${t("view." + v)}</b><span>${v === "custom" && !ok ? t("view.noCustom") : t("view." + v + "Sub")}</span></button>`).join("");
   $("modelStatus").textContent = m.present
     ? t("model.has", m.source === "uploaded" ? t("model.srcUploaded") : m.file, nf(m.size / 1048576, 1), new Date(m.updated_at).toLocaleDateString(locale()))
-    : t("model.none");
+    : "";
+  $("modelStatus").hidden = !m.present;
   $("modelRemove").hidden = !(m.present && m.source === "uploaded");
   document.querySelector("#modelPick .btnlike").textContent = m.present ? t("model.replace") : t("model.upload");
 }
+async function setCarView(view) {
+  await api("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ car_view: view, push: false }) });
+  await loadModel();
+}
+$("carViews").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-view-opt]"); if (!b || b.disabled) return;
+  if (b.dataset.viewOpt === "custom" && !modelInfo?.present) { $("modelFile").click(); return; }
+  setCarView(b.dataset.viewOpt);
+});
 $("modelFile").onchange = async (e) => {
   const f = e.target.files[0]; if (!f) return;
   const lbl = document.querySelector("#modelPick .btnlike"); lbl.textContent = t("model.uploading");
   try {
     const r = await api("/api/car-model", { method: "POST", headers: { "Content-Type": "model/gltf-binary" }, body: f });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) toast(j.error || String(r.status)); else toast(t("model.uploaded"));
-  } finally { e.target.value = ""; await loadModel(); }
+    if (!r.ok) { toast(j.error || String(r.status)); return; }
+    toast(t("model.uploaded"));
+    e.target.value = ""; await setCarView("custom"); return;
+  } finally { e.target.value = ""; }
+  await loadModel();
 };
-$("modelRemove").onclick = async () => { if (!confirm(t("confirm.removeModel"))) return; await api("/api/car-model", { method: "DELETE" }); await loadModel(); };
+$("modelRemove").onclick = async () => {
+  if (!confirm(t("confirm.removeModel"))) return;
+  await api("/api/car-model", { method: "DELETE" });
+  if (modelInfo?.view === "custom") await setCarView("builtin"); else await loadModel();
+};
 
 // ===================================================================== live
 function setLive(ok) {

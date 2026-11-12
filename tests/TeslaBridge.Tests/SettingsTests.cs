@@ -79,11 +79,13 @@ public class SettingsTests : IDisposable
     [Fact]
     public void Api_body_is_snake_case()
     {
-        var (fields, snapshot, push) = SettingsApi.Parse(JsonNode.Parse(
+        var (fields, snapshot, push, carView) = SettingsApi.Parse(JsonNode.Parse(
             """{ "fields": { "Location": { "enabled": false, "interval_seconds": 10 } }, "snapshot_interval_minutes": 15, "push": false }"""));
         Assert.Equal(new FieldSetting(false, 10), fields!["Location"]);
         Assert.Equal(15, snapshot);
         Assert.False(push);
+        Assert.Null(carView);
+        Assert.Equal("drawing", SettingsApi.Parse(JsonNode.Parse("""{ "car_view": "drawing" }""")).CarView);
         Assert.Throws<ArgumentException>(() => SettingsApi.Parse(JsonNode.Parse("""{ "fields": { "Location": { "enabled": true } } }""")));
     }
 
@@ -94,5 +96,33 @@ public class SettingsTests : IDisposable
         var fields = JsonNode.Parse(File.ReadAllText(real))!["fields"]!.AsObject();
         Assert.All(fields, kv => Assert.True(TelemetryFieldCatalog.Fields.ContainsKey(kv.Key), kv.Key));
         Assert.All(TelemetryFieldCatalog.Fields.Values, f => Assert.Contains(f.Group, TelemetryFieldCatalog.Groups));
+    }
+}
+
+public class CarViewTests : IDisposable
+{
+    private readonly string _dir = Directory.CreateTempSubdirectory("carview").FullName;
+    public void Dispose() => Directory.Delete(_dir, true);
+
+    [Fact]
+    public void Car_view_is_saved_validated_and_survives_a_reset()
+    {
+        var defaults = Path.Combine(_dir, "f.json");
+        File.WriteAllText(defaults, """{ "fields": { "Locked": { "interval_seconds": 1 } } }""");
+        var s = new SettingsStore(Path.Combine(_dir, "s.json"), defaults);
+        Assert.Equal("builtin", s.Current.CarView);
+        s.Update(null, null, "drawing");
+        Assert.Equal("drawing", new SettingsStore(Path.Combine(_dir, "s.json"), defaults).Current.CarView);
+        Assert.Throws<ArgumentException>(() => s.Update(null, null, "hologram"));
+        s.Reset();
+        Assert.Equal("drawing", s.Current.CarView);
+    }
+
+    [Fact]
+    public void Builtin_model_ships_with_its_attribution()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/TeslaBridge/wwwroot/models"));
+        Assert.True(TeslaBridge.Web.CarModelApi.LooksLikeGlb(File.ReadAllBytes(Path.Combine(root, "model-y.glb")).AsSpan(0, 8)));
+        Assert.Contains("BloxBloger", File.ReadAllText(Path.Combine(root, "NOTICE.md")));
     }
 }

@@ -17,12 +17,17 @@ public sealed class BridgeSettings
 
     /// <summary>Minutes between snapshots from the Fleet API when the car wakes up. 0 = off.</summary>
     public int SnapshotIntervalMinutes { get; set; } = SettingsStore.DefaultSnapshotMinutes;
+
+    /// <summary>What the dashboard's Car page shows: "builtin" (the bundled Model Y), "custom" (your upload) or "drawing".</summary>
+    public string CarView { get; set; } = SettingsStore.DefaultCarView;
 }
 
 /// <summary>Reads and writes <see cref="BridgeSettings"/>; thread-safe. Invalid values are rejected on update.</summary>
 public sealed class SettingsStore
 {
     public const int DefaultSnapshotMinutes = 60;
+    public const string DefaultCarView = "builtin";
+    public static readonly string[] CarViews = ["builtin", "custom", "drawing"];
     public const int MinInterval = 1;
     public const int MaxInterval = 86_400;
 
@@ -84,8 +89,9 @@ public sealed class SettingsStore
     }
 
     /// <summary>Applies changes. Fields set back to their default are removed from the file.</summary>
-    public BridgeSettings Update(IReadOnlyDictionary<string, FieldSetting>? fields, int? snapshotMinutes)
+    public BridgeSettings Update(IReadOnlyDictionary<string, FieldSetting>? fields, int? snapshotMinutes, string? carView = null)
     {
+        if (carView is not null && !CarViews.Contains(carView)) throw new ArgumentException($"car_view must be one of {string.Join(", ", CarViews)}");
         var defaults = Defaults;
         if (fields is not null)
             foreach (var (name, f) in fields)
@@ -107,6 +113,7 @@ public sealed class SettingsStore
                     else next.TelemetryFields[name] = f;
                 }
             if (snapshotMinutes is { } m) next.SnapshotIntervalMinutes = m;
+            if (carView is not null) next.CarView = carView;
             Save(_file, next);
             _current = next;
             saved = Clone(next);
@@ -115,11 +122,12 @@ public sealed class SettingsStore
         return saved;
     }
 
+    /// <summary>Back to the default telemetry fields and snapshot interval. The car view is kept – it isn't about the car's data.</summary>
     public BridgeSettings Reset()
     {
         lock (_lock)
         {
-            _current = new BridgeSettings();
+            _current = new BridgeSettings { CarView = _current.CarView };
             Save(_file, _current);
         }
         Changed?.Invoke();
@@ -154,5 +162,6 @@ public sealed class SettingsStore
     {
         TelemetryFields = new Dictionary<string, FieldSetting>(s.TelemetryFields, StringComparer.Ordinal),
         SnapshotIntervalMinutes = s.SnapshotIntervalMinutes,
+        CarView = CarViews.Contains(s.CarView) ? s.CarView : DefaultCarView,
     };
 }
