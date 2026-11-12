@@ -61,6 +61,12 @@ public sealed class MqttOptions
 public sealed class TeslaOptions
 {
     public string Region { get; set; } = "eu";
+
+    /// <summary>
+    /// Register the partner domain with Tesla by itself when it isn't registered yet (the "Register" step on
+    /// the setup page). Never replaces a different key that is already registered.
+    /// </summary>
+    public bool AutoRegister { get; set; } = true;
     public string ClientId { get; set; } = "";
     public string ClientSecret { get; set; } = "";
     public string RedirectUri { get; set; } = "";

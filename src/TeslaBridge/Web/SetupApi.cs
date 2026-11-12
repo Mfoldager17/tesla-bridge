@@ -226,7 +226,7 @@ public static class SetupApi
 
     internal sealed record RegisteredCheck(bool Registered, bool Matches, string? Error, DateTimeOffset At);
 
-    private static bool HasCredentials(BridgeOptions o) =>
+    internal static bool HasCredentials(BridgeOptions o) =>
         !string.IsNullOrWhiteSpace(o.Tesla.ClientId) && !string.IsNullOrWhiteSpace(o.Tesla.ClientSecret) && !string.IsNullOrWhiteSpace(o.PartnerDomain);
 
     private static TeslaKey.PublicKeyInfo? SafeKey(TeslaKey key, out string? error)

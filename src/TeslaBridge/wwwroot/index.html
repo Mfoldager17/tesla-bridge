@@ -668,8 +668,8 @@ const T = {
     "setup.lede": "The steps to connect the bridge to your car. Everything here is a one-time job.", "setup.check": "Check status at Tesla", "setup.summary": "{0} of {1} done",
     "s.key": "The app's key", "s.keyOk": "Fingerprint {0}. Published at {1}", "s.keyMissing": "No key in {0}. Restart the bridge and it will be created.",
     "s.app": "App details in .env", "s.appOk": "Partner domain {0}, redirect {1}", "s.appMissing": "Set Bridge__Tesla__ClientId, Bridge__Tesla__ClientSecret and Bridge__Telemetry__Hostname in .env and restart.",
-    "s.reg": "Domain registered with Tesla", "s.regUnknown": "Not checked yet. The public key must be reachable from the internet before you register.", "s.regOk": "Tesla has the same key as the bridge.",
-    "s.regOther": "Tesla has a DIFFERENT key registered for the domain. Press Register to update it.", "s.regNo": "Not registered yet.", "s.register": "Register",
+    "s.reg": "Domain registered with Tesla", "s.regUnknown": "Not checked yet. The bridge registers by itself as soon as the public key is reachable from the internet.", "s.regOk": "Tesla has the same key as the bridge.",
+    "s.regOther": "Tesla has a DIFFERENT key registered for the domain. Press Register to update it.", "s.regNo": "Not registered yet. The bridge keeps trying by itself – is the public key reachable from the internet?", "s.register": "Register",
     "s.login": "Signed in with Tesla", "s.loginOk": "The bridge has access to your car.", "s.loginNo": "Opens Tesla's sign-in page, then a page that confirms the sign-in.",
     "s.loginBtn": "Sign in with Tesla", "s.loginAgain": "Sign in again",
     "s.pair": "Virtual key in the car", "s.pairOk": "The car has the app's key.", "s.pairNo": "Scan with the phone that has the Tesla app, or open the link. Then tap your key card in the car.",
@@ -756,8 +756,8 @@ const T = {
     "setup.lede": "Trinene der forbinder bridgen med din bil. Det er noget, man gør én gang.", "setup.check": "Tjek status hos Tesla", "setup.summary": "{0} af {1} færdige",
     "s.key": "Appens nøgle", "s.keyOk": "Fingeraftryk {0}. Offentliggjort på {1}", "s.keyMissing": "Ingen nøgle i {0}. Genstart bridgen, så laves den.",
     "s.app": "App-oplysninger i .env", "s.appOk": "Partnerdomæne {0}, redirect {1}", "s.appMissing": "Sæt Bridge__Tesla__ClientId, Bridge__Tesla__ClientSecret og Bridge__Telemetry__Hostname i .env, og genstart.",
-    "s.reg": "Domænet registreret hos Tesla", "s.regUnknown": "Ikke tjekket endnu. Den offentlige nøgle skal kunne hentes fra internettet, før du registrerer.", "s.regOk": "Tesla har samme nøgle som bridgen.",
-    "s.regOther": "Tesla har en ANDEN nøgle registreret på domænet. Tryk Registrér for at opdatere.", "s.regNo": "Ikke registreret endnu.", "s.register": "Registrér",
+    "s.reg": "Domænet registreret hos Tesla", "s.regUnknown": "Ikke tjekket endnu. Bridgen registrerer selv, så snart den offentlige nøgle kan hentes fra internettet.", "s.regOk": "Tesla har samme nøgle som bridgen.",
+    "s.regOther": "Tesla har en ANDEN nøgle registreret på domænet. Tryk Registrér for at opdatere.", "s.regNo": "Ikke registreret endnu. Bridgen prøver selv igen – kan den offentlige nøgle hentes fra internettet?", "s.register": "Registrér",
     "s.login": "Logget ind hos Tesla", "s.loginOk": "Bridgen har adgang til din bil.", "s.loginNo": "Åbner Teslas login og derefter en side, der bekræfter det.",
     "s.loginBtn": "Log ind med Tesla", "s.loginAgain": "Log ind igen",
     "s.pair": "Virtuel nøgle i bilen", "s.pairOk": "Bilen har appens nøgle.", "s.pairNo": "Scan med telefonen, hvor Tesla-appen er, eller åbn linket. Bip derefter nøglekortet i bilen.",
@@ -807,6 +807,9 @@ $("btnLang").onclick = () => { lang = lang === "da" ? "en" : "da"; store.set("tb
 
 // ===================================================================== API
 let token = store.get("tb_token") || "";
+// install.sh prints a link with ?token=… – remember it and remove it from the address bar
+{ const u = new URL(location.href), q = u.searchParams.get("token");
+  if (q) { token = q; store.set("tb_token", q); u.searchParams.delete("token"); history.replaceState(null, "", u.pathname + u.search + u.hash); } }
 async function api(path, opts = {}) {
   const headers = Object.assign({}, opts.headers || {});
   if (token) headers.Authorization = "Bearer " + token;

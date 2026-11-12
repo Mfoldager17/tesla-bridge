@@ -99,6 +99,7 @@ services.AddHostedService(sp => sp.GetRequiredService<TelemetryConfigService>())
 // Test-dashboard
 services.AddSingleton<LiveEvents>();
 services.AddHostedService<LiveEventsBridge>();
+services.AddHostedService<TeslaBridge.Auth.PartnerAutoRegistration>();
 var web = builder.Configuration.GetSection("Bridge:Web").Get<WebOptions>() ?? new WebOptions();
 builder.WebHost.UseUrls($"http://0.0.0.0:{web.Port}", $"http://0.0.0.0:{web.PublicPort}");
 

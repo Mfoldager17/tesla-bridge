@@ -72,7 +72,7 @@ The bridge has its own dashboard on your local network, so you can see and contr
 
 1. [How it fits together](#how-it-fits-together)
 2. [Requirements](#requirements)
-3. [Installation](#installation) (steps 1–8, with A and B along the way)
+3. [Installation](#installation) – [setup script](#quick-install-with-the-setup-script) or [by hand](#manual-installation) (steps 1–8)
 4. [Switching between MQTT and the integration](#switching-between-mqtt-and-the-integration)
 5. [Entities in Home Assistant](#entities-in-home-assistant)
 6. [Updating](#updating)
@@ -147,6 +147,37 @@ Way B only:
 ---
 
 ## Installation
+
+There are two ways to install. Both end up with exactly the same setup, and you can switch between them – the script reads and writes the same `.env`.
+
+### Quick install with the setup script
+
+On the server, run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/install.sh | bash
+```
+
+It asks a few questions and does the rest:
+
+| The script does | You do |
+|---|---|
+| Checks Docker, picks the folder, downloads `docker-compose.yml` | – |
+| Checks your domain (no "tesla" in it, DNS points to you, not Cloudflare-proxied) | Create the DNS record |
+| Prints exactly what to type when you create the Tesla app | Create the app at developer.tesla.com and paste the Client ID/Secret |
+| MQTT: uses the built-in broker, **or** finds your Mosquitto container and creates both users with random passwords | Pick one |
+| Writes `.env` (PUID/PGID, dashboard token, everything else) and backs up the old one | – |
+| Finds your domain's certificate in Nginx Proxy Manager, copies it to fleet-telemetry and renews it weekly (root crontab, `renew-cert.sh`) | Create the proxy host in NPM (the script shows the values) |
+| Pulls the images, starts everything, checks that the public key is reachable from outside | Forward TCP 4443 in your router |
+| Prints a link to the dashboard that signs you in | Sign in with Tesla and pair the key at the car (QR code) |
+
+Registering the domain with Tesla happens by itself once the public key is reachable (the bridge retries every 10 minutes, then every 6 hours; turn it off with `Bridge__Tesla__AutoRegister=false`). It never replaces a different key that is already registered.
+
+Run the script again whenever you like – to change an answer, after creating the proxy host, or to update. Your current values are the defaults, so Enter keeps them. `--dry-run` shows what it would do without changing anything; `--dir <folder>` installs somewhere else.
+
+### Manual installation
+
+Prefer to see every step? Follow 1–8 below. You can also mix: run the script and do some steps by hand.
 
 ### 1. Create the app at Tesla
 
@@ -269,7 +300,7 @@ docker compose logs -f tesla-bridge     # A: connected to MQTT 192.168.0.x   B: 
 
 Open `http://<server-IP>:8090` (on your local network only) and sign in with `Bridge__Web__Token`. The **Setup** panel walks you through:
 
-1. **Register the domain with Tesla** (partner registration). Requires `https://<your domain>` to work from the internet.
+1. **Register the domain with Tesla** (partner registration). Happens by itself once `https://<your domain>` works from the internet – the button is there if you want to do it now.
 2. **Sign in with Tesla**.
 3. **Pair the key with the car**: scan the QR code with your phone (opens `tesla.com/_ak/<your domain>`) and approve in the Tesla app while you're at the car.
 4. **Send the telemetry configuration** to the car. This also happens automatically on first start, and it renews itself (it expires after 30 days).
@@ -558,6 +589,7 @@ You can also point a test HA with the integration at `http://<your machine>:8080
 
 ```
 tesla-bridge/
+├── install.sh                      guided setup (curl … | bash)
 ├── docker-compose.yml              all the server needs (+ .env)
 ├── docker-compose.build.yml        build the bridge locally instead of pulling from ghcr.io
 ├── Dockerfile                      amd64 + arm64 (cross-compiled)
