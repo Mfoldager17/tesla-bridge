@@ -16,6 +16,7 @@ Follow the steps in order – each page ends with a link to the next one. Prefer
 
 | | |
 |---|---|
+| [Bluetooth (ESP32)](ble.md) | Optional: free commands and wake-ups while the car is home |
 | [Entities](entities.md) | Everything you get in Home Assistant |
 | [Switching](switching.md) | From MQTT to the integration and back |
 | [Updating](updating.md) | New versions and pinning one |

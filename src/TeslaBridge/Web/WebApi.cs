@@ -45,6 +45,7 @@ public static class WebApi
         api.MapSetupApi(opts);
         api.MapSettingsApi(opts);
         api.MapCarModelApi(opts);
+        api.MapBleApi(opts);
 
         api.MapGet("/info", (MqttConnection mqtt, LiveEvents events) => Results.Json(new
         {

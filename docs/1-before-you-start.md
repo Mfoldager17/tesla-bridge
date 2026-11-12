@@ -137,6 +137,9 @@ Way A only:
 Way B only:
 - **HACS** in Home Assistant (or copy the folder manually, see [step 4](4-home-assistant.md#b-the-tesla-bridge-integration)).
 
+Optional, any time later:
+- **An ESP32** near where the car parks, for free commands and wake-ups over Bluetooth while the car is home ([Bluetooth](ble.md)).
+
 ---
 
 **Next:** [2. Install →](2-install.md)

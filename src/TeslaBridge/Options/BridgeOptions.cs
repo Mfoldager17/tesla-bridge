@@ -102,6 +102,23 @@ public sealed class VehicleOptions
 {
     public string Vin { get; set; } = "";
     public string Name { get; set; } = "Tesla";
+
+    /// <summary>Optional ESP32 next to the car (Bridge__Vehicles__0__Ble__Url). Can also be set on the dashboard.</summary>
+    public BleOptions Ble { get; set; } = new();
+}
+
+/// <summary>
+/// An ESP32 running ESPHome with the Tesla BLE component (esphome/tesla-ble.yaml in this repo), reached over
+/// its built-in web server. When the car is within Bluetooth range, commands and wake-ups go this way –
+/// free, and without the internet. Otherwise the bridge uses the Fleet API as usual.
+/// </summary>
+public sealed class BleOptions
+{
+    /// <summary>e.g. http://192.168.1.50 – empty = no ESP32.</summary>
+    public string Url { get; set; } = "";
+    /// <summary>Only if the ESP32's web_server has auth: set.</summary>
+    public string Username { get; set; } = "";
+    public string Password { get; set; } = "";
 }
 
 public sealed class TelemetryOptions

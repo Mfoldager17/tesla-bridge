@@ -161,6 +161,10 @@ while :; do
   [[ ${#VIN} == 17 ]] && break; warn "A VIN is 17 characters."
 done
 NAME=$(env_get Bridge__Vehicles__0__Name); NAME=$(ask "Name in Home Assistant (becomes the entity ids, e.g. model_y_*)" "${NAME:-Model Y}")
+info "Optional: an ESP32 with Bluetooth where the car parks makes commands and wake-ups free while the car is home"
+info "(see docs/ble.md). You can also add it later on the dashboard under Settings → Bluetooth."
+BLE_URL=$(ask "ESP32 address, e.g. http://192.168.1.50 (empty = none)" "$(env_get Bridge__Vehicles__0__Ble__Url)")
+[[ -n "$BLE_URL" && "$BLE_URL" != http* ]] && BLE_URL="http://$BLE_URL"
 
 # ---------------------------------------------------------------- 6. MQTT
 step "MQTT and Home Assistant"
@@ -225,6 +229,7 @@ Bridge__Tesla__PartnerDomain=$([[ "$PARTNER" != "$TELEMETRY" ]] && echo "$PARTNE
 Bridge__Telemetry__Port=4443
 Bridge__Vehicles__0__Vin=$VIN
 Bridge__Vehicles__0__Name=$NAME
+Bridge__Vehicles__0__Ble__Url=$BLE_URL
 Bridge__Tesla__ClientId=$CLIENT_ID
 Bridge__Tesla__ClientSecret=$CLIENT_SECRET
 

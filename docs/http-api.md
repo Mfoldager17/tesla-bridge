@@ -19,6 +19,9 @@ Token: `Authorization: Bearer <token>` (or `?token=` in the URL).
 | `GET /api/car-model/info` | the chosen car view and which models exist |
 | `GET /api/car-model` · `/api/car-model/builtin` | your uploaded model, or the bundled Model Y |
 | `POST /api/car-model` · `DELETE /api/car-model` | upload (body = the .glb) or remove the uploaded model |
+| `GET /api/ble` | per car: the [ESP32](ble.md) address, whether it's reachable, whether the car is in Bluetooth range, signal, the car's Bluetooth name |
+| `PUT /api/ble/<VIN>` · `DELETE /api/ble/<VIN>` | set the ESP32: `{"url": "http://192.168.1.50", "username": null, "password": null}` (password left out = unchanged), or forget the dashboard setting |
+| `POST /api/ble/<VIN>/pair` · `/wake` | press *Pair BLE key* (then tap the key card in the car) or wake the car over Bluetooth |
 
 ```bash
 T=<token>

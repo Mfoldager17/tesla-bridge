@@ -102,6 +102,8 @@ public sealed class UsageService(
             ["signals_by_field"] = Map(s.SignalsByField),
             ["commands_by_name"] = Map(s.CommandsByName),
             ["data_by_name"] = Map(s.DataByName),
+            ["ble_by_name"] = Map(s.BleByName ?? new Dictionary<string, long>()),
+            ["ble_saved_usd"] = Math.Round(s.BleSavedUsd, 4),
             ["history"] = history,
         };
     }

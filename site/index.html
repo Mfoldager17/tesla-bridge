@@ -95,6 +95,7 @@ main { padding: 44px 0 30px; }
   background: repeating-linear-gradient(180deg, var(--lane) 0 18px, transparent 18px 32px); }
 .route > li { counter-increment: s; position: relative; padding: 0 0 34px 68px; }
 .route > li[hidden] { display: none; }
+.route > li.optional::before { content: "+"; background: var(--card); color: var(--ink); border-style: dashed; }
 .route > li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 46px; height: 46px; border-radius: 50%;
   background: var(--asphalt); color: #fff; border: 3px solid var(--lane); display: grid; place-items: center;
   font: 700 19px "Barlow Semi Condensed", sans-serif; }
@@ -425,6 +426,20 @@ docker compose logs tesla-init        <span class="c"># what was created, and an
           </ol>
         </div>
         <p>You get about 80 entities under <strong data-v="name"></strong>, e.g. <code>sensor.<span data-v="slug"></span>_battery_level</code>. <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/entities.md">All entities</a></p>
+      </div>
+    </li>
+
+    <li class="optional">
+      <h3>Optional: free commands at home</h3>
+      <p class="who">Any time later · an ESP32 board near where the car parks</p>
+      <div class="step">
+        <p>While the car is within Bluetooth range of an ESP32, commands and wake-ups go over Bluetooth instead of the Fleet API – free, and without the internet. Away from home nothing changes.</p>
+        <ol>
+          <li>Flash an ESP32 with <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/esphome/tesla-ble.yaml"><code>esphome/tesla-ble.yaml</code></a> (ESPHome, ready-made).</li>
+          <li>Dashboard → Settings → <strong>Bluetooth</strong>: type its address, e.g. <code>http://192.168.1.50</code>.</li>
+          <li>Sit in the car, press <strong>Pair key</strong> and tap your key card.</li>
+        </ol>
+        <p><a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/ble.md">Bluetooth guide</a></p>
       </div>
     </li>
   </ol>

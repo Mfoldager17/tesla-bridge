@@ -351,6 +351,16 @@
   @media (max-width: 860px) { .savebar { bottom: 78px; padding: 12px 14px; gap: 8px; } .savebar .est { flex-basis: 100%; font-size: 13px; } .savebar .est b { font-size: 16px; } .savebar button { padding: 6px 10px; font-size: 13px; } .savebar.dirty #setReset { display: none; } }
   .savebar .est { flex: 1; min-width: 200px; font-size: 14px; }
   .savebar .est b { font-size: 18px; font-weight: 500; }
+  .blecar + .blecar { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+  .blecar .state { display: flex; align-items: flex-start; gap: 8px; font-weight: 500; margin-bottom: 4px; }
+  .blecar .state small { color: var(--muted); font-weight: 400; }
+  .blecar .state .dot { margin-top: .45em; }
+  .bleform { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; margin: 12px 0 8px; }
+  .bleform label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+  .bleform input { width: 100%; min-width: 0; }
+  .blepair { background: var(--raise); border-radius: var(--r-sm); padding: 12px 14px; margin-top: 10px; font-size: 13px; }
+  .blepair ol { margin: 6px 0 10px; padding-left: 20px; } .blepair li { margin: 3px 0; }
+  @media (max-width: 720px) { .bleform { grid-template-columns: minmax(0, 1fr); } }
   .views { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
   .view-opt { text-align: left; padding: 12px 14px; display: grid; gap: 2px; }
   .view-opt b { font-weight: 500; }
@@ -527,6 +537,7 @@
             <button role="tab" data-tab="signals_by_field" aria-selected="true" data-t="usage.byfield"></button>
             <button role="tab" data-tab="commands_by_name" data-t="usage.commands"></button>
             <button role="tab" data-tab="data_by_name" data-t="usage.data"></button>
+            <button role="tab" data-tab="ble_by_name" data-t="usage.ble"></button>
             <button role="tab" data-tab="history" data-t="usage.history"></button>
           </div>
           <div class="tablewrap" style="border:0"><table><tbody id="usRows"></tbody></table></div>
@@ -565,6 +576,12 @@
           <div class="toolbar"><label class="primary" id="modelPick" style="cursor:pointer"><input type="file" id="modelFile" accept=".glb,model/gltf-binary" hidden><span class="btnlike" data-t="model.upload"></span></label><button type="button" class="danger" id="modelRemove" data-t="model.remove" hidden></button></div>
           <details class="small muted"><summary data-t="model.howTitle"></summary><p data-t="model.how1"></p><p data-t="model.how2"></p></details>
           </div>
+        </div>
+
+        <div class="panel" id="blePanel">
+          <h2 data-t="ble.title"></h2>
+          <p class="sub" data-t="ble.sub"></p>
+          <div id="bleCars"></div>
         </div>
 
         <div class="panel">
@@ -682,6 +699,15 @@ const T = {
     "door": "door", "window": "window", "confirm.frunk": "Open the frunk?", "confirm.trunkOpen": "Open the trunk?", "frunkManual": "The frunk is closed by hand.",
     "paint.white": "White", "paint.grey": "Grey", "paint.silver": "Silver", "paint.black": "Black", "paint.red": "Red", "paint.blue": "Blue",
     "model.title": "Car view", "model.sub": "What the Car page shows.",
+    "ble.title": "Bluetooth (ESP32)", "ble.sub": "Optional. An ESP32 near where the car parks sends commands and wake-ups over Bluetooth while the car is in range – free and without the internet. Away from home the Fleet API is used as before.",
+    "ble.off": "Not set up", "ble.offSub": "No ESP32 – everything goes through the Fleet API.",
+    "ble.down": "Can't reach the ESP32", "ble.inRange": "Car in range – commands go over Bluetooth", "ble.away": "ESP32 connected – the car isn't nearby",
+    "ble.asleep": "asleep", "ble.awake": "awake", "ble.rssi": "signal {0} dBm", "ble.fromEnv": "from .env", "ble.notTesla": "The ESP32 answers, but doesn't have the Tesla BLE entities. Flash esphome/tesla-ble.yaml from the repository.",
+    "ble.url": "ESP32 address", "ble.user": "Username (optional)", "ble.pass": "Password (optional)", "ble.passKeep": "unchanged", "ble.save": "Save", "ble.saved": "Saved – connecting…", "ble.remove": "Remove",
+    "ble.pairTitle": "Pair the ESP32 with the car (once)", "ble.pair1": "Sit in the car with your key card.", "ble.pair2": "Press Pair key below.", "ble.pair3": "Tap the key card on the console between the front seats and confirm on the car's screen.",
+    "ble.pair": "Pair key", "ble.pairSent": "Now tap your key card in the car and confirm on the screen.", "ble.wake": "Test: wake the car", "ble.wakeSent": "Wake-up sent over Bluetooth.",
+    "ble.howTitle": "How do I get an ESP32 running?", "ble.how": "Any ESP32 dev board (about 50 kr.) works. Flash esphome/tesla-ble.yaml from the repository with ESPHome, then type its address here. Your car shows up in Bluetooth scanner apps as <code>{0}</code> – that's how you find its MAC address. <a href=\"https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/ble.md\" target=\"_blank\" rel=\"noopener\">Step-by-step guide</a>",
+    "usage.ble": "Bluetooth", "usage.bleRow": "Via Bluetooth (free)", "usage.bleSaved": "saved {0}",
     "view.builtin": "Model Y in 3D", "view.builtinSub": "Included with the bridge", "view.custom": "Your own 3D model", "view.customSub": "Upload a .glb of your car",
     "view.drawing": "Drawing", "view.drawingSub": "Simple and light, no 3D", "view.noCustom": "Upload a model first",
     "credit": "3D model: <a href=\"{0}\" target=\"_blank\" rel=\"noopener\">“{1}”</a> by {2}, <a href=\"{3}\" target=\"_blank\" rel=\"noopener\">{4}</a>, modified",
@@ -770,6 +796,15 @@ const T = {
     "door": "dør", "window": "rude", "confirm.frunk": "Åbn frunken?", "confirm.trunkOpen": "Åbn bagklappen?", "frunkManual": "Frunken lukkes med hånden.",
     "paint.white": "Hvid", "paint.grey": "Grå", "paint.silver": "Sølv", "paint.black": "Sort", "paint.red": "Rød", "paint.blue": "Blå",
     "model.title": "Visning af bilen", "model.sub": "Hvad Bil-siden viser.",
+    "ble.title": "Bluetooth (ESP32)", "ble.sub": "Valgfrit. En ESP32 der hvor bilen holder, sender kommandoer og vækninger over Bluetooth, mens bilen er inden for rækkevidde – gratis og uden internet. Væk hjemmefra bruges Fleet API'et som før.",
+    "ble.off": "Ikke sat op", "ble.offSub": "Ingen ESP32 – alt går gennem Fleet API'et.",
+    "ble.down": "Kan ikke nå ESP32'en", "ble.inRange": "Bilen er inden for rækkevidde – kommandoer går over Bluetooth", "ble.away": "ESP32 forbundet – bilen er ikke i nærheden",
+    "ble.asleep": "sover", "ble.awake": "vågen", "ble.rssi": "signal {0} dBm", "ble.fromEnv": "fra .env", "ble.notTesla": "ESP32'en svarer, men har ikke Tesla BLE-entiteterne. Flash esphome/tesla-ble.yaml fra repoet.",
+    "ble.url": "ESP32'ens adresse", "ble.user": "Brugernavn (valgfrit)", "ble.pass": "Adgangskode (valgfri)", "ble.passKeep": "uændret", "ble.save": "Gem", "ble.saved": "Gemt – forbinder…", "ble.remove": "Fjern",
+    "ble.pairTitle": "Par ESP32'en med bilen (én gang)", "ble.pair1": "Sæt dig i bilen med dit nøglekort.", "ble.pair2": "Tryk Par nøgle herunder.", "ble.pair3": "Læg nøglekortet på konsollen mellem forsæderne og bekræft på bilens skærm.",
+    "ble.pair": "Par nøgle", "ble.pairSent": "Læg nu nøglekortet i bilen og bekræft på skærmen.", "ble.wake": "Test: væk bilen", "ble.wakeSent": "Vækning sendt over Bluetooth.",
+    "ble.howTitle": "Hvordan får jeg en ESP32 op at køre?", "ble.how": "Alle ESP32-udviklingsboards (ca. 50 kr.) virker. Flash esphome/tesla-ble.yaml fra repoet med ESPHome, og skriv dens adresse her. Din bil hedder <code>{0}</code> i Bluetooth-scanner-apps – sådan finder du dens MAC-adresse. <a href=\"https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/ble.md\" target=\"_blank\" rel=\"noopener\">Trin-for-trin-guide</a>",
+    "usage.ble": "Bluetooth", "usage.bleRow": "Via Bluetooth (gratis)", "usage.bleSaved": "sparet {0}",
     "view.builtin": "Model Y i 3D", "view.builtinSub": "Følger med bridgen", "view.custom": "Din egen 3D-model", "view.customSub": "Upload en .glb af din bil",
     "view.drawing": "Tegning", "view.drawingSub": "Enkel og let, uden 3D", "view.noCustom": "Upload en model først",
     "credit": "3D-model: <a href=\"{0}\" target=\"_blank\" rel=\"noopener\">“{1}”</a> af {2}, <a href=\"{3}\" target=\"_blank\" rel=\"noopener\">{4}</a>, ændret",
@@ -857,6 +892,7 @@ function route() {
   if (v === "usage") loadUsage();
   if (v === "controls") renderControls();
   if (v === "settings" && !settings) loadSettings();
+  if (v === "settings") loadBle();
   if (v === "setup") loadSetup(false);
   window.scrollTo(0, 0);
 }
@@ -1225,7 +1261,8 @@ function renderUsage() {
   if (p != null) $("usMark").style.left = `calc(${Math.min(100, (p / credit) * 100)}% - 1px)`;
   $("usCats").innerHTML = Object.entries(u.categories).map(([k, c]) =>
     `<tr><td>${esc(t("cat." + k) === "cat." + k ? c.name : t("cat." + k))}</td><td style="text-align:right" class="num">${nf(c.count)}</td><td class="age">${esc(c.rate)}</td><td style="text-align:right" class="num">${usd(c.cost_usd)}</td></tr>`).join("") +
-    `<tr><td><b>${t("total")}</b></td><td></td><td></td><td style="text-align:right" class="num"><b>${usd(u.total_usd)}</b></td></tr>`;
+    `<tr><td><b>${t("total")}</b></td><td></td><td></td><td style="text-align:right" class="num"><b>${usd(u.total_usd)}</b></td></tr>` +
+    (bleCount(u) ? `<tr><td>${t("usage.bleRow")}</td><td style="text-align:right" class="num">${nf(bleCount(u))}</td><td class="age">$0</td><td style="text-align:right;color:var(--charge)" class="num">${t("usage.bleSaved", usd(u.ble_saved_usd || 0))}</td></tr>` : "");
   let rows;
   if (usTab === "history") rows = u.history.map((h) => [new Date(h.month + "-01T00:00:00Z").toLocaleDateString(locale(), { month: "long", year: "numeric", timeZone: "UTC" }), usd(h.total_usd), h.total_usd / credit]);
   else { const e = Object.entries(u[usTab] || {}); const max = Math.max(1, ...e.map(([, n]) => n)); rows = e.map(([k, n]) => [k, nf(n), n / max]); }
@@ -1233,6 +1270,63 @@ function renderUsage() {
     : `<tr><td class="empty">${t("usage.none")}</td></tr>`;
 }
 tabs($("usTabs"), (tab) => { usTab = tab; renderUsage(); });
+const bleCount = (u) => Object.values(u.ble_by_name || {}).reduce((a, b) => a + b, 0);
+
+// ===================================================================== bluetooth (ESP32)
+let bleCars = [], bleTimer = null;
+async function loadBle() {
+  try { bleCars = await getJson("/api/ble"); } catch { return; }
+  renderBle();
+  clearTimeout(bleTimer);
+  bleTimer = setTimeout(() => { if ($("blePanel").offsetParent && !$("blePanel").contains(document.activeElement)) loadBle(); else bleTimer = setTimeout(loadBle, 5000); }, 5000);
+}
+function bleState(c) {
+  if (!c.configured) return ["", t("ble.off"), t("ble.offSub")];
+  if (!c.esp_connected) return ["bad", t("ble.down"), c.last_error || c.url];
+  if (!c.looks_like_tesla_ble && c.entities > 0) return ["warn", c.url, t("ble.notTesla")];
+  const bits = [c.car_asleep == null ? null : t(c.car_asleep ? "ble.asleep" : "ble.awake"), c.rssi == null ? null : t("ble.rssi", Math.round(c.rssi)), c.esp_version ? "ESPHome " + c.esp_version.split(" ")[0] : null].filter(Boolean);
+  return c.car_in_range ? ["ok", t("ble.inRange"), bits.join(" · ")] : ["warn", t("ble.away"), bits.join(" · ")];
+}
+function renderBle() {
+  const multi = bleCars.length > 1;
+  $("bleCars").innerHTML = bleCars.map((c) => {
+    const [cls, head, sub] = bleState(c);
+    const ready = c.configured && c.esp_connected;
+    return `<div class="blecar" data-vin="${esc(c.vin)}">
+      ${multi ? `<p class="small muted" style="margin:0 0 6px">${esc(c.name)} · ${esc(c.vin)}</p>` : ""}
+      <div class="state"><span class="dot ${cls}"></span>${esc(head)}${c.source === "env" ? ` <small>(${t("ble.fromEnv")})</small>` : ""}</div>
+      <div class="small muted">${esc(sub || "")}</div>
+      <form class="bleform" autocomplete="off">
+        <label>${t("ble.url")}<input type="text" name="url" placeholder="http://192.168.1.50" value="${esc(c.url || "")}" spellcheck="false"></label>
+        <label>${t("ble.user")}<input type="text" name="username" value="${esc(c.username || "")}" spellcheck="false"></label>
+        <label>${t("ble.pass")}<input type="password" name="password" placeholder="${c.has_password ? t("ble.passKeep") : ""}"></label>
+        <div class="toolbar" style="margin:0"><button type="submit" class="primary">${t("ble.save")}</button>${c.source === "dashboard" ? `<button type="button" class="ghost" data-act="remove">${t("ble.remove")}</button>` : ""}</div>
+      </form>
+      ${ready && c.looks_like_tesla_ble ? `<div class="blepair"><b>${t("ble.pairTitle")}</b><ol><li>${t("ble.pair1")}</li><li>${t("ble.pair2")}</li><li>${t("ble.pair3")}</li></ol>
+        <div class="toolbar" style="margin:0"><button type="button" class="primary" data-act="pair">${t("ble.pair")}</button><button type="button" data-act="wake" ${c.car_in_range ? "" : "disabled"}>${t("ble.wake")}</button></div></div>` : ""}
+      <details class="small muted" style="margin-top:10px" ${c.configured ? "" : "open"}><summary>${t("ble.howTitle")}</summary><p>${t("ble.how", esc(c.car_ble_name))}</p></details>
+    </div>`;
+  }).join("");
+  for (const el of $("bleCars").querySelectorAll(".blecar")) {
+    const vin = el.dataset.vin, form = el.querySelector("form");
+    form.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const f = new FormData(form), body = { url: f.get("url").trim(), username: f.get("username").trim() || null };
+      if (f.get("password")) body.password = f.get("password");
+      const r = await api(`/api/ble/${vin}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return toast(j.error || String(r.status));
+      bleCars = j; renderBle(); toast(t("ble.saved")); setTimeout(loadBle, 2500);
+    };
+    el.querySelectorAll("[data-act]").forEach((b) => b.onclick = async () => {
+      const act = b.dataset.act;
+      const r = act === "remove" ? await api(`/api/ble/${vin}`, { method: "DELETE" }) : await api(`/api/ble/${vin}/${act}`, { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return toast(j.error || String(r.status));
+      if (act === "remove") { bleCars = j; renderBle(); } else toast(t(act === "pair" ? "ble.pairSent" : "ble.wakeSent"));
+    });
+  }
+}
 
 // ===================================================================== settings
 let settings = null;          // from the server
@@ -1568,7 +1662,7 @@ function connectEvents() {
 function renderAll() {
   if (car3d) { car3d.setLabels(hsLabels()); renderPicker(); }
   renderModelStatus();
-  renderOverview(); renderControls(); renderFields(); renderRaw(); renderLog(); renderUsage(); renderSettings();
+  renderOverview(); renderControls(); renderFields(); renderRaw(); renderLog(); renderUsage(); renderSettings(); renderBle();
   if (info) { setMqtt(info); $("cfgHint").textContent = t("data.cfgHint", info.telemetry_hostname ? `${info.telemetry_hostname}:${info.telemetry_port}` : "–"); }
   route();
 }

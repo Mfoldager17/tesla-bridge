@@ -20,7 +20,13 @@ public sealed class BridgeSettings
 
     /// <summary>What the dashboard's Car page shows: "builtin" (the bundled Model Y), "custom" (your upload) or "drawing".</summary>
     public string CarView { get; set; } = SettingsStore.DefaultCarView;
+
+    /// <summary>ESP32 per VIN, set on the dashboard. Wins over Bridge__Vehicles__N__Ble__* from .env; an empty URL turns it off.</summary>
+    public Dictionary<string, BleSetting> Ble { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
+
+/// <summary>Where the ESP32 for one car is. Password is kept as entered (the file is only readable by the bridge's user).</summary>
+public sealed record BleSetting(string Url, string? Username = null, string? Password = null);
 
 /// <summary>Reads and writes <see cref="BridgeSettings"/>; thread-safe. Invalid values are rejected on update.</summary>
 public sealed class SettingsStore
@@ -127,7 +133,7 @@ public sealed class SettingsStore
     {
         lock (_lock)
         {
-            _current = new BridgeSettings { CarView = _current.CarView };
+            _current = new BridgeSettings { CarView = _current.CarView, Ble = Clone(_current).Ble };
             Save(_file, _current);
         }
         Changed?.Invoke();
@@ -142,6 +148,7 @@ public sealed class SettingsStore
             {
                 var s = JsonSerializer.Deserialize<BridgeSettings>(File.ReadAllText(file), Json) ?? new BridgeSettings();
                 s.TelemetryFields = new Dictionary<string, FieldSetting>(s.TelemetryFields ?? [], StringComparer.Ordinal);
+                s.Ble = new Dictionary<string, BleSetting>(s.Ble ?? [], StringComparer.OrdinalIgnoreCase);
                 return s;
             }
         }
@@ -163,5 +170,22 @@ public sealed class SettingsStore
         TelemetryFields = new Dictionary<string, FieldSetting>(s.TelemetryFields, StringComparer.Ordinal),
         SnapshotIntervalMinutes = s.SnapshotIntervalMinutes,
         CarView = CarViews.Contains(s.CarView) ? s.CarView : DefaultCarView,
+        Ble = new Dictionary<string, BleSetting>(s.Ble, StringComparer.OrdinalIgnoreCase),
     };
+
+    /// <summary>Sets (or with null: forgets, so .env applies again) the ESP32 for one car.</summary>
+    public BridgeSettings SetBle(string vin, BleSetting? ble)
+    {
+        if (ble is { Url.Length: > 0 } && !(Uri.TryCreate(ble.Url, UriKind.Absolute, out var u) && u.Scheme is "http" or "https"))
+            throw new ArgumentException("The ESP32 address must look like http://192.168.1.50");
+        lock (_lock)
+        {
+            var next = Clone(_current);
+            if (ble is null) next.Ble.Remove(vin); else next.Ble[vin] = ble;
+            Save(_file, next);
+            _current = next;
+        }
+        Changed?.Invoke();
+        return Current;
+    }
 }

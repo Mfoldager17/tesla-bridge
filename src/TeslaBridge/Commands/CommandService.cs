@@ -61,8 +61,10 @@ public sealed class CommandService(
             if (result.IsSuccess)
             {
                 // Forventningen gælder nu kun OptimisticTimeout mere – så må streamen have bekræftet.
+                // (Not if the car already confirmed it while we waited – over Bluetooth that is often instant.)
                 foreach (var e in command.Expectations)
-                    store.SetPending(vin, e.Key, e.Value, TimeSpan.FromSeconds(_opts.OptimisticTimeoutSeconds), e.ConfirmedBy);
+                    if (store.HasPending(vin, e.Key))
+                        store.SetPending(vin, e.Key, e.Value, TimeSpan.FromSeconds(_opts.OptimisticTimeoutSeconds), e.ConfirmedBy);
                 Report(vin, name, CommandPhase.Succeeded, transport);
                 log.LogInformation("{Command} til {Vin} lykkedes via {Transport}", name, vin, transport);
             }
@@ -99,8 +101,12 @@ public sealed class CommandService(
             last = await transport.SendAsync(vin, command, ct);
             if (last.Outcome == CommandOutcome.VehicleAsleep)
             {
-                Report(vin, name, CommandPhase.Waking, transport.Name);
-                await transport.WakeAsync(vin, ct);
+                // Wake the cheapest way that can reach the car: over Bluetooth it's free, over the Fleet API a wake costs.
+                foreach (var waker in candidates)
+                {
+                    Report(vin, name, CommandPhase.Waking, waker.Name);
+                    if ((await waker.WakeAsync(vin, ct)).IsSuccess) break;
+                }
 
                 var deadline = time.GetUtcNow() + TimeSpan.FromSeconds(_opts.WakeTimeoutSeconds);
                 while (last.Outcome == CommandOutcome.VehicleAsleep && time.GetUtcNow() < deadline)

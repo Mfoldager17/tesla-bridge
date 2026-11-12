@@ -6,6 +6,7 @@ A self-hosted replacement for Teslemetry. Your car streams directly to your own 
 - **Feels instant:** commands show up straight away, locks and covers show *locking*/*opening*, a sleeping car is woken and the command resent.
 - **Its own dashboard:** the car in 3D, controls, live data, usage and settings – also without Home Assistant.
 - **Your choice how often:** pick per value how often the car sends it, with a live cost estimate.
+- **Free at home (optional):** add an ESP32 near where the car parks, and commands and wake-ups go over Bluetooth while the car is in range – no Fleet API cost. [How](docs/ble.md)
 
 <table>
 <tr>
@@ -76,6 +77,7 @@ curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/insta
 
 | | |
 |---|---|
+| [Bluetooth (ESP32)](docs/ble.md) | Optional: free commands and wake-ups while the car is home |
 | [Entities](docs/entities.md) | Everything you get in Home Assistant |
 | [Switching](docs/switching.md) | From MQTT to the integration and back |
 | [Updating](docs/updating.md) | New versions and pinning one |

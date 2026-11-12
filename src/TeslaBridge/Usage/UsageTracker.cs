@@ -13,6 +13,8 @@ public sealed class MonthUsage
     [JsonPropertyName("commands")] public Dictionary<string, long> Commands { get; set; } = new(StringComparer.Ordinal);
     [JsonPropertyName("wakes")] public long Wakes { get; set; }
     [JsonPropertyName("data")] public Dictionary<string, long> Data { get; set; } = new(StringComparer.Ordinal);
+    /// <summary>Commands and wake-ups sent over Bluetooth (the ESP32). Free – counted to show what was saved.</summary>
+    [JsonPropertyName("ble")] public Dictionary<string, long> Ble { get; set; } = new(StringComparer.Ordinal);
 }
 
 public sealed record UsageCategory(string Key, string Name, long Count, double CostUsd, string Rate);
@@ -28,7 +30,9 @@ public sealed record UsageSnapshot(
     IReadOnlyDictionary<string, long> SignalsByField,
     IReadOnlyDictionary<string, long> CommandsByName,
     IReadOnlyDictionary<string, long> DataByName,
-    IReadOnlyList<(string Month, double TotalUsd)> History);
+    IReadOnlyList<(string Month, double TotalUsd)> History,
+    IReadOnlyDictionary<string, long>? BleByName = null,
+    double BleSavedUsd = 0);
 
 /// <summary>
 /// Tæller alt, bridgen sender til og modtager fra Tesla, pr. kalendermåned, efter Teslas Fleet API-takster.
@@ -75,6 +79,18 @@ public sealed class UsageTracker(TimeProvider time)
         _dirty = true;
     }
 
+    /// <summary>A command (or "wake_up") that went over Bluetooth instead of the Fleet API.</summary>
+    public void CountBle(string name)
+    {
+        lock (_lock)
+        {
+            Roll();
+            _current.Ble ??= new(StringComparer.Ordinal);
+            Inc(_current.Ble, name);
+        }
+        _dirty = true;
+    }
+
     /// <summary>Klassificerer et Fleet API-kald ud fra stien, som Tesla afregner det.</summary>
     public static (ApiCallKind Kind, string Name) Classify(string path)
     {
@@ -116,7 +132,9 @@ public sealed class UsageTracker(TimeProvider time)
             return new UsageSnapshot(
                 c.Month, start, end, categories, total, projected, MonthlyCreditUsd,
                 Sorted(c.Signals), Sorted(c.Commands), Sorted(c.Data),
-                _history.Select(h => (h.Month, Cost(h))).ToList());
+                _history.Select(h => (h.Month, Cost(h))).ToList(),
+                Sorted(c.Ble ?? []),
+                (c.Ble ?? []).Sum(kv => kv.Key == "wake_up" ? kv.Value / WakesPerDollar : kv.Value / CommandsPerDollar));
         }
     }
 

@@ -17,3 +17,7 @@ __pycache__/
 *.glb
 # …except the bundled Model Y (CC BY-NC 4.0, see its NOTICE.md)
 !src/TeslaBridge/wwwroot/models/model-y.glb
+
+# ESPHome secrets for the optional Bluetooth ESP32
+esphome/secrets.yaml
+esphome/.esphome/

@@ -53,6 +53,10 @@ The page shows how many signals each field has sent this month and estimates the
 
 The same page sets how often the bridge fetches a **snapshot** from the Fleet API when the car wakes up (default: at most once an hour, or never). A snapshot fills in values the car hasn't streamed yet, costs one data request and never wakes the car.
 
+## Bluetooth (ESP32)
+
+**Settings → Bluetooth (ESP32)** is where you connect an optional ESP32 near where the car parks. While the car is in range, commands and wake-ups go over Bluetooth for free. The panel shows whether the ESP32 is reachable and sees the car, and has buttons to pair it with the car and to test a wake-up. **Usage** shows what went over Bluetooth this month and what it saved. The whole setup is in [Bluetooth (ESP32)](ble.md).
+
 The defaults live in `config/bridge/telemetry-fields.json` in the image. Fields the bridge doesn't know pass through unchanged as `snake_case` (e.g. `TpmsPressureFl` → `tpms_pressure_fl`). Valid names are in Tesla's [vehicle_data.proto](https://github.com/teslamotors/fleet-telemetry/blob/main/protos/vehicle_data.proto).
 
 ---

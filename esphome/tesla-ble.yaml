@@ -1,0 +1,52 @@
+# Tesla Bridge – Bluetooth through an ESP32 (optional)
+#
+# An ESP32 near where the car parks (carport, garage) talks to the car over Bluetooth. While the car is in
+# range, Tesla Bridge sends commands and wake-ups this way: free (no Fleet API cost) and without the internet.
+# When the car is away, the bridge uses the Fleet API as usual. Nothing else changes.
+#
+# This file uses the ESPHome Tesla BLE component by PedroKTFC (AGPL-3.0, not part of this repository):
+#   https://github.com/PedroKTFC/esphome-tesla-ble
+# and adds the two things the bridge needs: the web server (the bridge talks to it) and no reboot when
+# Home Assistant isn't connected to the ESP32.
+#
+# Guide: https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/ble.md
+#   1. Copy this file and secrets.yaml.example (→ secrets.yaml) to your ESPHome folder and fill in secrets.yaml
+#   2. Flash it: ESPHome Device Builder in Home Assistant, `esphome run tesla-ble.yaml`, or https://web.esphome.io
+#   3. Dashboard → Settings → Bluetooth: type the ESP32's address and press "Pair key" while you sit in the car
+
+substitutions:
+  device_name: tesla-ble           # the ESP32's host name → http://tesla-ble.local
+  friendly_name: Tesla BLE
+  charging_amps_max: "32"          # the highest charging current you want to allow
+  ble_mac_address: !secret ble_mac_address
+  tesla_vin: !secret tesla_vin
+  # Board – only change if yours isn't a plain ESP32 dev board (see the component's wiki):
+  # board: "esp32dev"
+  # variant: "ESP32"
+
+packages:
+  tesla_ble:
+    url: https://github.com/PedroKTFC/esphome-tesla-ble/
+    files:
+      - packages/base.yml
+      - packages/common.yml
+      - packages/project.yml
+      - packages/client.yml
+      # - packages/listener.yml    # uncomment once to find the car's Bluetooth MAC address in the logs
+    # Do NOT add a language_xx.yml package: the bridge finds the entities by their English names.
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  # ESPHome reboots after 15 min when no Home Assistant is connected to its API. Tesla Bridge uses the
+  # web server instead, so turn that off – also fine if Home Assistant *is* connected.
+  reboot_timeout: 0s
+
+# What Tesla Bridge talks to: http://<ESP32>/events (live states) and POST /<domain>/<name>/<action>.
+web_server:
+  port: 80
+  version: 3
+  # Optional – then type the same username and password on the bridge's dashboard:
+  # auth:
+  #   username: !secret web_username
+  #   password: !secret web_password

@@ -53,7 +53,9 @@ services.AddSingleton(sp => new TeslaProxyClient(
     sp.GetRequiredService<TeslaTokenProvider>(),
     sp.GetRequiredService<UsageTracker>()));
 
-// Kommandoer – tilføj en BLE-transport her senere; resten ændres ikke.
+// Commands: Bluetooth via an ESP32 first when the car is in range (free), otherwise the Fleet API.
+services.AddSingleton<TeslaBridge.Ble.BleService>();
+services.AddSingleton<ICommandTransport, TeslaBridge.Ble.BleTransport>();
 services.AddSingleton<ICommandTransport, FleetApiTransport>();
 services.AddSingleton<CommandRouter>();
 services.AddSingleton<CommandService>();
@@ -91,6 +93,7 @@ services.AddHostedService<TelemetryIngestService>();
 services.AddHostedService<StatePublisher>();
 services.AddHostedService<HomeAssistantDiscovery>();
 services.AddHostedService<TeslaBridge.Telemetry.VehicleDataSeeder>();
+services.AddHostedService(sp => sp.GetRequiredService<TeslaBridge.Ble.BleService>());
 services.AddHostedService<CommandListener>();
 services.AddHostedService<OptimisticExpiryService>();
 services.AddHostedService<UsageService>();

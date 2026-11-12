@@ -16,7 +16,8 @@ public enum ValueSource
     Bridge,
     /// <summary>Hentet med vehicle_data, fordi streamen endnu ikke havde sendt feltet.</summary>
     Snapshot,
-    // Senere: Ble
+    /// <summary>Read over Bluetooth by the ESP32 next to the car (free, only when the car is in range).</summary>
+    Ble,
 }
 
 /// <summary>Én værdi for ét felt, med hvornår og hvorfra den kom.</summary>

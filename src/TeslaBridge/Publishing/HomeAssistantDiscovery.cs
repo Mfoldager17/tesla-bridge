@@ -201,6 +201,7 @@ public sealed class HomeAssistantDiscovery(
         ["rear_driver_window"] = "window_driver_rear_open",
         ["rear_passenger_window"] = "window_passenger_rear_open",
         ["driver_seat_occupied"] = "user_present",
+        ["bluetooth"] = "ble_connected",
     };
 
     private static string StateKey(string key) => StateKeyOf.TryGetValue(key, out var k) ? k : key;
@@ -222,6 +223,8 @@ public sealed class HomeAssistantDiscovery(
         new("preconditioning_enabled", "Preconditioning enabled", null, "mdi:heat-wave", "diagnostic"),
         new("scheduled_charging_pending", "Scheduled charging pending", null, "mdi:calendar-clock", "diagnostic"),
         new("fast_charger_present", "Fast charger present", "plug", "mdi:ev-station", "diagnostic"),
+        // Only has a value with an ESP32 (Bluetooth): on while the car is within range and commands go that way.
+        new("bluetooth", "Bluetooth", "connectivity", "mdi:bluetooth", "diagnostic"),
     ];
 
     /// <summary>

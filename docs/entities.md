@@ -18,7 +18,7 @@ For more cars, add `Bridge__Vehicles__1__Vin` and `Bridge__Vehicles__1__Name` an
 | `select` | `seat_heater_front_left/right`, `seat_heater_rear_left/center/right`, `steering_wheel_heater` |
 | `button` | `wake`, `flash_lights`, `honk_horn`, `homelink`, `keyless_driving`, `play_fart` |
 | `sensor` | `battery_level`, `charging`, `charger_power/voltage/current`, `charge_energy_added`, `time_to_full_charge`, `energy_remaining`, `estimate_battery_range`, `ideal_battery_range`, `speed`, `shift_state` (P/D/R/N), `odometer`, `tire_pressure_*`, `inside/outside_temperature`, `destination`, `time_to_arrival`, `distance_to_arrival`, `state_of_charge_at_arrival`, `version`, `last_seen`, `command_status` … |
-| `binary_sensor` | `status` (online), `charge_cable`, doors, windows, `driver_seat_occupied`, `driver_seat_belt`, `preconditioning_enabled`, `scheduled_charging_pending`, `fast_charger_present` |
+| `binary_sensor` | `status` (online), `charge_cable`, doors, windows, `driver_seat_occupied`, `driver_seat_belt`, `preconditioning_enabled`, `scheduled_charging_pending`, `fast_charger_present`, `bluetooth` (only with an [ESP32](ble.md): on while the car is in Bluetooth range) |
 | `device_tracker` | `location` (the car), `route` (destination from the navigation) |
 
 There is also a **Tesla Bridge** device with your Fleet API usage: `sensor.tesla_bridge_cost_month`, `…_cost_projected`, `…_credit_left`, plus counts of signals, commands, wakes and data requests for the month. Handy for an automation that warns you if the projected cost approaches $10.
