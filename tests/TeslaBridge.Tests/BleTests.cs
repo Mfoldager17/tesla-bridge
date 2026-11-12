@@ -254,10 +254,32 @@ public class CabinComfortTests
         var svc = new CommandService(new CommandRouter([car]), store,
             Microsoft.Extensions.Options.Options.Create(new BridgeOptions()), TimeProvider.System, NullLogger<CommandService>.Instance)
             { RetryDelay = TimeSpan.FromMilliseconds(5) };
+        var notes = new List<CommandStatus>();
+        svc.StatusChanged += notes.Add;
 
         var r = await svc.ExecuteAsync("V", new Cmd.SetAutoSeatClimate(1, true));
         Assert.True(r.IsSuccess);
         Assert.Equal(["SetAutoSeatClimate", "ClimateOn", "SetAutoSeatClimate"], car.Sent);
+        Assert.Equal(CommandService.ClimateNeededNote, notes.Last().Note);
+        Assert.Contains(notes, n => n.Command == "ClimateOn" && n.Phase == CommandPhase.Succeeded);
         Assert.True(store.Get("V", "climate_on")!.Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task With_the_setting_off_it_explains_instead_of_turning_the_climate_on()
+    {
+        var car = new Car();
+        var settings = new SettingsStore(null, "unused.json");
+        settings.Update(null, null, null, climateForSeatHeat: false);
+        var svc = new CommandService(new CommandRouter([car]), new VehicleStateStore(),
+            Microsoft.Extensions.Options.Options.Create(new BridgeOptions()), TimeProvider.System, NullLogger<CommandService>.Instance, settings)
+            { RetryDelay = TimeSpan.FromMilliseconds(5) };
+        var notes = new List<CommandStatus>();
+        svc.StatusChanged += notes.Add;
+
+        var r = await svc.ExecuteAsync("V", new Cmd.SetSeatHeater(Seat.FrontRight, 3));
+        Assert.False(r.IsSuccess);
+        Assert.Equal(CommandService.ClimateNeededError, r.Reason);
+        Assert.Equal(["SetSeatHeater"], car.Sent);
     }
 }

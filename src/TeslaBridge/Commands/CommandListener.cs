@@ -77,6 +77,7 @@ public sealed class CommandListener(
             ["status"] = JsonNamingPolicy.SnakeCaseLower.ConvertName(s.Phase.ToString()),
             ["transport"] = s.Transport,
             ["error"] = s.Error,
+            ["note"] = s.Note,
             ["at"] = s.At.ToString("O"),
         };
         _ = mqtt.PublishAsync($"{_base}/{s.Vin}/command/status", json.ToJsonString(Json.Relaxed), retain: true);

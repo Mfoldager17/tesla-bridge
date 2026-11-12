@@ -51,5 +51,6 @@ public sealed class LiveEventsBridge(VehicleStateStore store, CommandService com
             ["status"] = JsonNamingPolicy.SnakeCaseLower.ConvertName(s.Phase.ToString()),
             ["transport"] = s.Transport,
             ["error"] = s.Error,
+            ["note"] = s.Note,
         });
 }

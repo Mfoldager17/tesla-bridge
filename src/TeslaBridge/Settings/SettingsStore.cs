@@ -21,6 +21,12 @@ public sealed class BridgeSettings
     /// <summary>What the dashboard's Car page shows: "builtin" (the bundled Model Y), "custom" (your upload) or "drawing".</summary>
     public string CarView { get; set; } = SettingsStore.DefaultCarView;
 
+    /// <summary>
+    /// Seat/steering-wheel heat while the climate is off: turn the climate on first (like the Tesla app), or
+    /// fail with an explanation. The car itself refuses them while the climate is off.
+    /// </summary>
+    public bool ClimateForSeatHeat { get; set; } = true;
+
     /// <summary>ESP32 per VIN, set on the dashboard. Wins over Bridge__Vehicles__N__Ble__* from .env; an empty URL turns it off.</summary>
     public Dictionary<string, BleSetting> Ble { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
@@ -95,14 +101,14 @@ public sealed class SettingsStore
     }
 
     /// <summary>Applies changes. Fields set back to their default are removed from the file.</summary>
-    public BridgeSettings Update(IReadOnlyDictionary<string, FieldSetting>? fields, int? snapshotMinutes, string? carView = null)
+    public BridgeSettings Update(IReadOnlyDictionary<string, FieldSetting>? fields, int? snapshotMinutes, string? carView = null, bool? climateForSeatHeat = null)
     {
         if (carView is not null && !CarViews.Contains(carView)) throw new ArgumentException($"car_view must be one of {string.Join(", ", CarViews)}");
-        var defaults = Defaults;
+        var defaults = fields is null ? null : Defaults;   // only read the defaults file when fields change
         if (fields is not null)
             foreach (var (name, f) in fields)
             {
-                if (!defaults.ContainsKey(name)) throw new ArgumentException($"Unknown telemetry field '{name}'");
+                if (!defaults!.ContainsKey(name)) throw new ArgumentException($"Unknown telemetry field '{name}'");
                 if (f.IntervalSeconds is < MinInterval or > MaxInterval)
                     throw new ArgumentException($"{name}: interval must be between {MinInterval} and {MaxInterval} seconds");
             }
@@ -115,11 +121,12 @@ public sealed class SettingsStore
             if (fields is not null)
                 foreach (var (name, f) in fields)
                 {
-                    if (f.Enabled && f.IntervalSeconds == defaults[name]) next.TelemetryFields.Remove(name);
+                    if (f.Enabled && f.IntervalSeconds == defaults![name]) next.TelemetryFields.Remove(name);
                     else next.TelemetryFields[name] = f;
                 }
             if (snapshotMinutes is { } m) next.SnapshotIntervalMinutes = m;
             if (carView is not null) next.CarView = carView;
+            if (climateForSeatHeat is { } cs) next.ClimateForSeatHeat = cs;
             Save(_file, next);
             _current = next;
             saved = Clone(next);
@@ -133,7 +140,7 @@ public sealed class SettingsStore
     {
         lock (_lock)
         {
-            _current = new BridgeSettings { CarView = _current.CarView, Ble = Clone(_current).Ble };
+            _current = new BridgeSettings { CarView = _current.CarView, ClimateForSeatHeat = _current.ClimateForSeatHeat, Ble = Clone(_current).Ble };
             Save(_file, _current);
         }
         Changed?.Invoke();
@@ -170,6 +177,7 @@ public sealed class SettingsStore
         TelemetryFields = new Dictionary<string, FieldSetting>(s.TelemetryFields, StringComparer.Ordinal),
         SnapshotIntervalMinutes = s.SnapshotIntervalMinutes,
         CarView = CarViews.Contains(s.CarView) ? s.CarView : DefaultCarView,
+        ClimateForSeatHeat = s.ClimateForSeatHeat,
         Ble = new Dictionary<string, BleSetting>(s.Ble, StringComparer.OrdinalIgnoreCase),
     };
 

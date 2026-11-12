@@ -361,6 +361,7 @@
   .blepair { background: var(--raise); border-radius: var(--r-sm); padding: 12px 14px; margin-top: 10px; font-size: 13px; }
   .blepair ol { margin: 6px 0 10px; padding-left: 20px; } .blepair li { margin: 3px 0; }
   @media (max-width: 720px) { .bleform { grid-template-columns: minmax(0, 1fr); } }
+  .note-line { grid-column: 2 / -1; color: var(--muted); font-size: 12px; }
   .views { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
   .view-opt { text-align: left; padding: 12px 14px; display: grid; gap: 2px; }
   .view-opt b { font-weight: 500; }
@@ -578,6 +579,15 @@
           </div>
         </div>
 
+        <div class="panel">
+          <h2 data-t="seatClimate.title"></h2>
+          <p class="sub" data-t="seatClimate.sub"></p>
+          <select id="setSeatClimate">
+            <option value="on" data-t="seatClimate.on"></option>
+            <option value="off" data-t="seatClimate.off"></option>
+          </select>
+        </div>
+
         <div class="panel" id="blePanel">
           <h2 data-t="ble.title"></h2>
           <p class="sub" data-t="ble.sub"></p>
@@ -699,6 +709,9 @@ const T = {
     "door": "door", "window": "window", "confirm.frunk": "Open the frunk?", "confirm.trunkOpen": "Open the trunk?", "frunkManual": "The frunk is closed by hand.",
     "paint.white": "White", "paint.grey": "Grey", "paint.silver": "Silver", "paint.black": "Black", "paint.red": "Red", "paint.blue": "Blue",
     "model.title": "Car view", "model.sub": "What the Car page shows.",
+    "seatClimate.title": "Seat and steering-wheel heat", "seatClimate.sub": "The car only heats seats and the steering wheel while the climate is on. What should happen when you turn them on with the climate off?",
+    "seatClimate.on": "Turn the climate on as well (like the Tesla app)", "seatClimate.saved": "Saved", "seatClimate.off": "Nothing – show that the climate must be on first",
+    "c.seatsNeedClimate": "Turns the climate on as well – the car only heats seats while it is on", "c.seatsClimateOff": "The climate must be on – the car only heats seats while it is on",
     "ble.title": "Bluetooth (ESP32)", "ble.sub": "Optional. An ESP32 near where the car parks sends commands and wake-ups over Bluetooth while the car is in range – free and without the internet. Away from home the Fleet API is used as before.",
     "ble.off": "Not set up", "ble.offSub": "No ESP32 – everything goes through the Fleet API.",
     "ble.down": "Can't reach the ESP32", "ble.inRange": "Car in range – commands go over Bluetooth", "ble.away": "ESP32 connected – the car isn't nearby",
@@ -796,6 +809,9 @@ const T = {
     "door": "dør", "window": "rude", "confirm.frunk": "Åbn frunken?", "confirm.trunkOpen": "Åbn bagklappen?", "frunkManual": "Frunken lukkes med hånden.",
     "paint.white": "Hvid", "paint.grey": "Grå", "paint.silver": "Sølv", "paint.black": "Sort", "paint.red": "Rød", "paint.blue": "Blå",
     "model.title": "Visning af bilen", "model.sub": "Hvad Bil-siden viser.",
+    "seatClimate.title": "Sæde- og ratvarme", "seatClimate.sub": "Bilen varmer kun sæder og rat, mens klimaet er tændt. Hvad skal der ske, når du tænder dem med klimaet slukket?",
+    "seatClimate.on": "Tænd også for klimaet (som Tesla-appen)", "seatClimate.saved": "Gemt", "seatClimate.off": "Ingenting – vis at klimaet skal være tændt først",
+    "c.seatsNeedClimate": "Tænder også for klimaet – bilen varmer kun sæder, mens det er tændt", "c.seatsClimateOff": "Klimaet skal være tændt – bilen varmer kun sæder, mens det er tændt",
     "ble.title": "Bluetooth (ESP32)", "ble.sub": "Valgfrit. En ESP32 der hvor bilen holder, sender kommandoer og vækninger over Bluetooth, mens bilen er inden for rækkevidde – gratis og uden internet. Væk hjemmefra bruges Fleet API'et som før.",
     "ble.off": "Ikke sat op", "ble.offSub": "Ingen ESP32 – alt går gennem Fleet API'et.",
     "ble.down": "Kan ikke nå ESP32'en", "ble.inRange": "Bilen er inden for rækkevidde – kommandoer går over Bluetooth", "ble.away": "ESP32 forbundet – bilen er ikke i nærheden",
@@ -997,7 +1013,7 @@ function addCommand(e) {
 function renderLog() {
   $("cmdlog").innerHTML = cmdLog.length ? cmdLog.map((e) => {
     const d = e.data;
-    return `<li><time class="num">${clock(e.at)}</time><span>${esc(d.command)}</span><span class="st ${esc(d.status)}">${esc(t("st." + d.status))}${d.transport ? " · " + esc(d.transport) : ""}</span>${d.error ? `<span class="err">${esc(d.error)}</span>` : ""}</li>`;
+    return `<li><time class="num">${clock(e.at)}</time><span>${esc(d.command)}</span><span class="st ${esc(d.status)}">${esc(t("st." + d.status))}${d.transport ? " · " + esc(d.transport) : ""}</span>${d.error ? `<span class="err">${esc(d.error)}</span>` : ""}${d.note ? `<span class="note-line">${esc(d.note)}</span>` : ""}</li>`;
   }).join("") : `<li class="empty" style="display:block">${t("log.empty")}</li>`;
 }
 
@@ -1135,7 +1151,7 @@ function renderControls() {
   </section>`;
 
   const seats = `<section class="card seats">
-    <header><div><h2>${t("c.seats")}</h2><span class="muted">${t("c.seatsHint")}</span></div></header>
+    <header><div><h2>${t("c.seats")}</h2><span class="muted">${val("climate_on") === false ? t(settings?.climate_for_seat_heat === false ? "c.seatsClimateOff" : "c.seatsNeedClimate") : t("c.seatsHint")}</span></div></header>
     <div class="seatmap">
       <div class="row front">${seatBtn(t("c.seatFL"), "seat_heater_left", "seat_heater_left")}${seatBtn(t("c.seatFR"), "seat_heater_right", "seat_heater_right")}</div>
       <div class="row">${seatBtn(t("c.seatRL"), "seat_heater_rear_left", "seat_heater_rear_left")}${seatBtn(t("c.seatRC"), "seat_heater_rear_center", "seat_heater_rear_center")}${seatBtn(t("c.seatRR"), "seat_heater_rear_right", "seat_heater_rear_right")}</div>
@@ -1400,6 +1416,7 @@ function renderSettings() {
   $("setGroups").innerHTML = html ? `<div class="frow head"><span></span><span>${t("settings.colInterval")}</span><span>${t("settings.colSignals")}</span><span>${t("settings.colOn")}</span></div>` + html : `<p class="empty">–</p>`;
   $("setSnapshot").innerHTML = [...new Set([...SNAPSHOTS, draftSnapshot])].sort((a, b) => a - b).map((m) =>
     `<option value="${m}" ${m === draftSnapshot ? "selected" : ""}>${m === 0 ? t("snap.off") : t("snap.every", dur(m * 60))}${m === settings.snapshot_default_minutes ? " ★" : ""}</option>`).join("");
+  $("setSeatClimate").value = settings.climate_for_seat_heat === false ? "off" : "on";
   renderSaveBar();
 }
 function renderSaveBar() {
@@ -1421,6 +1438,11 @@ $("setGroups").addEventListener("toggle", (e) => {
   if (d.open) openGroups.add(d.dataset.group); else openGroups.delete(d.dataset.group);
 }, true);
 $("setSnapshot").onchange = (e) => { draftSnapshot = Number(e.target.value); renderSaveBar(); };
+$("setSeatClimate").onchange = async (e) => {
+  const on = e.target.value === "on";
+  const r = await api("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ climate_for_seat_heat: on, push: false }) });
+  if (r.ok) { settings.climate_for_seat_heat = on; toast(t("seatClimate.saved")); renderControls(); } else toast(String(r.status));
+};
 $("setFilter").oninput = renderSettings;
 $("setOnlyCost").onchange = renderSettings;
 $("setUndo").onclick = resetDraft;
@@ -1689,6 +1711,7 @@ async function init() {
   connectEvents();
   loadSetup(false);
   loadModel();
+  loadSettings().then(renderControls);   // the seat card's hint depends on a setting
 }
 
 setInterval(() => {

@@ -79,7 +79,7 @@ public class SettingsTests : IDisposable
     [Fact]
     public void Api_body_is_snake_case()
     {
-        var (fields, snapshot, push, carView) = SettingsApi.Parse(JsonNode.Parse(
+        var (fields, snapshot, push, carView, _) = SettingsApi.Parse(JsonNode.Parse(
             """{ "fields": { "Location": { "enabled": false, "interval_seconds": 10 } }, "snapshot_interval_minutes": 15, "push": false }"""));
         Assert.Equal(new FieldSetting(false, 10), fields!["Location"]);
         Assert.Equal(15, snapshot);

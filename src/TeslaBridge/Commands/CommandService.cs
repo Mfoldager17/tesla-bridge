@@ -9,7 +9,8 @@ namespace TeslaBridge.Commands;
 
 public enum CommandPhase { Pending, Waking, Succeeded, Failed }
 
-public sealed record CommandStatus(string Vin, string Command, CommandPhase Phase, string? Transport, string? Error, DateTimeOffset At);
+/// <param name="Note">Something the bridge did on its own to make the command work, e.g. turned the climate on.</param>
+public sealed record CommandStatus(string Vin, string Command, CommandPhase Phase, string? Transport, string? Error, DateTimeOffset At, string? Note = null);
 
 /// <summary>
 /// Udfører en kommando:
@@ -24,7 +25,8 @@ public sealed class CommandService(
     VehicleStateStore store,
     IOptions<BridgeOptions> options,
     TimeProvider time,
-    ILogger<CommandService> log)
+    ILogger<CommandService> log,
+    TeslaBridge.Settings.SettingsStore? settings = null)
 {
     private readonly CommandOptions _opts = options.Value.Commands;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _perVin = new(StringComparer.OrdinalIgnoreCase);
@@ -47,12 +49,19 @@ public sealed class CommandService(
                 store.SetPending(vin, e.Key, e.Value, timeout, e.ConfirmedBy);
 
             CommandResult result;
-            string? transport;
+            string? transport, note = null;
             try
             {
                 (result, transport) = await SendWithWakeAsync(vin, command, name, ct);
                 if (NeedsClimate(command, result))
-                    (result, transport) = await WithClimateOnAsync(vin, command, name, ct);
+                {
+                    if (settings?.Current.ClimateForSeatHeat ?? true)
+                    {
+                        (result, transport) = await WithClimateOnAsync(vin, command, name, ct);
+                        if (result.IsSuccess) note = ClimateNeededNote;
+                    }
+                    else result = CommandResult.Refused(ClimateNeededError);
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -67,7 +76,7 @@ public sealed class CommandService(
                 foreach (var e in command.Expectations)
                     if (store.HasPending(vin, e.Key))
                         store.SetPending(vin, e.Key, e.Value, TimeSpan.FromSeconds(_opts.OptimisticTimeoutSeconds), e.ConfirmedBy);
-                Report(vin, name, CommandPhase.Succeeded, transport);
+                Report(vin, name, CommandPhase.Succeeded, transport, note: note);
                 log.LogInformation("{Command} til {Vin} lykkedes via {Transport}", name, vin, transport);
             }
             else
@@ -107,7 +116,7 @@ public sealed class CommandService(
             foreach (var e in climate.Expectations) store.ClearPending(vin, e.Key);
             return (CommandResult.Failed($"The climate is off, and turning it on failed: {on.Reason ?? on.Outcome.ToString()}"), onVia);
         }
-        Report(vin, "ClimateOn", CommandPhase.Succeeded, onVia);
+        Report(vin, "ClimateOn", CommandPhase.Succeeded, onVia, note: $"Turned on for {name}");
 
         // The car needs a moment before it accepts cabin comfort commands after the climate starts.
         CommandResult last = on; string? via = onVia;
@@ -204,6 +213,9 @@ public sealed class CommandService(
         ct.ThrowIfCancellationRequested();
     }
 
-    private void Report(string vin, string command, CommandPhase phase, string? transport = null, string? error = null) =>
-        StatusChanged?.Invoke(new CommandStatus(vin, command, phase, transport, error, time.GetUtcNow()));
+    private void Report(string vin, string command, CommandPhase phase, string? transport = null, string? error = null, string? note = null) =>
+        StatusChanged?.Invoke(new CommandStatus(vin, command, phase, transport, error, time.GetUtcNow(), note));
+
+    public const string ClimateNeededNote = "The climate was off, so it was turned on first – the car only heats seats and the steering wheel while it is on";
+    public const string ClimateNeededError = "The car only heats seats and the steering wheel while the climate is on. Turn the climate on first, or let the bridge do it (Settings → Seat heat).";
 }
