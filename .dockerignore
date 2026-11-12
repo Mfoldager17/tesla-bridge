@@ -11,3 +11,7 @@ tests
 **/*.glb
 # …except the bundled Model Y (CC BY-NC 4.0, see its NOTICE.md)
 !src/TeslaBridge/wwwroot/models/model-y.glb
+
+# Built inside the image from web/
+web/node_modules
+src/TeslaBridge/wwwroot/next

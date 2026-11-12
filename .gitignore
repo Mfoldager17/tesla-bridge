@@ -21,3 +21,7 @@ __pycache__/
 # ESPHome secrets for the optional Bluetooth ESP32
 esphome/secrets.yaml
 esphome/.esphome/
+
+# The new dashboard: built from web/ (npm run build) – never committed
+src/TeslaBridge/wwwroot/next/
+web/node_modules/

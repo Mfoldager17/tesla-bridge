@@ -19,6 +19,30 @@ You can also point a test HA with the integration at `http://<your machine>:8080
 
 > If something already uses port 1883, run `Bridge__Mqtt__Port=1884 dotnet run`.
 
+## The dashboard (web/)
+
+The dashboard is being rewritten in **SolidJS + Vite + TypeScript** in `web/` (phase 2). Until it is done, the new one runs next to the old one: `http://<server>:8090/next/` is the new one, `http://<server>:8090/` still the old (`src/TeslaBridge/wwwroot/index.html`).
+
+```bash
+cd web
+npm ci
+npm run dev        # http://localhost:5173/next/ – hot reload, /api proxied to a bridge on localhost:8080
+                   # (another bridge: BRIDGE_URL=http://192.168.1.20:8090 npm run dev)
+npm run check      # TypeScript
+npm test           # Vitest
+npm run build      # → src/TeslaBridge/wwwroot/next, served by `dotnet run` too
+```
+
+The Docker image builds it in its own stage, and CI runs check, test and build. The build output is never committed.
+
+| | |
+|---|---|
+| `src/api/` | types for the bridge's API and the client (token, 401 → login) |
+| `src/state/live.ts` | all cars' fields, the command log and raw events, fed by `/api/events` (Server-Sent Events) |
+| `src/i18n/` | English and Danish (`en.json`, `da.json` – same keys, tested) |
+| `src/components/`, `src/views/` | the frame and the pages |
+| `src/styles/app.css` | the styles, ported from the old dashboard |
+
 ## Commits and releases
 
 Releases are made by [release-please](https://github.com/googleapis/release-please) from the commit messages, so every commit to `main` starts with a type ([Conventional Commits](https://www.conventionalcommits.org)):
