@@ -1,12 +1,14 @@
 {
   "domain": "tesla_bridge",
   "name": "Tesla Bridge",
-  "codeowners": ["@Mfoldager17"],
+  "codeowners": [
+    "@Mfoldager17"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/Mfoldager17/tesla-bridge",
   "integration_type": "hub",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/Mfoldager17/tesla-bridge/issues",
   "requirements": [],
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
