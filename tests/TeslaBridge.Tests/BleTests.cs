@@ -226,3 +226,38 @@ public class BleRoutingTests
         Assert.DoesNotContain("wake", fleet.Log);     // … not the paid one
     }
 }
+
+public class CabinComfortTests
+{
+    private sealed class Car : ICommandTransport
+    {
+        public bool ClimateOn;
+        public List<string> Sent { get; } = [];
+        public string Name => "fleet-api";
+        public int Priority => 100;
+        public ValueTask<bool> CanReachAsync(string vin, CancellationToken ct) => ValueTask.FromResult(true);
+        public Task<CommandResult> WakeAsync(string vin, CancellationToken ct) => Task.FromResult(CommandResult.Ok());
+        public Task<CommandResult> SendAsync(string vin, VehicleCommand c, CancellationToken ct)
+        {
+            Sent.Add(c.Name);
+            if (c is Cmd.ClimateOn) { ClimateOn = true; return Task.FromResult(CommandResult.Ok()); }
+            return Task.FromResult(ClimateOn ? CommandResult.Ok()
+                : CommandResult.Refused("car could not execute command: cabin comfort remote settings not enabled"));
+        }
+    }
+
+    [Fact]
+    public async Task Seat_heat_with_the_climate_off_turns_the_climate_on_first()
+    {
+        var car = new Car();
+        var store = new VehicleStateStore();
+        var svc = new CommandService(new CommandRouter([car]), store,
+            Microsoft.Extensions.Options.Options.Create(new BridgeOptions()), TimeProvider.System, NullLogger<CommandService>.Instance)
+            { RetryDelay = TimeSpan.FromMilliseconds(5) };
+
+        var r = await svc.ExecuteAsync("V", new Cmd.SetAutoSeatClimate(1, true));
+        Assert.True(r.IsSuccess);
+        Assert.Equal(["SetAutoSeatClimate", "ClimateOn", "SetAutoSeatClimate"], car.Sent);
+        Assert.True(store.Get("V", "climate_on")!.Value!.GetValue<bool>());
+    }
+}

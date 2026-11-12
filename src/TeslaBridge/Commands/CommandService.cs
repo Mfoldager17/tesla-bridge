@@ -51,6 +51,8 @@ public sealed class CommandService(
             try
             {
                 (result, transport) = await SendWithWakeAsync(vin, command, name, ct);
+                if (NeedsClimate(command, result))
+                    (result, transport) = await WithClimateOnAsync(vin, command, name, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -81,6 +83,41 @@ public sealed class CommandService(
         {
             gate.Release();
         }
+    }
+
+    /// <summary>
+    /// Seat and steering-wheel heating only work while the climate is on – otherwise the car answers
+    /// "cabin comfort remote settings not enabled". Do what the Tesla app does: turn the climate on first.
+    /// </summary>
+    internal static bool NeedsClimate(VehicleCommand command, CommandResult result) =>
+        !result.IsSuccess
+        && command is Cmd.SetSeatHeater or Cmd.SetAutoSeatClimate or Cmd.SetSteeringWheelHeat
+            or Cmd.SetAutoSteeringWheelHeat or Cmd.SetSteeringWheelHeatLevel
+        && result.Reason?.Contains("cabin comfort remote settings not enabled", StringComparison.OrdinalIgnoreCase) == true;
+
+    private async Task<(CommandResult, string?)> WithClimateOnAsync(string vin, VehicleCommand command, string name, CancellationToken ct)
+    {
+        log.LogInformation("{Command}: the climate is off – turning it on first", name);
+        var climate = new Cmd.ClimateOn();
+        foreach (var e in climate.Expectations)
+            store.SetPending(vin, e.Key, e.Value, TimeSpan.FromSeconds(_opts.OptimisticTimeoutSeconds), e.ConfirmedBy);
+        var (on, onVia) = await SendWithWakeAsync(vin, climate, name, ct);
+        if (!on.IsSuccess)
+        {
+            foreach (var e in climate.Expectations) store.ClearPending(vin, e.Key);
+            return (CommandResult.Failed($"The climate is off, and turning it on failed: {on.Reason ?? on.Outcome.ToString()}"), onVia);
+        }
+        Report(vin, "ClimateOn", CommandPhase.Succeeded, onVia);
+
+        // The car needs a moment before it accepts cabin comfort commands after the climate starts.
+        CommandResult last = on; string? via = onVia;
+        for (var i = 0; i < 4; i++)
+        {
+            await Task.Delay(RetryDelay, time, ct);
+            (last, via) = await SendWithWakeAsync(vin, command, name, ct);
+            if (!NeedsClimate(command, last)) break;
+        }
+        return (last, via);
     }
 
     private async Task<(CommandResult, string?)> SendWithWakeAsync(string vin, VehicleCommand command, string name, CancellationToken ct)
