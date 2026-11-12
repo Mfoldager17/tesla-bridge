@@ -34,7 +34,7 @@ A sent command shows its new state straight away (optimistic), but the car may f
 | `pending` | `true` while the command waits for the car |
 | `waiting_for` | `car to wake up` while the car is being woken, then `car to confirm` until the car reports the new state. Empty when done |
 
-With the [integration](4-home-assistant.md#b-the-tesla-bridge-integration), the icon also changes meanwhile: 💤 `mdi:sleep` while the car wakes, ⏳ `mdi:timer-sand` until it confirms. That shows on tile cards and in the entity list without any setup. With MQTT the attributes are the same, but the icon can't change. Use them in a card, for example:
+With the [integration](4-home-assistant.md#b-the-tesla-bridge-integration), it works like Teslemetry: the action keeps running until the car has woken and done it, so Home Assistant shows it as busy, and if the car refuses, you get its error as a message instead of a silent failure. The icon also changes meanwhile: 💤 `mdi:sleep` while the car wakes, ⏳ `mdi:timer-sand` until it confirms. That shows on tile cards and in the entity list without any setup. With MQTT the attributes are the same, but the icon can't change. Use them in a card, for example:
 
 ```yaml
 type: tile

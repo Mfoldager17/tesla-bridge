@@ -57,6 +57,8 @@ services.AddSingleton(sp => new TeslaProxyClient(
 services.AddSingleton<TeslaBridge.Ble.BleService>();
 services.AddSingleton<ICommandTransport, TeslaBridge.Ble.BleTransport>();
 services.AddSingleton<ICommandTransport, FleetApiTransport>();
+if (builder.Configuration.GetValue<bool>("Bridge:Web:Simulator"))
+    services.AddSingleton<ICommandTransport, SimulatorTransport>();   // a pretend car, before the Fleet API
 services.AddSingleton<CommandRouter>();
 services.AddSingleton<CommandService>();
 

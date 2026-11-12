@@ -129,6 +129,48 @@ async def test_waiting_for_the_car_shows_on_the_entities(hass: HomeAssistant, so
 
 
 @pytest.mark.allow_hosts(["127.0.0.1"])
+async def test_a_command_waits_for_the_car_like_teslemetry(hass: HomeAssistant, socket_enabled) -> None:
+    """The action runs until the car has woken and done it, and the entity says what it waits for meanwhile."""
+    entry = MockConfigEntry(domain="tesla_bridge", data={"url": URL, "token": None}, unique_id=VIN)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    async with aiohttp.ClientSession() as s:
+        async with s.post(f"{URL}/api/vehicles/{VIN}/simulate/sleep") as r:
+            await r.read()
+    hub = entry.runtime_data
+    for _ in range(50):
+        await asyncio.sleep(0.1)
+        if hub.connected:
+            break
+
+    current = hass.states.get("switch.model_y_sentry_mode").state
+    service = "turn_off" if current == "on" else "turn_on"
+    call = asyncio.create_task(hass.services.async_call(
+        "switch", service, {"entity_id": "switch.model_y_sentry_mode"}, blocking=True))
+    seen = []
+    started = asyncio.get_running_loop().time()
+    while not call.done():
+        await asyncio.sleep(0.2)   # (not async_block_till_done – that would wait for the call itself)
+        st = hass.states.get("switch.model_y_sentry_mode")
+        seen.append((st.state, st.attributes.get("waiting_for"), st.attributes.get("icon")))
+    await call   # raises if the bridge reported an error
+    took = asyncio.get_running_loop().time() - started
+    print("sentry while waiting", seen[:3], "…", seen[-2:])
+    assert ("car to wake up" in {w for _, w, _ in seen}), seen
+    assert ("mdi:sleep" in {i for _, _, i in seen}), seen
+    assert took > 4, took   # the call really waited for the (pretend) car to wake
+
+    for _ in range(40):   # the car confirms shortly after
+        await asyncio.sleep(0.1)
+        await hass.async_block_till_done()
+        if hass.states.get("switch.model_y_sentry_mode").attributes.get("pending") is False:
+            break
+    assert hass.states.get("switch.model_y_sentry_mode").attributes["pending"] is False
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.allow_hosts(["127.0.0.1"])
 async def test_config_flow(hass: HomeAssistant, socket_enabled) -> None:
     result = await hass.config_entries.flow.async_init("tesla_bridge", context={"source": "user"})
     assert result["type"] == "form"

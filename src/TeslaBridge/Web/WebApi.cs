@@ -143,13 +143,21 @@ public static class WebApi
             if (command is null) return Results.BadRequest(new { error = $"Ukendt kommando eller payload: {name} = '{payload}'" });
 
             var log = lf.CreateLogger("WebApi");
-            _ = Task.Run(async () =>
+            var run = Task.Run(async () =>
             {
-                try { await commands.ExecuteAsync(vin, command, life.ApplicationStopping); }
-                catch (OperationCanceledException) { }
-                catch (Exception ex) { log.LogError(ex, "Fejl i {Command}", command); }
+                try { return await commands.ExecuteAsync(vin, command, life.ApplicationStopping); }
+                catch (OperationCanceledException) { return CommandResult.Failed("The bridge is stopping"); }
+                catch (Exception ex) { log.LogError(ex, "Fejl i {Command}", command); return CommandResult.Failed(ex.Message); }
             });
-            return Results.Accepted(value: new { command = command.Name });
+            // ?wait=true answers when the car has done it (woken first if needed) – like Teslemetry, so Home Assistant
+            // shows the call as busy meanwhile and shows the car's error if it fails. Without it: 202 straight away.
+            if (!string.Equals(req.Query["wait"], "true", StringComparison.OrdinalIgnoreCase))
+                return Results.Accepted(value: new { command = command.Name });
+            var result = await run;   // keeps running even if the caller gives up
+            return result.IsSuccess
+                ? Results.Ok(new { command = command.Name, ok = true })
+                : Results.Json(new { command = command.Name, ok = false, error = result.Reason ?? result.Outcome.ToString() },
+                    statusCode: result.Outcome == CommandOutcome.Refused ? 409 : 502);
         });
 
         api.MapGet("/vehicles/{vin}/telemetry-config", async (string vin, TelemetryConfigService svc, CancellationToken ct) =>
@@ -185,6 +193,13 @@ public static class WebApi
                 foreach (var (field, json) in samples)
                     await mqtt.PublishAsync($"{b}/{vin}/v/{field}", json);
                 return Results.Ok(new { sent = samples.Length });
+            });
+
+            // Puts the pretend car to sleep, so the next command has to wake it first.
+            api.MapPost("/vehicles/{vin}/simulate/sleep", (string vin, IEnumerable<TeslaBridge.Commands.ICommandTransport> transports) =>
+            {
+                transports.OfType<TeslaBridge.Commands.SimulatorTransport>().FirstOrDefault()?.Sleep(vin);
+                return Results.Ok(new { asleep = true });
             });
         }
     }

@@ -11,7 +11,7 @@ Token: `Authorization: Bearer <token>` (or `?token=` in the URL).
 | `GET /api/entities` | all HA entities: the same definitions as MQTT discovery, with `state:<field>` / `cmd:<name>` instead of topics |
 | `GET /api/state` | all fields per car with value, timestamp and source (including `*_motion`) |
 | `GET /api/events` | Server-Sent Events: `field` (a value changed) and `command` (command status), live |
-| `POST /api/vehicles/<VIN>/cmd/<name>` | a command. Body = the same payload as on MQTT (empty body = `PRESS`) |
+| `POST /api/vehicles/<VIN>/cmd/<name>` | a command. Body = the same payload as on MQTT (empty body = `PRESS`). Answers `202` straight away; with `?wait=true` it answers when the car has done it (woken first if needed): `200`, or `409`/`502` with `{"error": …}` |
 | `GET /api/usage` | Fleet API usage |
 | `GET /api/settings` | telemetry fields with intervals, on/off and this month's signal count, plus the snapshot interval |
 | `PUT /api/settings` | change them: `{"fields": {"Location": {"enabled": true, "interval_seconds": 10}}, "snapshot_interval_minutes": 60}` – saved and sent to the car |

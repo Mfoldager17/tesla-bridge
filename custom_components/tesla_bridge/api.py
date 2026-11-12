@@ -57,17 +57,27 @@ class BridgeClient:
         return await self._get("/api/usage")
 
     async def command(self, vin: str, name: str, payload: str) -> None:
+        """Sends a command and waits until the car has done it (woken first if it slept), like Teslemetry.
+
+        Home Assistant shows the action as running meanwhile, and the car's own error if it fails.
+        """
         try:
             async with self._session.post(
                 f"{self.url}/api/vehicles/{vin}/cmd/{name}",
+                params={"wait": "true"},
                 data=payload.encode(),
                 headers={**self._headers, "Content-Type": "text/plain"},
-                timeout=aiohttp.ClientTimeout(total=15),
+                timeout=aiohttp.ClientTimeout(total=120),
             ) as r:
                 if r.status == 401:
                     raise BridgeAuthError("Wrong token")
                 if r.status >= 400:
-                    raise BridgeError((await r.text())[:300])
+                    text = await r.text()
+                    try:
+                        text = json.loads(text).get("error") or text
+                    except ValueError:
+                        pass
+                    raise BridgeError(text[:300])
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             raise BridgeError(str(err)) from err
 
