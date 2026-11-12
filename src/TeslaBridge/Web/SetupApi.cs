@@ -73,7 +73,11 @@ public static class SetupApi
 
     public static void MapSetupApi(this RouteGroupBuilder api, BridgeOptions opts)
     {
-        RegisteredCheck? lastCheck = null;
+        // The last check at Tesla is remembered (also across restarts), so the setup page doesn't show
+        // "not checked yet" every time it's opened. It refreshes itself when older than CheckMaxAge.
+        var statusFile = Path.Combine(Path.GetDirectoryName(opts.StateFile) ?? "/data", "setup-status.json");
+        var (lastCheck, vehicleStatus) = LoadStatus(statusFile);
+        var gate = new SemaphoreSlim(1, 1);
 
         api.MapGet("/auth/start", (LoginFlow login) => Results.Redirect(login.Start()));
 
@@ -81,7 +85,13 @@ public static class SetupApi
             TelemetryConfigService telemetry, CancellationToken ct) =>
         {
             var pub = SafeKey(key, out var keyError);
-            if (check == true && pub is not null && HasCredentials(opts))
+            var stale = lastCheck is null || DateTimeOffset.UtcNow - lastCheck.At > CheckMaxAge
+                        || (tokens.HasTokens && opts.Vehicles.Any(v => !vehicleStatus.ContainsKey(v.Vin)));
+            var doCheck = check == true || (check is null && stale && pub is not null && HasCredentials(opts));
+            if (doCheck) await gate.WaitAsync(ct);
+            try
+            {
+            if (doCheck && pub is not null && HasCredentials(opts))
             {
                 try
                 {
@@ -97,18 +107,22 @@ public static class SetupApi
             var vehicles = new JsonArray();
             foreach (var v in opts.Vehicles)
             {
-                var o = new JsonObject { ["vin"] = v.Vin, ["name"] = v.Name };
-                if (check == true && tokens.HasTokens)
+                if (doCheck && tokens.HasTokens)
                 {
+                    var st = new JsonObject { ["checked_at"] = DateTimeOffset.UtcNow.ToString("O") };
                     try
                     {
                         var r = (await telemetry.GetStatusAsync(v.Vin, ct))?["response"];
-                        o["synced"] = r?["synced"]?.DeepClone();
-                        o["key_paired"] = r?["key_paired"]?.DeepClone();
-                        o["hostname"] = r?["config"]?["hostname"]?.DeepClone();
+                        st["synced"] = r?["synced"]?.DeepClone();
+                        st["key_paired"] = r?["key_paired"]?.DeepClone();
+                        st["hostname"] = r?["config"]?["hostname"]?.DeepClone();
                     }
-                    catch (Exception ex) { o["error"] = ex.Message; }
+                    catch (Exception ex) { st["error"] = ex.Message; }
+                    vehicleStatus[v.Vin] = st;
                 }
+                var o = new JsonObject { ["vin"] = v.Vin, ["name"] = v.Name };
+                if (vehicleStatus.TryGetValue(v.Vin, out var cached))
+                    foreach (var (k, n) in cached) o[k] = n?.DeepClone();
                 vehicles.Add(o);
             }
 
@@ -136,7 +150,10 @@ public static class SetupApi
                 ["logged_in"] = tokens.HasTokens,
                 ["vehicles"] = vehicles,
             };
+            if (doCheck) SaveStatus(statusFile, lastCheck, vehicleStatus);
             return Results.Content(result.ToJsonString(Json.Relaxed), "application/json");
+            }
+            finally { if (doCheck) gate.Release(); }
         });
 
         api.MapPost("/setup/register", async (TeslaPartnerClient partner, TeslaKey key, CancellationToken ct) =>
@@ -147,6 +164,7 @@ public static class SetupApi
                 var pub = key.Public;
                 var registered = await partner.GetRegisteredPublicKeyAsync(ct);
                 lastCheck = new RegisteredCheck(registered is not null, pub is not null && registered == pub.UncompressedHex, null, DateTimeOffset.UtcNow);
+                SaveStatus(statusFile, lastCheck, vehicleStatus);
                 return Results.Content(resp?.ToJsonString(Json.Relaxed) ?? "{}", "application/json");
             }
             catch (Exception ex)
@@ -164,7 +182,49 @@ public static class SetupApi
         });
     }
 
-    private sealed record RegisteredCheck(bool Registered, bool Matches, string? Error, DateTimeOffset At);
+    /// <summary>How long a check at Tesla is trusted before the setup page refreshes it on its own.</summary>
+    public static readonly TimeSpan CheckMaxAge = TimeSpan.FromHours(6);
+
+    internal static (RegisteredCheck?, Dictionary<string, JsonObject>) LoadStatus(string file)
+    {
+        var vehicles = new Dictionary<string, JsonObject>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            if (File.Exists(file) && JsonNode.Parse(File.ReadAllText(file)) is JsonObject o)
+            {
+                RegisteredCheck? reg = null;
+                if (o["registration"] is JsonObject r && DateTimeOffset.TryParse((string?)r["checked_at"], out var at))
+                    reg = new RegisteredCheck((bool?)r["registered"] ?? false, (bool?)r["matches"] ?? false, (string?)r["error"], at);
+                if (o["vehicles"] is JsonObject vs)
+                    foreach (var (vin, n) in vs) if (n is JsonObject vo) vehicles[vin] = (JsonObject)vo.DeepClone();
+                return (reg, vehicles);
+            }
+        }
+        catch (Exception) { /* a broken file just means "not checked" */ }
+        return (null, vehicles);
+    }
+
+    internal static void SaveStatus(string file, RegisteredCheck? reg, Dictionary<string, JsonObject> vehicles)
+    {
+        try
+        {
+            var vs = new JsonObject();
+            foreach (var (vin, o) in vehicles) vs[vin] = o.DeepClone();
+            var doc = new JsonObject
+            {
+                ["registration"] = reg is null ? null : new JsonObject
+                {
+                    ["registered"] = reg.Registered, ["matches"] = reg.Matches, ["error"] = reg.Error, ["checked_at"] = reg.At.ToString("O"),
+                },
+                ["vehicles"] = vs,
+            };
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            File.WriteAllText(file, doc.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception) { /* best effort */ }
+    }
+
+    internal sealed record RegisteredCheck(bool Registered, bool Matches, string? Error, DateTimeOffset At);
 
     private static bool HasCredentials(BridgeOptions o) =>
         !string.IsNullOrWhiteSpace(o.Tesla.ClientId) && !string.IsNullOrWhiteSpace(o.Tesla.ClientSecret) && !string.IsNullOrWhiteSpace(o.PartnerDomain);

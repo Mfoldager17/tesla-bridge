@@ -8,35 +8,41 @@
 <script type="importmap">{ "imports": { "three": "/vendor/three/three.module.min.js", "three/addons/": "/vendor/three/addons/" } }</script>
 <style>
   :root {
-    --bg: #15191e; --surface: #1d2228; --raise: #252b33; --line: #313842; --line-soft: #262c34;
-    --text: #e6e9ec; --muted: #949da8; --faint: #6b747f;
-    --accent: #6e9cf5; --accent-ink: #0d1626;
-    --charge: #45c07a; --warn: #e9a23b; --danger: #e5484d; --pending: #a78bfa;
-    --body-off: #3a414b; --body-fill: #232930;
+    --bg: #0e1217; --surface: #161b22; --raise: #1f262f; --line: #2b333e; --line-soft: #212831;
+    --text: #e8ecf1; --muted: #98a2b0; --faint: #687280;
+    --accent: #5aa9ff; --accent-ink: #04101f;
+    --charge: #3fcb8e; --warn: #f2a93b; --danger: #ff5d5d; --pending: #a78bfa; --heat: #ff8a4c; --cool: #5fc5ff;
+    --body-off: #39424e; --body-fill: #1c222a;
+    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 10px 30px rgba(0,0,0,.25);
+    --glow: radial-gradient(1100px 520px at 75% -12%, rgba(90,169,255,.09), transparent 62%);
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
-    --r-lg: 14px; --r-md: 10px; --r-sm: 7px;
+    --r-lg: 20px; --r-md: 14px; --r-sm: 10px;
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
-      --bg: #edeff2; --surface: #ffffff; --raise: #f5f6f8; --line: #dadde2; --line-soft: #e8eaee;
-      --text: #1b2026; --muted: #5f6873; --faint: #8a929c;
-      --accent: #2f66d0; --accent-ink: #ffffff;
-      --charge: #1f9a57; --warn: #b9740c; --danger: #cf2e33; --pending: #7c5ce0;
-      --body-off: #c3c8cf; --body-fill: #f1f3f5;
+      --bg: #eef1f5; --surface: #ffffff; --raise: #f2f4f7; --line: #dce1e8; --line-soft: #e8ecf1;
+      --text: #161b22; --muted: #5d6775; --faint: #8b94a1;
+      --accent: #2563eb; --accent-ink: #ffffff;
+      --charge: #16a36a; --warn: #c27a0e; --danger: #d63b3b; --pending: #7c5ce0; --heat: #e8672a; --cool: #1f8ad8;
+      --body-off: #c3c9d2; --body-fill: #f3f5f8;
+      --shadow: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.06);
+      --glow: radial-gradient(1100px 520px at 75% -12%, rgba(37,99,235,.07), transparent 62%);
     }
   }
   :root[data-theme="light"] {
-    --bg: #edeff2; --surface: #ffffff; --raise: #f5f6f8; --line: #dadde2; --line-soft: #e8eaee;
-    --text: #1b2026; --muted: #5f6873; --faint: #8a929c;
-    --accent: #2f66d0; --accent-ink: #ffffff;
-    --charge: #1f9a57; --warn: #b9740c; --danger: #cf2e33; --pending: #7c5ce0;
-    --body-off: #c3c8cf; --body-fill: #f1f3f5;
+    --bg: #eef1f5; --surface: #ffffff; --raise: #f2f4f7; --line: #dce1e8; --line-soft: #e8ecf1;
+    --text: #161b22; --muted: #5d6775; --faint: #8b94a1;
+    --accent: #2563eb; --accent-ink: #ffffff;
+    --charge: #16a36a; --warn: #c27a0e; --danger: #d63b3b; --pending: #7c5ce0; --heat: #e8672a; --cool: #1f8ad8;
+    --body-off: #c3c9d2; --body-fill: #f3f5f8;
+    --shadow: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.06);
+    --glow: radial-gradient(1100px 520px at 75% -12%, rgba(37,99,235,.07), transparent 62%);
   }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; }
-  body { background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  body { background: var(--glow), var(--bg); background-attachment: fixed; color: var(--text); font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
   a { color: var(--accent); }
   [hidden] { display: none !important; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -106,7 +112,7 @@
   .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
   .seg button.pending { color: var(--pending); box-shadow: 0 0 0 1px var(--pending); }
 
-  .panel { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-lg); padding: 20px; }
+  .panel { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-lg); padding: 22px; box-shadow: var(--shadow); }
   .panel + .panel { margin-top: 16px; }
   .ctl-grid .panel { margin-top: 0; }
   .panel h2 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
@@ -172,17 +178,12 @@
   .charge-line .state { font-weight: 500; }
   .charge-line .state.on { color: var(--charge); }
 
-  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); border-top: 1px solid var(--line-soft); margin: 0 0 28px; }
-  .facts div { padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin: 0 0 28px; }
+  .facts div { padding: 14px 16px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-soft); }
   .facts dt { color: var(--muted); font-size: 13px; }
   .facts dd { margin: 2px 0 0; font-size: 17px; }
   .facts dd.pending { color: var(--pending); }
   .facts dd .sub { display: block; color: var(--faint); font-size: 13px; }
-
-  .quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
-  .quick button { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; }
-  .quick button.pending { border-color: var(--pending); color: var(--pending); }
-  .quick svg { width: 16px; height: 16px; }
 
   .log { list-style: none; margin: 0; padding: 0; font-size: 14px; }
   .log li { display: grid; grid-template-columns: 74px 1fr auto; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); align-items: baseline; }
@@ -193,16 +194,96 @@
   .empty { color: var(--faint); padding: 18px 0; }
 
   /* ---------- car controls ---------- */
-  .ctl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; align-items: start; }
-  @media (max-width: 420px) { .ctl-grid { grid-template-columns: 1fr; } }
-  .ctl { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line-soft); min-height: 50px; flex-wrap: wrap; }
-  .ctl:first-of-type { border-top: 0; }
-  .ctl > .lbl { flex: 1; min-width: 120px; hyphens: auto; overflow-wrap: anywhere; }
-  .ctl > .lbl .v { display: block; color: var(--muted); font-size: 13px; }
-  .ctl.slider { display: grid; grid-template-columns: 1fr auto; }
-  .ctl.slider input { grid-column: 1 / -1; }
-  .ctl.slider output { font-variant-numeric: tabular-nums; font-weight: 500; }
-  .btnrow { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cgrid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .cgrid > .card { grid-column: span 6; }
+  .cgrid > .card.climate { grid-column: span 7; }
+  .cgrid > .card.seats { grid-column: span 5; }
+  .cgrid > .card.charge { grid-column: span 5; }
+  .cgrid > .card.cartiles { grid-column: span 7; }
+  @media (max-width: 1100px) { .cgrid > .card, .cgrid > .card.climate, .cgrid > .card.seats, .cgrid > .card.charge, .cgrid > .card.cartiles { grid-column: span 12; } }
+  .card { position: relative; background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-lg); padding: 22px; box-shadow: var(--shadow); overflow: hidden; }
+  .card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .card h2 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  .card header .muted { font-size: 13px; }
+  .card .sect { margin-top: 20px; }
+  .card .sect > .lbl { font-size: 13px; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .card .sect > .lbl b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .power { width: 52px; height: 52px; border-radius: 50%; padding: 0; display: grid; place-items: center; border: 1px solid var(--line); background: var(--raise); color: var(--muted); flex: none; transition: background .25s, color .25s, box-shadow .25s; }
+  .power svg { width: 22px; height: 22px; }
+  .power[aria-pressed="true"] { background: var(--heat); border-color: transparent; color: #fff; box-shadow: 0 6px 22px color-mix(in srgb, var(--heat) 45%, transparent); }
+  .climate.cool .power[aria-pressed="true"] { background: var(--cool); box-shadow: 0 6px 22px color-mix(in srgb, var(--cool) 45%, transparent); }
+  .power.pending { box-shadow: 0 0 0 3px var(--pending); }
+
+  .climate::before { content: ""; position: absolute; inset: -40% -10% auto; height: 120%; background: radial-gradient(closest-side, color-mix(in srgb, var(--heat) 26%, transparent), transparent); opacity: 0; transition: opacity .6s; pointer-events: none; }
+  .climate.cool::before { background: radial-gradient(closest-side, color-mix(in srgb, var(--cool) 24%, transparent), transparent); }
+  .climate.on::before { opacity: 1; }
+  .climate > * { position: relative; }
+  .temp { display: flex; align-items: center; justify-content: center; gap: clamp(16px, 5vw, 40px); padding: 6px 0 4px; }
+  .temp .tv { font-size: clamp(56px, 8vw, 76px); font-weight: 200; letter-spacing: -.04em; line-height: 1; min-width: 3.2ch; text-align: center; }
+  .temp .tv small { font-size: .35em; font-weight: 300; color: var(--muted); margin-left: 2px; letter-spacing: 0; }
+  .temp .tv.pending { color: var(--pending); }
+  .round { width: 48px; height: 48px; border-radius: 50%; padding: 0; font-size: 22px; line-height: 1; display: grid; place-items: center; background: var(--raise); border: 1px solid var(--line); }
+  .round:active { transform: scale(.94); }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { border-radius: 99px; padding: 7px 14px; font-size: 13.5px; background: var(--raise); border: 1px solid transparent; color: var(--muted); }
+  .chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 18%, var(--raise)); border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--text); }
+  .chip.pending { border-color: var(--pending); color: var(--pending); }
+  .chips.center { justify-content: center; }
+
+  .seatmap { display: grid; gap: 10px; justify-content: center; }
+  .seatmap .row { display: flex; gap: 10px; justify-content: center; }
+  .seatmap .row.front { gap: 64px; }
+  .seat { min-width: 84px; padding: 10px 6px 9px; border-radius: 16px; display: grid; justify-items: center; gap: 6px; background: var(--raise); border: 1px solid transparent; }
+  .seat svg { width: 30px; height: 30px; color: var(--muted); transition: color .25s; }
+  .seat .bars { display: flex; gap: 3px; }
+  .seat .bars i { width: 12px; height: 4px; border-radius: 2px; background: var(--line); transition: background .25s; }
+  .seat .bars i.on { background: var(--heat); }
+  .seat.lit { background: color-mix(in srgb, var(--heat) 12%, var(--raise)); border-color: color-mix(in srgb, var(--heat) 35%, transparent); }
+  .seat.lit svg { color: var(--heat); }
+  .seat.pending { border-color: var(--pending); }
+  .seat span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  .stepper { display: flex; align-items: center; gap: 14px; }
+  .stepper .v { font-size: 26px; font-weight: 300; min-width: 4ch; text-align: center; font-variant-numeric: tabular-nums; }
+  .stepper .v small { font-size: 14px; color: var(--muted); margin-left: 2px; }
+  .stepper .round { width: 40px; height: 40px; font-size: 19px; }
+
+  .range { --p: 50%; -webkit-appearance: none; appearance: none; width: 100%; height: 34px; background: transparent; margin: 0; }
+  .range::-webkit-slider-runnable-track { height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--charge) var(--p), var(--raise) var(--p)); border: 1px solid var(--line); }
+  .range::-moz-range-track { height: 10px; border-radius: 5px; background: var(--raise); border: 1px solid var(--line); }
+  .range::-moz-range-progress { height: 10px; border-radius: 5px; background: var(--charge); }
+  .range::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -9px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .range::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .range-scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--faint); margin-top: 2px; }
+  .charge-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .charge-head .big { font-size: 34px; font-weight: 250; letter-spacing: -.03em; }
+  .charge-head .big small { font-size: 16px; color: var(--muted); }
+  .charge-head .state.on { color: var(--charge); }
+  .cta { border-radius: 99px; padding: 10px 18px; font-weight: 500; white-space: nowrap; }
+  .cta.go { background: var(--charge); border-color: transparent; color: #04140a; }
+  .cta.stop { background: var(--raise); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+  .tile { display: grid; justify-items: center; align-content: start; gap: 7px; padding: 14px 8px 12px; border-radius: 16px; background: var(--raise); border: 1px solid transparent; text-align: center; min-height: 104px; }
+  .tile .ic { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--text); transition: background .25s, color .25s; }
+  .tile .ic svg { width: 21px; height: 21px; }
+  .tile b { font-weight: 500; font-size: 13.5px; line-height: 1.2; }
+  .tile small { font-size: 12px; color: var(--muted); line-height: 1.2; }
+  .tile.on { background: color-mix(in srgb, var(--accent) 14%, var(--raise)); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+  .tile.on .ic { background: var(--accent); color: var(--accent-ink); }
+  .tile.open { background: color-mix(in srgb, var(--warn) 14%, var(--raise)); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+  .tile.open .ic { background: var(--warn); color: #1b1305; }
+  .tile.pending { border-color: var(--pending); }
+  .tile.pending small { color: var(--pending); }
+  .tile:active { transform: scale(.97); }
+  .tiles.compact { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); margin-bottom: 28px; }
+  .tiles.compact .tile { min-height: 0; padding: 12px 6px 10px; background: var(--surface); border-color: var(--line-soft); }
+  .tiles.compact .tile .ic { background: var(--raise); }
+  .tiles.compact .tile.on .ic { background: var(--accent); } .tiles.compact .tile.open .ic { background: var(--warn); }
+  .tiles.compact .tile small { display: none; }
+  @media (max-width: 520px) { .tiles, .tiles.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); } .seat { min-width: 72px; } .seatmap .row.front { gap: 40px; } }
 
   /* ---------- tables ---------- */
   .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line-soft); margin-bottom: 16px; overflow-x: auto; }
@@ -384,7 +465,7 @@
           </div>
         </div>
 
-        <div class="quick" id="quick"></div>
+        <div class="tiles compact" id="quick"></div>
         <dl class="facts" id="facts"></dl>
 
         <div class="panel">
@@ -398,7 +479,7 @@
       <section class="view" data-view="controls" hidden>
         <h1 data-t="nav.controls"></h1>
         <p class="lede" data-t="controls.lede"></p>
-        <div class="ctl-grid" id="ctlGrid"></div>
+        <div class="cgrid" id="ctlGrid"></div>
       </section>
 
       <!-- ============ Data ============ -->
@@ -547,9 +628,10 @@ const T = {
     "c.climateOn": "Climate", "c.temp": "Temperature", "c.defrost": "Defrost", "c.keeper": "Keep climate", "c.cop": "Cabin overheat protection", "c.copTemp": "Overheat protection limit",
     "c.keep": "Keep", "c.dog": "Dog", "c.camp": "Camp", "c.fanOnly": "Fan only",
     "c.seatFL": "Front left", "c.seatFR": "Front right", "c.seatRL": "Rear left", "c.seatRC": "Rear center", "c.seatRR": "Rear right",
-    "c.autoL": "Auto seat climate left", "c.autoR": "Auto seat climate right", "c.wheel": "Steering wheel", "c.wheelAuto": "Auto steering wheel heat",
+    "c.autoL": "Left seat", "c.autoR": "Right seat", "c.wheel": "Steering wheel", "c.wheelAuto": "Steering wheel",
     "lvl.off": "Off", "lvl.low": "Low", "lvl.medium": "Med", "lvl.high": "High",
     "c.charge": "Charging", "c.limit": "Charge limit", "c.amps": "Charge current", "c.port": "Charge port", "c.open": "Open", "c.close": "Close", "c.unlockCable": "Release cable",
+    "c.seatsHint": "Tap a seat to change the heat", "c.auto": "Automatic", "c.car": "Car", "c.carHint": "Tap to control", "c.startCharge": "Start charging", "c.stopCharge": "Stop charging", "c.daily": "Daily", "c.trip": "Trip",
     "c.lock": "Lock", "c.sentry": "Sentry mode", "c.guest": "Guest mode", "c.valet": "Valet mode",
     "c.frunk": "Frunk", "c.trunk": "Trunk", "c.windows": "Windows", "c.vent": "Vent", "c.homelink": "HomeLink", "c.press": "Press",
     "c.wake": "Wake up", "c.flash": "Flash lights", "c.honk": "Honk", "c.keyless": "Keyless driving", "c.fart": "Fart",
@@ -634,9 +716,10 @@ const T = {
     "c.climateOn": "Klima", "c.temp": "Temperatur", "c.defrost": "Afrimning", "c.keeper": "Hold klima", "c.cop": "Overophedningsbeskyttelse", "c.copTemp": "Grænse for overophedning",
     "c.keep": "Keep", "c.dog": "Dog", "c.camp": "Camp", "c.fanOnly": "Kun blæser",
     "c.seatFL": "Foran venstre", "c.seatFR": "Foran højre", "c.seatRL": "Bag venstre", "c.seatRC": "Bag midt", "c.seatRR": "Bag højre",
-    "c.autoL": "Auto sædeklima venstre", "c.autoR": "Auto sædeklima højre", "c.wheel": "Rattvarme", "c.wheelAuto": "Auto rattvarme",
+    "c.autoL": "Venstre sæde", "c.autoR": "Højre sæde", "c.wheel": "Rat", "c.wheelAuto": "Rat",
     "lvl.off": "Fra", "lvl.low": "Lav", "lvl.medium": "Mel", "lvl.high": "Høj",
     "c.charge": "Opladning", "c.limit": "Ladegrænse", "c.amps": "Ladestrøm", "c.port": "Ladeport", "c.open": "Åbn", "c.close": "Luk", "c.unlockCable": "Frigiv kabel",
+    "c.seatsHint": "Tryk på et sæde for at skifte varme", "c.auto": "Automatisk", "c.car": "Bil", "c.carHint": "Tryk for at styre", "c.startCharge": "Start opladning", "c.stopCharge": "Stop opladning", "c.daily": "Daglig", "c.trip": "Tur",
     "c.lock": "Lås", "c.sentry": "Sentry", "c.guest": "Gæstetilstand", "c.valet": "Valet-tilstand",
     "c.frunk": "Frunk", "c.trunk": "Bagklap", "c.windows": "Ruder", "c.vent": "Luft ud", "c.homelink": "HomeLink", "c.press": "Tryk",
     "c.wake": "Væk bilen", "c.flash": "Blink", "c.honk": "Dyt", "c.keyless": "Kør uden nøgle", "c.fart": "Prut",
@@ -769,6 +852,7 @@ function route() {
   document.querySelectorAll(".view").forEach((s) => (s.hidden = s.dataset.view !== v));
   document.querySelectorAll(".navlist a").forEach((a) => a.toggleAttribute("aria-current", a.dataset.view === v) || a.dataset.view === v && a.setAttribute("aria-current", "page"));
   if (v === "usage") loadUsage();
+  if (v === "controls") renderControls();
   if (v === "settings" && !settings) loadSettings();
   if (v === "setup") loadSetup(false);
   window.scrollTo(0, 0);
@@ -838,17 +922,7 @@ function renderOverview() {
   $("bCharge").innerHTML = cl;
 
   // ---- quick actions
-  const quick = [];
-  const lockBusy = lm === "LOCKING" || lm === "UNLOCKING";
-  quick.push(lk === false ? ["lock", "LOCK", t("q.lock"), "lock", lockBusy] : ["lock", "UNLOCK", t("q.unlock"), "unlock", lockBusy, true]);
-  quick.push(val("climate_on") ? ["climate", "off", t("q.climateOff"), "fan", isPending("climate_on")] : ["climate", "on", t("q.climateOn"), "fan", isPending("climate_on")]);
-  if (!val("frunk_open")) quick.push(["frunk", "OPEN", t("q.frunk"), "box", motion("frunk_open") === "opening"]);
-  quick.push(val("trunk_open") ? ["trunk", "CLOSE", t("q.trunkClose"), "box", motion("trunk_open") === "closing"] : ["trunk", "OPEN", t("q.trunk"), "box", motion("trunk_open") === "opening"]);
-  quick.push(val("charge_port_open") ? ["charge_port_door", "CLOSE", t("q.portClose"), "plug"] : ["charge_port_door", "OPEN", t("q.port"), "plug"]);
-  quick.push(["flash_lights", "PRESS", t("q.flash"), "sun"], ["honk_horn", "PRESS", t("q.honk"), "horn"]);
-  if (val("online") !== true) quick.push(["wake", "PRESS", t("q.wake"), "bolt"]);
-  $("quick").innerHTML = quick.map(([c, p, l, i, busy, confirm]) =>
-    `<button type="button" class="${busy ? "pending" : ""}" data-cmd="${c}" data-p="${p}" ${confirm ? 'data-confirm="1"' : ""}>${ICON[i]}${esc(l)}</button>`).join("");
+  $("quick").innerHTML = carTiles(true);
 
   // ---- facts
   const yes = (v) => (v === true ? t("on") : v === false ? t("off") : "–");
@@ -899,103 +973,179 @@ async function send(name, payload = "PRESS") {
   } catch (e) { if (e.message !== "unauthorized") toast(t("err.cmd", name, e.message)); }
 }
 document.addEventListener("click", (e) => {
+  const tm = e.target.closest("button[data-toast]");
+  if (tm && !tm.dataset.cmd) { toast(tm.dataset.toast); return; }
   const b = e.target.closest("button[data-cmd]");
   if (!b) return;
-  if (b.dataset.confirm && !confirm(t("confirm.unlock"))) return;
+  if (b.dataset.confirm && !confirm(b.dataset.confirm === "1" ? t("confirm.unlock") : b.dataset.confirm)) return;
   send(b.dataset.cmd, b.dataset.p || "PRESS");
 });
 
 // ===================================================================== controls
+const SVG = (d, extra = "") => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
+const IC = {
+  power: SVG('<path d="M12 3v8M6.6 6.6a8 8 0 1 0 10.8 0"/>'),
+  lock: SVG('<rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+  unlock: SVG('<rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 7.6-1.8"/>'),
+  shield: SVG('<path d="M12 3 5 6v6c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9V6z"/><circle cx="12" cy="11.5" r="2.3"/>'),
+  frunk: SVG('<path d="M3 15c1-3 3-5 6-5.5h6c3 .5 5 2.5 6 5.5"/><path d="M3 15h18v3H3zM8 9.5 9.5 5h5L16 9.5"/>'),
+  trunk: SVG('<path d="M4 17V9.5L8 6h8l4 3.5V17z"/><path d="M4 13h16M9 17v2M15 17v2"/>'),
+  window: SVG('<path d="M4 18V9c2-3 5-4 8-4h8v13z"/><path d="M4 13h16"/>'),
+  plug: SVG('<path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/>'),
+  home: SVG('<path d="M4 11 12 4l8 7M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>'),
+  guest: SVG('<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-6 7-6s6.2 2.4 7 6"/>'),
+  valet: SVG('<circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M16 7l2 2M14 9l2 2"/>'),
+  sun: SVG('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/>'),
+  horn: SVG('<path d="M4 10v4h3l6 4V6L7 10zM17 9a4 4 0 0 1 0 6M19.5 7a7 7 0 0 1 0 10"/>'),
+  bolt: SVG('<path d="M13 3 5 14h6l-1 7 8-11h-6z"/>'),
+  key: SVG('<circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v3M15 12v2"/>'),
+  cloud: SVG('<path d="M7 18a4 4 0 0 1-.6-8A5.5 5.5 0 0 1 17 8.5 4.5 4.5 0 0 1 17 18z"/>'),
+  fan: SVG('<circle cx="12" cy="12" r="2"/><path d="M12 10c0-4 1-6 3-6s2 3-1 6M14 12c4 0 6 1 6 3s-3 2-6-1M12 14c0 4-1 6-3 6s-2-3 1-6M10 12c-4 0-6-1-6-3s3-2 6 1"/>'),
+  defrost: SVG('<path d="M4 9c2.5-3 5-4 8-4s5.5 1 8 4l-2.5 6h-11z"/><path d="M9 18c.6-.7.6-1.3 0-2s-.6-1.3 0-2M12.5 18c.6-.7.6-1.3 0-2s-.6-1.3 0-2M16 18c.6-.7.6-1.3 0-2s-.6-1.3 0-2"/>'),
+  seat: SVG('<path d="M8 4c1.2 0 2 .8 2 2l-.4 7h6.4c1.2 0 2 .8 2 2v1.5c0 .8-.7 1.5-1.5 1.5H8.5C7.1 18 6 16.9 6 15.5L6.2 6C6.2 4.9 7 4 8 4z"/><path d="M9 18v2M16 18v2"/>'),
+  wheel: SVG('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M4.5 10.5 10 12M19.5 10.5 14 12M12 14v6"/>'),
+  sun2: SVG('<circle cx="12" cy="12" r="3"/><path d="M12 4v1.5M12 18.5V20M4 12h1.5M18.5 12H20"/>'),
+};
 const LVL = ["off", "low", "medium", "high"];
-function controlDefs() {
-  const sw = (label, key, cmd) => ({ kind: "switch", label, key, cmd });
-  const seg = (label, key, cmd, opts, read) => ({ kind: "seg", label, key, cmd, opts, read });
-  const seat = (label, key, cmd) => seg(label, key, cmd, LVL.map((l) => [l, t("lvl." + l)]), (v) => (v == null ? null : LVL[v] ?? null));
-  const btns = (label, key, list, sub) => ({ kind: "btns", label, key, list, sub });
-  const slider = (label, key, cmd, min, max, step, unit) => ({ kind: "slider", label, key, cmd, min, max, step, unit });
-  return [
-    [t("c.climate"), [
-      sw(t("c.climateOn"), "climate_on", "climate"),
-      slider(t("c.temp"), "driver_temp_setting", "driver_temp", 15, 28, 0.5, "°C"),
-      seg(t("c.keeper"), "climate_keeper_mode", "climate_keeper", [["off", t("lvl.off")], ["keep", t("c.keep")], ["dog", t("c.dog")], ["camp", t("c.camp")]], (v) => v ?? null),
-      sw(t("c.defrost"), "defrost", "defrost"),
-      seg(t("c.cop"), "cabin_overheat_protection", "cabin_overheat_protection", [["off", t("lvl.off")], ["on", t("on")], ["fan_only", t("c.fanOnly")]], (v) => v ?? null),
-      seg(t("c.copTemp"), "cop_temp_limit", "cop_temp", [["30", "30 °C"], ["35", "35 °C"], ["40", "40 °C"]], (v) => (v == null ? null : String(v))),
-    ]],
-    [t("c.seats"), [
-      seat(t("c.seatFL"), "seat_heater_left", "seat_heater_left"),
-      seat(t("c.seatFR"), "seat_heater_right", "seat_heater_right"),
-      seat(t("c.seatRL"), "seat_heater_rear_left", "seat_heater_rear_left"),
-      seat(t("c.seatRC"), "seat_heater_rear_center", "seat_heater_rear_center"),
-      seat(t("c.seatRR"), "seat_heater_rear_right", "seat_heater_rear_right"),
-      seg(t("c.wheel"), "steering_wheel_heat_level", "steering_wheel_heater", [["off", t("lvl.off")], ["low", t("lvl.low")], ["high", t("lvl.high")]], (v) => (v == null ? null : v === 0 ? "off" : v === 1 ? "low" : "high")),
-      sw(t("c.autoL"), "auto_seat_climate_left", "auto_seat_climate_left"),
-      sw(t("c.autoR"), "auto_seat_climate_right", "auto_seat_climate_right"),
-      sw(t("c.wheelAuto"), "auto_steering_wheel_heat", "auto_steering_wheel_heater"),
-    ]],
-    [t("c.charging"), [
-      sw(t("c.charge"), "__charging", "charge"),
-      slider(t("c.limit"), "charge_limit", "charge_limit", 50, 100, 1, "%"),
-      slider(t("c.amps"), "charge_current_request", "charge_current", 5, 32, 1, "A"),
-      btns(t("c.port"), "charge_port_open", [["charge_port_door", "OPEN", t("c.open")], ["charge_port_door", "CLOSE", t("c.close")], ["charge_cable_lock", "UNLOCK", t("c.unlockCable")]]),
-    ]],
-    [t("c.security"), [
-      btns(t("c.lock"), "locked", [["lock", "LOCK", t("q.lock")], ["lock", "UNLOCK", t("q.unlock"), true]]),
-      sw(t("c.sentry"), "sentry_mode", "sentry_mode"),
-      sw(t("c.guest"), "guest_mode", "guest_mode"),
-      sw(t("c.valet"), "valet_mode", "valet_mode"),
-    ]],
-    [t("c.openings"), [
-      btns(t("c.frunk"), "frunk_open", [["frunk", "OPEN", t("c.open")]]),
-      btns(t("c.trunk"), "trunk_open", [["trunk", "OPEN", t("c.open")], ["trunk", "CLOSE", t("c.close")]]),
-      btns(t("c.windows"), "windows_open", [["windows", "OPEN", t("c.vent")], ["windows", "CLOSE", t("c.close")]]),
-      btns(t("c.homelink"), null, [["homelink", "PRESS", t("c.press")]]),
-    ]],
-    [t("c.more"), [
-      btns(t("c.wake"), null, [["wake", "PRESS", t("c.press")]]),
-      btns(t("c.flash"), null, [["flash_lights", "PRESS", t("c.press")]]),
-      btns(t("c.honk"), null, [["honk_horn", "PRESS", t("c.press")]]),
-      btns(t("c.keyless"), null, [["keyless_driving", "PRESS", t("c.press")]]),
-      btns(t("c.fart"), null, [["play_fart", "PRESS", t("c.press")]]),
-    ]],
-  ];
+const busy = (key) => { const m = motion(key); return isPending(key) || (m && /ING$/i.test(m)); };
+const pend = (key) => (busy(key) ? " pending" : "");
+
+/** One square tile: icon, label, state. kind "on" (accent) or "open" (warn) when active. */
+function tile({ icon, label, state, active, kind = "on", cmd, p = "PRESS", confirm, toastMsg, pending }) {
+  return `<button type="button" class="tile ${active ? kind : ""}${pending ? " pending" : ""}" ${cmd ? `data-cmd="${cmd}" data-p="${p}"` : ""} ${confirm ? `data-confirm="${esc(confirm)}"` : ""} ${toastMsg ? `data-toast="${esc(toastMsg)}"` : ""} aria-pressed="${!!active}">
+    <span class="ic">${IC[icon]}</span><b>${esc(label)}</b>${state ? `<small>${esc(state)}</small>` : "<small>&nbsp;</small>"}</button>`;
 }
-function stateText(key) {
-  if (!key) return "";
-  const v = val(key), m = motion(key);
-  if (m && /ING$/i.test(m)) return t("pending");
-  if (isPending(key)) return t("pending");
-  if (key === "locked") return v === true ? t("locked") : v === false ? t("unlocked") : "";
-  if (typeof v === "boolean") return v ? (key.endsWith("_open") ? t("car.open") : t("on")) : (key.endsWith("_open") ? t("c.close") + "d".slice(lang === "da" ? 1 : 0) : t("off"));
-  return v == null ? "" : String(v);
+function carTiles(compact) {
+  const lk = val("locked"), lm = motion("locked");
+  const L = [];
+  L.push(tile({ icon: lk === false ? "unlock" : "lock", label: lk === false ? t("unlocked") : t("locked"), state: lm === "LOCKING" ? t("locking") : lm === "UNLOCKING" ? t("unlocking") : lk === false ? t("q.lock") : t("q.unlock"),
+    active: lk === false, kind: "open", cmd: "lock", p: lk === false ? "LOCK" : "UNLOCK", confirm: lk === false ? null : t("confirm.unlock"), pending: busy("locked") }));
+  if (compact) L.push(tile({ icon: "fan", label: t("c.climateOn"), state: val("climate_on") ? t("on") : t("off"), active: val("climate_on"), cmd: "climate", p: val("climate_on") ? "off" : "on", pending: busy("climate_on") }));
+  L.push(tile({ icon: "frunk", label: t("c.frunk"), state: val("frunk_open") ? t("car.open") : t("c.open"), active: val("frunk_open"), kind: "open",
+    cmd: val("frunk_open") ? null : "frunk", p: "OPEN", confirm: val("frunk_open") ? null : t("confirm.frunk"), toastMsg: val("frunk_open") ? t("frunkManual") : null, pending: busy("frunk_open") }));
+  L.push(tile({ icon: "trunk", label: t("c.trunk"), state: val("trunk_open") ? t("c.close") : t("c.open"), active: val("trunk_open"), kind: "open",
+    cmd: "trunk", p: val("trunk_open") ? "CLOSE" : "OPEN", confirm: val("trunk_open") ? null : t("confirm.trunkOpen"), pending: busy("trunk_open") }));
+  L.push(tile({ icon: "plug", label: t("c.port"), state: val("charge_port_open") ? t("c.close") : t("c.open"), active: val("charge_port_open"), kind: "open",
+    cmd: "charge_port_door", p: val("charge_port_open") ? "CLOSE" : "OPEN", pending: busy("charge_port_open") }));
+  if (!compact) {
+    L.push(tile({ icon: "window", label: t("c.windows"), state: val("windows_open") ? t("c.close") : t("c.vent"), active: val("windows_open"), kind: "open", cmd: "windows", p: val("windows_open") ? "CLOSE" : "OPEN", pending: busy("windows_open") }));
+    L.push(tile({ icon: "shield", label: t("c.sentry"), state: val("sentry_mode") ? t("on") : t("off"), active: val("sentry_mode"), cmd: "sentry_mode", p: val("sentry_mode") ? "off" : "on", pending: busy("sentry_mode") }));
+    L.push(tile({ icon: "home", label: t("c.homelink"), state: t("c.press"), cmd: "homelink" }));
+    L.push(tile({ icon: "guest", label: t("c.guest"), state: val("guest_mode") ? t("on") : t("off"), active: val("guest_mode"), cmd: "guest_mode", p: val("guest_mode") ? "off" : "on", pending: busy("guest_mode") }));
+    L.push(tile({ icon: "valet", label: t("c.valet"), state: val("valet_mode") ? t("on") : t("off"), active: val("valet_mode"), cmd: "valet_mode", p: val("valet_mode") ? "off" : "on", pending: busy("valet_mode") }));
+    L.push(tile({ icon: "key", label: t("c.keyless"), state: t("c.press"), cmd: "keyless_driving" }));
+    L.push(tile({ icon: "cloud", label: t("c.fart"), state: t("c.press"), cmd: "play_fart" }));
+  }
+  L.push(tile({ icon: "sun", label: t("c.flash"), state: compact ? "" : t("c.press"), cmd: "flash_lights" }));
+  L.push(tile({ icon: "horn", label: t("c.honk"), state: compact ? "" : t("c.press"), cmd: "honk_horn" }));
+  if (!compact || val("online") !== true) L.push(tile({ icon: "bolt", label: t("c.wake"), state: compact ? "" : (val("online") ? t("car.awake") : t("c.press")), cmd: "wake" }));
+  return L.join("");
 }
-function chargingOn() { const cs = val("charging_state"); return cs === "charging" || cs === "starting" ? true : cs == null ? null : false; }
+
+// pending local values while the user taps (sent after a short pause)
+const draftCtl = {};
+let draftTimer = {};
+function nudge(key, cmd, step, min, max) {
+  const cur = draftCtl[key] ?? val(key) ?? (key === "driver_temp_setting" ? 21 : min);
+  const next = Math.min(max, Math.max(min, Math.round((cur + step) * 2) / 2));
+  draftCtl[key] = next;
+  renderControls();
+  clearTimeout(draftTimer[key]);
+  draftTimer[key] = setTimeout(async () => { await send(cmd, next); setTimeout(() => { delete draftCtl[key]; renderControls(); }, 1500); }, 650);
+}
+
+function seatBtn(label, key, cmd) {
+  const v = val(key) ?? 0;
+  const next = v === 0 ? 3 : v - 1;      // like the car: high → medium → low → off
+  return `<button type="button" class="seat ${v > 0 ? "lit" : ""}${pend(key)}" data-cmd="${cmd}" data-p="${LVL[next]}" aria-label="${esc(label)}: ${esc(t("lvl." + LVL[v]))}">
+    ${IC.seat}<span class="bars">${[1, 2, 3].map((i) => `<i class="${v >= i ? "on" : ""}"></i>`).join("")}</span><span>${esc(label)}</span></button>`;
+}
+function wheelBtn() {
+  const raw = val("steering_wheel_heat_level"), v = raw == null || raw === 0 ? 0 : raw === 1 ? 1 : 3;
+  const next = v === 0 ? "high" : v === 3 ? "low" : "off";
+  return `<button type="button" class="seat ${v > 0 ? "lit" : ""}${pend("steering_wheel_heat_level")}" data-cmd="steering_wheel_heater" data-p="${next}" aria-label="${esc(t("c.wheel"))}">
+    ${IC.wheel}<span class="bars"><i class="${v >= 1 ? "on" : ""}"></i><i class="${v >= 3 ? "on" : ""}"></i></span><span>${esc(t("c.wheel"))}</span></button>`;
+}
+const chip = (label, active, cmd, p, pending) => `<button type="button" class="chip${pending ? " pending" : ""}" aria-pressed="${!!active}" data-cmd="${cmd}" data-p="${p}">${esc(label)}</button>`;
+function chargingOn() { const cs = val("charging_state"); return cs === "charging" || cs === "starting"; }
 
 function renderControls() {
   const grid = $("ctlGrid");
-  const active = document.activeElement?.closest?.("[data-slider]")?.dataset.slider;
-  grid.innerHTML = controlDefs().map(([title, items]) => `<div class="panel"><h2>${esc(title)}</h2>${items.map((c) => {
-    if (c.kind === "switch") {
-      const v = c.key === "__charging" ? chargingOn() : val(c.key);
-      const p = c.key === "__charging" ? false : isPending(c.key);
-      return `<div class="ctl"><span class="lbl">${esc(c.label)}${p ? `<span class="v">${t("pending")}</span>` : ""}</span><button type="button" class="switch ${p ? "pending" : ""}" role="switch" aria-checked="${v === true}" aria-label="${esc(c.label)}" data-cmd="${c.cmd}" data-p="${v === true ? "off" : "on"}"></button></div>`;
-    }
-    if (c.kind === "seg") {
-      const cur = c.read(val(c.key)), p = isPending(c.key);
-      return `<div class="ctl"><span class="lbl">${esc(c.label)}</span><div class="seg" role="group" aria-label="${esc(c.label)}">${c.opts.map(([v, l]) =>
-        `<button type="button" aria-pressed="${cur === v}" class="${p && cur === v ? "pending" : ""}" data-cmd="${c.cmd}" data-p="${v}">${esc(l)}</button>`).join("")}</div></div>`;
-    }
-    if (c.kind === "slider") {
-      const known = val(c.key), v = known ?? c.min;
-      return `<div class="ctl slider" data-slider="${c.key}"><span class="lbl">${esc(c.label)}</span><output class="${isPending(c.key) ? "st pending" : ""}">${known == null ? "–" : `${v} ${c.unit}`}</output><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" data-key="${c.key}" data-cmd="${c.cmd}" data-unit="${c.unit}" aria-label="${esc(c.label)}"></div>`;
-    }
-    return `<div class="ctl"><span class="lbl">${esc(c.label)}<span class="v">${esc(stateText(c.key))}</span></span><div class="btnrow">${c.list.map(([cmd, p, l, danger]) =>
-      `<button type="button" class="${danger ? "danger" : ""}" data-cmd="${cmd}" data-p="${p}" ${danger ? 'data-confirm="1"' : ""}>${esc(l)}</button>`).join("")}</div></div>`;
-  }).join("")}</div>`).join("");
-  if (active) grid.querySelector(`[data-slider="${active}"] input`)?.focus();
+  const on = !!val("climate_on");
+  const temp = draftCtl.driver_temp_setting ?? val("driver_temp_setting");
+  const inside = val("inside_temp");
+  const mode = on && (temp ?? 21) < (inside ?? 20) ? "cool" : "heat";
+  const keeper = val("climate_keeper_mode") ?? "off";
+  const cop = val("cabin_overheat_protection");
+  const copT = val("cop_temp_limit");
+
+  const climate = `<section class="card climate ${on ? "on" : ""} ${mode}">
+    <header><div><h2>${t("c.climate")}</h2><span class="muted">${t("f.inside")} ${inside ?? "–"}° · ${t("f.outside")} ${val("outside_temp") ?? "–"}°</span></div>
+      <button type="button" class="power${pend("climate_on")}" aria-pressed="${on}" aria-label="${esc(on ? t("q.climateOff") : t("q.climateOn"))}" data-cmd="climate" data-p="${on ? "off" : "on"}">${IC.power}</button></header>
+    <div class="temp">
+      <button type="button" class="round" data-nudge="driver_temp_setting" data-cmd2="driver_temp" data-step="-0.5" data-min="15" data-max="28" aria-label="−0.5 °C">−</button>
+      <div class="tv num ${draftCtl.driver_temp_setting != null || isPending("driver_temp_setting") ? "pending" : ""}">${temp == null ? "–" : nf(temp, temp % 1 ? 1 : 0)}<small>°C</small></div>
+      <button type="button" class="round" data-nudge="driver_temp_setting" data-cmd2="driver_temp" data-step="0.5" data-min="15" data-max="28" aria-label="+0.5 °C">+</button>
+    </div>
+    <div class="sect"><div class="lbl">${t("c.keeper")}</div><div class="chips">
+      ${[["off", t("lvl.off")], ["keep", t("c.keep")], ["dog", t("c.dog")], ["camp", t("c.camp")]].map(([k, l]) => chip(l, keeper === k, "climate_keeper", k, isPending("climate_keeper_mode") && keeper === k)).join("")}</div></div>
+    <div class="sect"><div class="lbl">${t("c.defrost")}</div><div class="chips">${chip(t("off"), val("defrost") === false || val("defrost") == null, "defrost", "off")}${chip(t("on"), val("defrost") === true, "defrost", "on", isPending("defrost"))}</div></div>
+    <div class="sect"><div class="lbl">${t("c.cop")}</div><div class="chips">
+      ${[["off", t("lvl.off")], ["on", t("on")], ["fan_only", t("c.fanOnly")]].map(([k, l]) => chip(l, cop === k, "cabin_overheat_protection", k, isPending("cabin_overheat_protection") && cop === k)).join("")}
+      <span style="width:8px"></span>${[30, 35, 40].map((c) => chip(`${c}°`, copT === c, "cop_temp", c, isPending("cop_temp_limit") && copT === c)).join("")}</div></div>
+  </section>`;
+
+  const seats = `<section class="card seats">
+    <header><div><h2>${t("c.seats")}</h2><span class="muted">${t("c.seatsHint")}</span></div></header>
+    <div class="seatmap">
+      <div class="row front">${seatBtn(t("c.seatFL"), "seat_heater_left", "seat_heater_left")}${seatBtn(t("c.seatFR"), "seat_heater_right", "seat_heater_right")}</div>
+      <div class="row">${seatBtn(t("c.seatRL"), "seat_heater_rear_left", "seat_heater_rear_left")}${seatBtn(t("c.seatRC"), "seat_heater_rear_center", "seat_heater_rear_center")}${seatBtn(t("c.seatRR"), "seat_heater_rear_right", "seat_heater_rear_right")}</div>
+      <div class="row">${wheelBtn()}</div>
+    </div>
+    <div class="sect"><div class="lbl">${t("c.auto")}</div><div class="chips">
+      ${chip(t("c.autoL"), val("auto_seat_climate_left"), "auto_seat_climate_left", val("auto_seat_climate_left") ? "off" : "on", isPending("auto_seat_climate_left"))}
+      ${chip(t("c.autoR"), val("auto_seat_climate_right"), "auto_seat_climate_right", val("auto_seat_climate_right") ? "off" : "on", isPending("auto_seat_climate_right"))}
+      ${chip(t("c.wheelAuto"), val("auto_steering_wheel_heat"), "auto_steering_wheel_heater", val("auto_steering_wheel_heat") ? "off" : "on", isPending("auto_steering_wheel_heat"))}</div></div>
+  </section>`;
+
+  const cs = val("charging_state"), charging = chargingOn(), plugged = !!val("charge_cable_connected");
+  const limit = draftCtl.charge_limit ?? val("charge_limit");
+  const amps = draftCtl.charge_current_request ?? val("charge_current_request");
+  const power = (val("ac_charging_power") || 0) + (val("dc_charging_power") || 0);
+  const csText = cs === "charging" ? `<span class="state on">${t("charging")}</span>${power ? ` · ${nf(power, 1)} kW` : ""}${val("time_to_full_charge") ? ` · ${hm(val("time_to_full_charge"))}` : ""}`
+    : cs === "starting" ? `<span class="state on">${t("charging.starting")}</span>` : cs === "complete" ? t("charging.done") : plugged ? t("charging.plugged") : t("charging.unplugged");
+  const charge = `<section class="card charge">
+    <header><div><h2>${t("c.charging")}</h2><span class="muted">${csText}</span></div>
+      ${plugged || charging ? `<button type="button" class="cta ${charging ? "stop" : "go"}" data-cmd="charge" data-p="${charging ? "off" : "on"}">${charging ? t("c.stopCharge") : t("c.startCharge")}</button>` : ""}</header>
+    <div class="charge-head"><span class="big num">${val("battery_level") != null ? Math.round(val("battery_level")) : "–"}<small> %</small></span><span class="muted">${val("est_range") != null ? t("range", nf(val("est_range"))) : ""}</span></div>
+    <div class="sect"><div class="lbl">${t("c.limit")} <b class="${draftCtl.charge_limit != null || isPending("charge_limit") ? "st pending" : ""}" id="limitOut">${limit ?? "–"} %</b></div>
+      <input type="range" class="range" id="limitRange" min="50" max="100" step="1" value="${limit ?? 80}" style="--p:${(((limit ?? 80) - 50) / 50) * 100}%" aria-label="${esc(t("c.limit"))}">
+      <div class="range-scale"><span>50 %</span><span>${t("c.daily")}</span><span>${t("c.trip")}</span><span>100 %</span></div></div>
+    <div class="sect" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div class="lbl" style="margin:0">${t("c.amps")}</div>
+      <div class="stepper"><button type="button" class="round" data-nudge="charge_current_request" data-cmd2="charge_current" data-step="-1" data-min="5" data-max="32" aria-label="−1 A">−</button>
+      <span class="v ${draftCtl.charge_current_request != null || isPending("charge_current_request") ? "st pending" : ""}">${amps ?? "–"}<small>A</small></span>
+      <button type="button" class="round" data-nudge="charge_current_request" data-cmd2="charge_current" data-step="1" data-min="5" data-max="32" aria-label="+1 A">+</button></div></div>
+    <div class="sect"><div class="chips">${chip(val("charge_port_open") ? t("q.portClose") : t("q.port"), val("charge_port_open"), "charge_port_door", val("charge_port_open") ? "CLOSE" : "OPEN", busy("charge_port_open"))}${plugged ? chip(t("c.unlockCable"), false, "charge_cable_lock", "UNLOCK") : ""}</div></div>
+  </section>`;
+
+  const car = `<section class="card cartiles"><header><div><h2>${t("c.car")}</h2><span class="muted">${t("c.carHint")}</span></div></header><div class="tiles">${carTiles(false)}</div></section>`;
+
+  grid.innerHTML = climate + seats + charge + car;
 }
-$("ctlGrid").addEventListener("input", (e) => { if (e.target.type === "range") e.target.previousElementSibling.textContent = `${e.target.value} ${e.target.dataset.unit}`; });
-$("ctlGrid").addEventListener("change", (e) => { if (e.target.type === "range") send(e.target.dataset.cmd, e.target.value); });
+$("ctlGrid").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-nudge]"); if (!b) return;
+  nudge(b.dataset.nudge, b.dataset.cmd2, Number(b.dataset.step), Number(b.dataset.min), Number(b.dataset.max));
+});
+$("ctlGrid").addEventListener("input", (e) => {
+  if (e.target.id !== "limitRange") return;
+  e.target.style.setProperty("--p", `${((e.target.value - 50) / 50) * 100}%`);
+  $("limitOut").textContent = `${e.target.value} %`;
+});
+$("ctlGrid").addEventListener("change", (e) => {
+  if (e.target.id !== "limitRange") return;
+  draftCtl.charge_limit = Number(e.target.value);
+  send("charge_limit", e.target.value).then(() => setTimeout(() => { delete draftCtl.charge_limit; renderControls(); }, 1500));
+});
 let sliding = false;
 $("ctlGrid").addEventListener("pointerdown", (e) => { if (e.target.type === "range") sliding = true; });
 document.addEventListener("pointerup", () => { if (sliding) { sliding = false; setTimeout(renderControls, 50); } });

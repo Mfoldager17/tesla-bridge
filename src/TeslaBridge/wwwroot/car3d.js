@@ -107,6 +107,7 @@ export async function mount(wrap, glb, opts) {
   const v = new T.Vector3(), n = new T.Vector3(), cd = new T.Vector3();
   R.setAnimationLoop(() => {
     const now = performance.now(), dt = Math.min(0.05, (now - t0) / 1000); t0 = now;
+    if (!wrap.offsetParent || document.hidden) return;   // not on screen: don't spend the GPU
     if (!O.autoRotate && idleSince && now - idleSince > 6000 && !matchMedia("(prefers-reduced-motion: reduce)").matches) O.autoRotate = true;
     for (const k in doors) {
       const d = doors[k]; if (!d) continue;
