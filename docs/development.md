@@ -21,27 +21,29 @@ You can also point a test HA with the integration at `http://<your machine>:8080
 
 ## The dashboard (web/)
 
-The dashboard is being rewritten in **SolidJS + Vite + TypeScript** in `web/` (phase 2). Until it is done, the new one runs next to the old one: `http://<server>:8090/next/` is the new one, `http://<server>:8090/` still the old (`src/TeslaBridge/wwwroot/index.html`).
+The dashboard is a **SolidJS + Vite + TypeScript** app in `web/`. It is built into the bridge's `wwwroot` (`index.html` and `assets/`, never committed) and served on port 8090 like the API.
 
 ```bash
 cd web
 npm ci
-npm run dev        # http://localhost:5173/next/ – hot reload, /api proxied to a bridge on localhost:8080
+npm run dev        # http://localhost:5173 – hot reload, /api proxied to a bridge on localhost:8080
                    # (another bridge: BRIDGE_URL=http://192.168.1.20:8090 npm run dev)
 npm run check      # TypeScript
 npm test           # Vitest
-npm run build      # → src/TeslaBridge/wwwroot/next, served by `dotnet run` too
+npm run build      # → src/TeslaBridge/wwwroot, served by `dotnet run` too
 ```
 
-The Docker image builds it in its own stage, and CI runs check, test and build. The build output is never committed.
+`dotnet run` on its own serves the API but no dashboard until you have run `npm run build` once (or use `npm run dev`). The Docker image builds it in its own stage, and CI runs check, test and build.
 
 | | |
 |---|---|
-| `src/api/` | types for the bridge's API and the client (token, 401 → login) |
-| `src/state/live.ts` | all cars' fields, the command log and raw events, fed by `/api/events` (Server-Sent Events) |
+| `src/api/` | types for the bridge's API, the client (token, 401 → login) and `send()` for commands |
+| `src/state/` | live state fed by `/api/events` (Server-Sent Events), the shown car, settings, setup, car model, update check |
+| `src/views/` | one file per page – `settings/` holds the settings page's panels |
+| `src/components/` | the menu, tiles, the car (3D via `lib/car3d.js` or the drawing), command log, toast |
 | `src/i18n/` | English and Danish (`en.json`, `da.json` – same keys, tested) |
-| `src/components/`, `src/views/` | the frame and the pages |
-| `src/styles/app.css` | the styles, ported from the old dashboard |
+| `src/styles/app.css` | the styles |
+| `scripts/` | build helpers: clear the previous build, write `THIRD-PARTY-LICENSES.txt` |
 
 ## Commits and releases
 
@@ -87,6 +89,7 @@ tesla-bridge/
 ├── config/bridge/                  baked into the image (/app/defaults)
 │   ├── telemetry-fields.json       fields + intervals sent to the car
 │   └── vehicle-trust-ca.pem        root certificates the car trusts
+├── web/                            the dashboard (SolidJS + Vite + TypeScript), built into src/TeslaBridge/wwwroot
 ├── src/TeslaBridge/
 │   ├── Program.cs                  DI + CLI (init, auth, push-config, telemetry-status/-errors)
 │   ├── Setup/Bootstrap.cs          keys, internal TLS, fleet-telemetry's config (tesla-init)
@@ -98,7 +101,7 @@ tesla-bridge/
 │   ├── Mqtt/                       connection with reconnect and Last Will, embedded broker
 │   ├── Settings/                   settings page: stored settings + description of every telemetry field
 │   ├── Web/                        HTTP API, live events (SSE), 3D model upload
-│   ├── wwwroot/                    dashboard: index.html, car3d.js (3D view), models/ (bundled Model Y, CC BY-NC), vendor/three (MIT)
+│   ├── wwwroot/                    models/ (bundled Model Y, CC BY-NC); the built dashboard lands here
 │   └── Auth/, Usage/               Tesla login and usage tracking
 ├── tests/TeslaBridge.Tests/        .NET tests
 └── tests/ha/                       the integration against a running bridge (pytest-homeassistant-custom-component)

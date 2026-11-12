@@ -22,6 +22,7 @@ __pycache__/
 esphome/secrets.yaml
 esphome/.esphome/
 
-# The new dashboard: built from web/ (npm run build) – never committed
-src/TeslaBridge/wwwroot/next/
+# The dashboard: built from web/ (npm run build) – never committed
+src/TeslaBridge/wwwroot/index.html
+src/TeslaBridge/wwwroot/assets/
 web/node_modules/

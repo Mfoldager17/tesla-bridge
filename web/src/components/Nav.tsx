@@ -6,6 +6,7 @@ import { theme, cycleTheme } from "../theme";
 import { connected, state } from "../state/live";
 import { vin, setVin, val } from "../state/selection";
 import { update } from "../state/update";
+import { setup, stepStates } from "../state/setup";
 
 export const VIEWS = ["overview", "controls", "data", "usage", "settings", "setup"] as const;
 export type View = (typeof VIEWS)[number];
@@ -19,6 +20,7 @@ export function carStatus(): { cls: string; text: string } {
 
 export function Nav(props: { carName?: string }) {
   const cars = () => Object.entries(state.cars);
+  const missing = () => { const st = setup(); return st ? stepStates(st).filter((x) => x !== "done").length : 0; };
   const version = () => update()?.installed_display ?? state.info?.version_display ?? state.info?.version ?? "?";
   return (
     <nav class="side">
@@ -38,6 +40,7 @@ export function Nav(props: { carName?: string }) {
               {/* the icons are our own static SVG paths (navIcons.json) */}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" innerHTML={(icons as Record<string, string>)[v]} />
               <span>{t(`nav.${v}` as Key)}</span>
+              <Show when={v === "setup" && missing()}><span class="count">{missing()}</span></Show>
             </A>
           )}
         </For>
