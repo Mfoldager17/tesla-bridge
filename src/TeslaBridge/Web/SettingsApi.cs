@@ -55,7 +55,7 @@ public static class SettingsApi
             }
             catch (Exception ex) when (ex is ArgumentException or System.Text.Json.JsonException)
             {
-                return Results.Json(new { error = ex.Message }, statusCode: 400);
+                return ApiErrors.Problem(400, ex.Message);
             }
 
             var result = Describe(store, usage, opts);

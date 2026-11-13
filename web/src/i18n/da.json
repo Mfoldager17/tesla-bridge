@@ -1,6 +1,6 @@
 {
   "login.title": "Log ind",
-  "login.text": "Skriv tokenet fra Bridge__Web__Token i din .env.",
+  "login.text": "Skriv dashboard-tokenet: Bridge__Web__Token i din .env, eller – hvis du ikke har sat et – det token bridgen selv lavede, som vises med: docker compose exec tesla-bridge cat /data/web-token",
   "login.button": "Log ind",
   "nav.overview": "Bil",
   "nav.controls": "Styring",
@@ -373,5 +373,6 @@
   "map.on": "Vis kort og adresse",
   "map.off": "Fra – kun koordinater",
   "map.saved": "Gemt",
-  "loc.status": "Status"
+  "loc.status": "Status",
+  "login.wrong": "Det token passer ikke"
 }

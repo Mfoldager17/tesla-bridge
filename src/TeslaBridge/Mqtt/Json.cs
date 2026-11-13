@@ -5,7 +5,7 @@ namespace TeslaBridge.Mqtt;
 
 internal static class Json
 {
-    /// <summary>Læsbar JSON på MQTT: ingen ° for ° eller + for +.</summary>
+    /// <summary>Readable JSON on MQTT: no \u00b0 for ° or \u002b for +.</summary>
     public static readonly JsonSerializerOptions Relaxed = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public static readonly JsonSerializerOptions Pretty = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, WriteIndented = true };

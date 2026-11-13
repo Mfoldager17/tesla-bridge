@@ -165,6 +165,11 @@ info "Optional: an ESP32 with Bluetooth where the car parks makes commands and w
 info "(see docs/ble.md). You can also add it later on the dashboard under Settings → Bluetooth."
 BLE_URL=$(ask "ESP32 address, e.g. http://192.168.1.50 (empty = none)" "$(env_get Bridge__Vehicles__0__Ble__Url)")
 [[ -n "$BLE_URL" && "$BLE_URL" != http* ]] && BLE_URL="http://$BLE_URL"
+BLE_USER=""; BLE_PASS=""
+if [[ -n "$BLE_URL" ]]; then
+  BLE_USER=$(ask "The ESP32's web_username (from its secrets.yaml)" "$(env_get Bridge__Vehicles__0__Ble__Username)")
+  BLE_PASS=$(ask_secret "The ESP32's web_password" "$(env_get Bridge__Vehicles__0__Ble__Password)")
+fi
 
 # ---------------------------------------------------------------- 6. MQTT
 step "MQTT and Home Assistant"
@@ -230,6 +235,8 @@ Bridge__Telemetry__Port=4443
 Bridge__Vehicles__0__Vin=$VIN
 Bridge__Vehicles__0__Name=$NAME
 Bridge__Vehicles__0__Ble__Url=$BLE_URL
+Bridge__Vehicles__0__Ble__Username=$BLE_USER
+Bridge__Vehicles__0__Ble__Password=$BLE_PASS
 Bridge__Tesla__ClientId=$CLIENT_ID
 Bridge__Tesla__ClientSecret=$CLIENT_SECRET
 
@@ -250,10 +257,13 @@ EOF
 if [[ -f .env ]]; then
   EXTRA=$(grep -E '^[A-Za-z_]+=' .env | grep -vE "^($(printf '%s\n' "$NEW_ENV" | grep -oE '^[A-Za-z_0-9]+' | paste -sd'|'))=" || true)
   [[ -n "$EXTRA" ]] && NEW_ENV+=$'\n\n# Your own settings\n'"$EXTRA"
-  run cp .env ".env.bak.$(date +%Y%m%d%H%M%S)"
+  run install -m 600 .env ".env.bak.$(date +%Y%m%d%H%M%S)"
 fi
 if [[ $DRY_RUN == 1 ]]; then printf '%s\n' "$NEW_ENV" | sed -E 's/(Secret|Password|Token)=.+/\1=***/' | sed 's/^/    /'
-else umask 077; printf '%s\n' "$NEW_ENV" > .env; fi
+else
+  umask 077; printf '%s\n' "$NEW_ENV" > .env
+  chmod 600 .env .env.bak.* 2>/dev/null || true   # an existing .env keeps its old mode otherwise
+fi
 ok ".env written (only readable by you)"
 
 # ---------------------------------------------------------------- 8. certificate
@@ -343,28 +353,29 @@ else
     esac
   done
   if [[ -n "$CERT_FILE" ]]; then
-    run sudo cp -L "$CERT_FILE" "$CERTS/fullchain.pem"
-    run sudo cp -L "$KEY_FILE" "$CERTS/privkey.pem"
-    run sudo chown "$(id -u):$(id -g)" "$CERTS/fullchain.pem" "$CERTS/privkey.pem"
+    # install(1) replaces the target instead of writing through it, so a symlink planted there is never followed.
+    run sudo install -m 644 -o "$(id -u)" -g "$(id -g)" "$CERT_FILE" "$CERTS/fullchain.pem"
+    run sudo install -m 600 -o "$(id -u)" -g "$(id -g)" "$KEY_FILE" "$CERTS/privkey.pem"
     ok "Copied to $CERTS"
-    # Let's Encrypt renews about every 60 days – copy again weekly and restart fleet-telemetry when it changed
-    RENEW="$DIR/renew-cert.sh"
+    # Let's Encrypt renews about every 60 days – copy again weekly and restart fleet-telemetry when it changed.
+    # The script runs as root (it reads the certificate folder), so it lives root-owned in /usr/local/sbin where
+    # nothing else can change it.
+    RENEW="/usr/local/sbin/tesla-bridge-renew-cert"
     if [[ $DRY_RUN == 0 ]]; then
-      cat > "$RENEW" <<EOF
+      sudo install -m 755 -o root -g root /dev/stdin "$RENEW" <<EOF
 #!/bin/sh
 # Written by install.sh: keeps the certificate for $DOMAIN in fleet-telemetry up to date.
 # Source: $CERT_FILE
 set -e
 cd "$DIR"
 ${RENEW_CMD:+$RENEW_CMD}
-if ! cmp -s "$CERT_FILE" $CERTS/fullchain.pem; then
-  cp -L "$CERT_FILE" $CERTS/fullchain.pem
-  cp -L "$KEY_FILE" $CERTS/privkey.pem
-  chown $(id -u):$(id -g) $CERTS/fullchain.pem $CERTS/privkey.pem
+if ! cmp -s "$CERT_FILE" "$CERTS/fullchain.pem"; then
+  install -m 644 -o $(id -u) -g $(id -g) "$CERT_FILE" "$CERTS/fullchain.pem"
+  install -m 600 -o $(id -u) -g $(id -g) "$KEY_FILE" "$CERTS/privkey.pem"
   docker compose restart fleet-telemetry
 fi
 EOF
-      chmod +x "$RENEW"
+      rm -f "$DIR/renew-cert.sh"   # the old location (before 1.2)
     fi
     LINE="17 4 * * 1 $RENEW # tesla-bridge-cert"
     if [[ $DRY_RUN == 1 ]]; then info "[dry-run] root crontab += $LINE"

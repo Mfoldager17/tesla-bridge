@@ -81,7 +81,7 @@ public class ClimateTests
         Assert.Contains("'dog': 'dog'", c["preset_mode_value_template"]!.GetValue<string>());
     }
 
-    /// <summary>Samme entiteter (domæne + navn) som Teslemetrys "Controls" i Mathias' HA.</summary>
+    /// <summary>The same entities (domain + name) as Teslemetry's "Controls".</summary>
     [Theory]
     [InlineData("switch.model_y_auto_seat_climate_left", "Auto seat climate left")]
     [InlineData("switch.model_y_auto_seat_climate_right", "Auto seat climate right")]

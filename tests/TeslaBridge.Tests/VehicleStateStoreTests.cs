@@ -14,19 +14,19 @@ public class VehicleStateStoreTests
     [Fact]
     public void Stale_value_right_after_wake_does_not_override_expected_value()
     {
-        // Det oprindelige problem: tryk "klima on" → loader → viser "off" → 5-10 s senere "on".
+        // The original problem: press "climate on" → loading → shows "off" → 5–10 s later "on".
         var store = new VehicleStateStore(_time);
         store.Apply(Vin, "climate_on", JsonValue.Create(false), _time.GetUtcNow());
 
         store.SetPending(Vin, "climate_on", JsonValue.Create(true), TimeSpan.FromSeconds(45));
         Assert.True(Bool(store.Get(Vin, "climate_on")));
 
-        // Bilen vågner og sender sit gamle snapshot: klima stadig off.
+        // The car wakes up and sends its old snapshot: climate still off.
         store.Apply(Vin, "climate_on", JsonValue.Create(false), _time.GetUtcNow());
         Assert.True(Bool(store.Get(Vin, "climate_on")));
         Assert.Equal(ValueSource.Optimistic, store.Get(Vin, "climate_on")!.Source);
 
-        // Lidt efter bekræfter bilen.
+        // A moment later the car confirms it.
         store.Apply(Vin, "climate_on", JsonValue.Create(true), _time.GetUtcNow());
         Assert.True(Bool(store.Get(Vin, "climate_on")));
         Assert.Equal(ValueSource.Stream, store.Get(Vin, "climate_on")!.Source);

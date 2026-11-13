@@ -3,7 +3,7 @@ using TeslaBridge.State;
 
 namespace TeslaBridge.Commands;
 
-/// <summary>Lader forventede værdier, som streamen aldrig bekræftede, falde tilbage til bilens tilstand.</summary>
+/// <summary>Lets expected values the stream never confirmed fall back to the car's state.</summary>
 public sealed class OptimisticExpiryService(VehicleStateStore store) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

@@ -26,7 +26,7 @@ It asks a few questions and does the rest:
 | Prints exactly what to type when you create the Tesla app | Create the app at developer.tesla.com and paste the Client ID/Secret |
 | MQTT: uses the built-in broker, **or** finds your Mosquitto container and creates both users with random passwords | Pick one |
 | Writes `.env` (PUID/PGID, dashboard token, everything else) and backs up the old one | – |
-| Certificate: finds it in Nginx Proxy Manager by itself, **or** searches a folder you point to (certbot, Caddy, acme.sh …), **or** gets a new one from Let's Encrypt via Cloudflare DNS. Copies it to fleet-telemetry and keeps it up to date weekly (root crontab, `renew-cert.sh`) | Know where your certificate is – or have a Cloudflare API token ready |
+| Certificate: finds it in Nginx Proxy Manager by itself, **or** searches a folder you point to (certbot, Caddy, acme.sh …), **or** gets a new one from Let's Encrypt via Cloudflare DNS. Copies it to fleet-telemetry and keeps it up to date weekly (root crontab, `/usr/local/sbin/tesla-bridge-renew-cert`) | Know where your certificate is – or have a Cloudflare API token ready |
 | Pulls the images, starts everything, checks that the public key and port 4443 are reachable from outside, and prints the proxy host or tunnel hostname to add | Add the proxy host or tunnel hostname; forward TCP 4443 in your router |
 | Prints a link to the dashboard that signs you in | Sign in with Tesla and pair the key at the car (QR code) |
 
@@ -110,7 +110,7 @@ Bridge__Vehicles__0__Vin=<VIN>              # 17 characters, in the Tesla app un
 Bridge__Vehicles__0__Name=Model Y           # your choice → device "Model Y", entity ids model_y_*
 Bridge__Tesla__ClientId=<Client ID from step 1>
 Bridge__Tesla__ClientSecret=<Client Secret from step 1>
-Bridge__Web__Token=<token>                  # long random string, e.g.: openssl rand -hex 24
+Bridge__Web__Token=<token>                  # long random string, e.g.: openssl rand -hex 24 (empty: the bridge makes one)
 ```
 
 Then fill in **either A or B**:
@@ -199,7 +199,7 @@ sudo docker run --rm -v "$PWD/config/letsencrypt:/etc/letsencrypt" certbot/dns-c
 # SRC=config/letsencrypt/live/car-data.example.com
 ```
 
-Let's Encrypt renews roughly every 60 days. Put the copy lines in a weekly cron job (as root), followed by `docker compose restart fleet-telemetry` – with the certbot way, run `… certbot/dns-cloudflare renew -q` first. The setup script writes exactly this as `renew-cert.sh`.
+Let's Encrypt renews roughly every 60 days. Put the copy lines in a weekly cron job (as root), followed by `docker compose restart fleet-telemetry` – with the certbot way, run `… certbot/dns-cloudflare renew -q` first. The setup script writes exactly this as `/usr/local/sbin/tesla-bridge-renew-cert` (owned by root, so nothing else can change what root runs).
 
 ### Step 6 – Start
 

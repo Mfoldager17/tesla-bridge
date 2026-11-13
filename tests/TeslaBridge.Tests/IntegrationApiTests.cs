@@ -7,7 +7,7 @@ using TeslaBridge.Setup;
 
 namespace TeslaBridge.Tests;
 
-/// <summary>GET /api/entities til HA-integrationen og den indbyggede broker.</summary>
+/// <summary>GET /api/entities for the HA integration, and the embedded broker.</summary>
 public class IntegrationApiTests
 {
     private static BridgeOptions Opts()
@@ -62,18 +62,30 @@ public class IntegrationApiTests
     }
 
     [Fact]
-    public void Embedded_broker_checks_passwords_when_set()
+    public void Embedded_broker_never_lets_anyone_in_without_a_password()
     {
         var o = Opts();
         var remote = new IPEndPoint(IPAddress.Parse("172.18.0.4"), 50000);
-        Assert.True(EmbeddedBroker.Allowed(EmbeddedBroker.Users(o), null, null, remote));   // intet sat: åben (kun docker-netværket)
+        Assert.Null(EmbeddedBroker.Authenticate(EmbeddedBroker.Users(o), null, null, remote));   // nothing set: nobody
 
-        o.Telemetry.MqttPassword = "hemmelig";
+        o.Telemetry.MqttPassword = "secret";
+        o.Mqtt.Username = "homeassistant";
+        o.Mqtt.Password = "ha-secret";
         var users = EmbeddedBroker.Users(o);
-        Assert.True(EmbeddedBroker.Allowed(users, "fleet-telemetry", "hemmelig", remote));
-        Assert.False(EmbeddedBroker.Allowed(users, "fleet-telemetry", "forkert", remote));
-        Assert.False(EmbeddedBroker.Allowed(users, null, null, remote));
-        Assert.True(EmbeddedBroker.Allowed(users, null, null, new IPEndPoint(IPAddress.Loopback, 1)));   // bridgen selv
+        Assert.Equal(EmbeddedBroker.Role.Telemetry, EmbeddedBroker.Authenticate(users, "fleet-telemetry", "secret", remote));
+        Assert.Equal(EmbeddedBroker.Role.Full, EmbeddedBroker.Authenticate(users, "homeassistant", "ha-secret", remote));
+        Assert.Null(EmbeddedBroker.Authenticate(users, "fleet-telemetry", "wrong", remote));
+        Assert.Null(EmbeddedBroker.Authenticate(users, null, null, remote));
+        Assert.Equal(EmbeddedBroker.Role.Full, EmbeddedBroker.Authenticate(users, "tesla-bridge", "", new IPEndPoint(IPAddress.Loopback, 1)));   // the bridge itself
+    }
+
+    [Fact]
+    public void Fleet_telemetry_may_only_publish_raw_telemetry()
+    {
+        Assert.True(EmbeddedBroker.MayPublish(EmbeddedBroker.Role.Telemetry, "telemetry/VIN/v/Locked", "telemetry/"));
+        Assert.False(EmbeddedBroker.MayPublish(EmbeddedBroker.Role.Telemetry, "tesla/VIN/cmd/lock", "telemetry/"));
+        Assert.False(EmbeddedBroker.MayPublish(EmbeddedBroker.Role.Telemetry, "telemetryx/VIN", "telemetry/"));
+        Assert.True(EmbeddedBroker.MayPublish(EmbeddedBroker.Role.Full, "tesla/VIN/cmd/lock", "telemetry/"));
     }
 }
 

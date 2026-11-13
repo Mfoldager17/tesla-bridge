@@ -81,7 +81,7 @@ public static class CarModelApi
         api.MapPost("/car-model", async (HttpContext ctx, CancellationToken ct) =>
         {
             if (ctx.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit) limit.MaxRequestBodySize = MaxBytes;
-            if (ctx.Request.ContentLength is > MaxBytes) return Results.Json(new { error = $"The file is larger than {MaxBytes / 1024 / 1024} MB" }, statusCode: 413);
+            if (ctx.Request.ContentLength is > MaxBytes) return ApiErrors.Problem(413, $"The file is larger than {MaxBytes / 1024 / 1024} MB");
 
             var target = UploadedPath(opts);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -96,13 +96,13 @@ public static class CarModelApi
                 if (!LooksLikeGlb(head))
                 {
                     File.Delete(tmp);
-                    return Results.Json(new { error = "Not a glTF binary (.glb) file. Convert .gltf/.obj/.fbx to .glb first, e.g. with Blender." }, statusCode: 400);
+                    return ApiErrors.Problem(400, "Not a glTF binary (.glb) file. Convert .gltf/.obj/.fbx to .glb first, e.g. with Blender.");
                 }
             }
             catch (BadHttpRequestException)
             {
                 File.Delete(tmp);
-                return Results.Json(new { error = $"The file is larger than {MaxBytes / 1024 / 1024} MB" }, statusCode: 413);
+                return ApiErrors.Problem(413, $"The file is larger than {MaxBytes / 1024 / 1024} MB");
             }
             File.Move(tmp, target, overwrite: true);
             return Results.Json(new { present = true, source = "uploaded", size });

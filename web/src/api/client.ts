@@ -1,47 +1,53 @@
 import { createSignal } from "solid-js";
 
-const TOKEN_KEY = "tb_token";
+// The dashboard never keeps the token: it trades it once for an HttpOnly session cookie (POST /api/session), which
+// the browser then sends by itself – also with the live event stream, the QR code and the Tesla sign-in link.
 
-function load(key: string): string | null {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-function save(key: string, value: string): void {
-  try { localStorage.setItem(key, value); } catch { /* private mode – the token lives for this tab only */ }
-}
-
-/** install.sh prints a link with ?token=… – remember it and take it out of the address bar. */
-function tokenFromUrl(): string | null {
-  const url = new URL(location.href);
-  const q = url.searchParams.get("token");
-  if (!q) return null;
-  url.searchParams.delete("token");
-  history.replaceState(null, "", url.pathname + url.search + url.hash);
-  return q;
-}
-
-const initial = tokenFromUrl() ?? load(TOKEN_KEY) ?? "";
-if (initial) save(TOKEN_KEY, initial);
-
-const [token, setTokenSignal] = createSignal(initial);
 /** True once the bridge has said the token is missing or wrong. */
 const [needsLogin, setNeedsLogin] = createSignal(false);
-export { token, needsLogin };
+export { needsLogin };
 
-export function setToken(value: string): void {
-  save(TOKEN_KEY, value);
-  setTokenSignal(value);
+/** Signs in with the token. Throws ApiError(401) when it's wrong. */
+export async function login(token: string): Promise<void> {
+  const res = await fetch("/api/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) throw new ApiError(res.status, res.status === 401 ? "wrong token" : String(res.status));
   setNeedsLogin(false);
+}
+
+export async function logout(): Promise<void> {
+  await fetch("/api/session", { method: "DELETE" });
+  setNeedsLogin(true);
+}
+
+/**
+ * Before 1.2 the token came in the address (?token=… from install.sh) and was kept in localStorage. Either is traded
+ * for a session cookie once, and then removed.
+ */
+export async function migrateOldToken(): Promise<void> {
+  const url = new URL(location.href);
+  let old = url.searchParams.get("token");
+  if (old) {
+    url.searchParams.delete("token");
+    history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }
+  try {
+    old ??= localStorage.getItem("tb_token");
+    localStorage.removeItem("tb_token");
+  } catch { /* no storage */ }
+  if (old) await login(old).catch(() => undefined);
 }
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-/** fetch against the bridge with the token; 401 shows the login. */
+/** fetch against the bridge (the session cookie goes along); 401 shows the login. */
 export async function api(path: string, init: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(init.headers);
-  if (token()) headers.set("Authorization", `Bearer ${token()}`);
-  const res = await fetch(path, { ...init, headers });
+  const res = await fetch(path, init);
   if (res.status === 401) {
     setNeedsLogin(true);
     throw new ApiError(401, "unauthorized");
@@ -61,12 +67,11 @@ export async function sendJson<T>(path: string, method: "POST" | "PUT" | "DELETE
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new ApiError(res.status, data.error ?? String(res.status));
+  // Errors are RFC 9457 problem details with the message in both "detail" and "error".
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string; detail?: string };
+  if (!res.ok) throw new ApiError(res.status, data.error ?? data.detail ?? String(res.status));
   return data;
 }
 
-/** The URL of the live event stream (EventSource can't send headers, so the token goes in the query). */
-export function eventsUrl(): string {
-  return "/api/events" + (token() ? `?token=${encodeURIComponent(token())}` : "");
-}
+/** The live event stream. */
+export const EVENTS_URL = "/api/events";

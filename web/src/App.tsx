@@ -1,6 +1,6 @@
 import { createEffect, createResource, Match, onCleanup, onMount, Switch, type ParentProps } from "solid-js";
 import { HashRouter, Route, Navigate } from "@solidjs/router";
-import { getJson, needsLogin, eventsUrl } from "./api/client";
+import { EVENTS_URL, getJson, migrateOldToken, needsLogin } from "./api/client";
 import type { CarState, Info, LiveEvent } from "./api/types";
 import { addEvents, connect, connected, setCars, setInfo, state } from "./state/live";
 import { vin, setVin } from "./state/selection";
@@ -18,12 +18,18 @@ import { Settings } from "./views/Settings";
 import { Setup } from "./views/Setup";
 import { loadSetup } from "./state/setup";
 
-async function boot(): Promise<Info> {
-  const info = await getJson<Info>("/api/info");
-  setInfo(info);
+/** Everything the pages need; also run again when the live stream comes back after a break. */
+async function loadState(): Promise<void> {
   const cars = await getJson<CarState[]>("/api/state");
   setCars(cars);
   if (!vin() || !cars.some((c) => c.vin === vin())) setVin(cars[0]?.vin);
+}
+
+async function boot(): Promise<Info> {
+  await migrateOldToken();
+  const info = await getJson<Info>("/api/info");
+  setInfo(info);
+  await loadState();
   addEvents((await getJson<LiveEvent[]>("/api/events/recent")).reverse());
   void loadModelInfo();
   void loadSettings();
@@ -54,12 +60,12 @@ export function App() {
     const timer = setInterval(loadUpdate, 3 * 3600 * 1000);
     onCleanup(() => clearInterval(timer));
   });
-  // Live events once we're in (the token may have come from the login form)
+  // Live events once we're in (maybe only after the login form)
   let stop: (() => void) | undefined;
   createEffect(() => {
     if (!ready()) return;
     stop?.();
-    stop = connect(eventsUrl());
+    stop = connect(EVENTS_URL, () => { void loadState().catch(() => undefined); });
   });
   onCleanup(() => stop?.());
 

@@ -11,7 +11,7 @@ cd src/TeslaBridge
 dotnet run
 ```
 
-Open **http://localhost:8080** and press **Send testdata** (send test data). The local test profile (`appsettings.Development.json`) starts the **embedded broker** (like way B) and a **simulator** that sends fake telemetry through MQTT exactly like fleet-telemetry. Commands fail gracefully with "not logged in to Tesla".
+Open **http://localhost:8080** and press **Send test data**. The local test profile (`appsettings.Development.json`) starts the **embedded broker** (like way B), a **simulator** that sends made-up telemetry through MQTT exactly like fleet-telemetry (every second press the car drives around Aarhus), and a pretend car that answers commands. It also runs **without a token** (`AllowAnonymous`), so you don't have to sign in; set `Bridge__Web__AllowAnonymous=false Bridge__Web__Token=…` to try the sign-in.
 
 You can also point a test HA with the integration at `http://<your machine>:8080`.
 
@@ -37,13 +37,16 @@ npm run build      # → src/TeslaBridge/wwwroot, served by `dotnet run` too
 
 | | |
 |---|---|
-| `src/api/` | types for the bridge's API, the client (token, 401 → login) and `send()` for commands |
+| `src/api/` | types for the bridge's API, the client (session sign-in, 401 → login) and `send()` for commands |
 | `src/state/` | live state fed by `/api/events` (Server-Sent Events), the shown car, settings, setup, car model, update check |
 | `src/views/` | one file per page – `settings/` holds the settings page's panels |
-| `src/components/` | the menu, tiles, the car (3D via `lib/car3d.js` or the drawing), command log, toast |
+| `src/components/` | the menu, tiles, the car (3D via `lib/car3d.ts` or the drawing), the map card, command log, toast |
 | `src/i18n/` | English and Danish (`en.json`, `da.json` – same keys, tested) |
 | `src/styles/app.css` | the styles |
+| `src/lib/` | the 3D car (three.js) and the map (Leaflet) – each loaded as its own chunk only when shown – plus formatting helpers |
 | `scripts/` | build helpers: clear the previous build, write `THIRD-PARTY-LICENSES.txt` |
+
+TypeScript runs in strict mode and is the linter for now: typescript-eslint doesn't support TypeScript 7 yet.
 
 ## Commits and releases
 
@@ -100,7 +103,9 @@ tesla-bridge/
 │   ├── Publishing/                 HomeAssistantDiscovery (the entities – used by BOTH ways), StatePublisher
 │   ├── Mqtt/                       connection with reconnect and Last Will, embedded broker
 │   ├── Settings/                   settings page: stored settings + description of every telemetry field
-│   ├── Web/                        HTTP API, live events (SSE), 3D model upload
+│   ├── Web/                        HTTP API, security (token, session, cross-site, headers), live events (SSE), 3D model upload
+│   ├── Storage/AtomicFile.cs       every file the bridge writes: temp file + flush + rename, 0600 for secrets
+│   ├── Map/                        street addresses (Nominatim) for the dashboard's map
 │   ├── wwwroot/                    models/ (bundled Model Y, CC BY-NC); the built dashboard lands here
 │   └── Auth/, Usage/               Tesla login and usage tracking
 ├── tests/TeslaBridge.Tests/        .NET tests
@@ -109,14 +114,15 @@ tesla-bridge/
 
 **Adding or changing an entity:** do it in `Publishing/HomeAssistantDiscovery.cs`. Both MQTT discovery and `/api/entities` are built from it, so the integration picks up the change automatically.
 
-**Tests:**
+**Tests and checks** (CI runs all of them on every pull request):
 ```bash
-dotnet test                                              # .NET
+dotnet format --verify-no-changes                        # C# formatting (.editorconfig)
+dotnet test                                              # .NET – analyzers are on and warnings fail the build (Directory.Build.props)
 (cd src/TeslaBridge && dotnet run &)                     # bridge with simulator on :8080
-pip install pytest-homeassistant-custom-component
+pip install -r tests/ha/requirements.txt
 python -m pytest tests/ha -v                             # the integration against the bridge
+ruff check .                                             # Python
+shellcheck install.sh
 ```
 
-**Releases:** pushing to `main` → GitHub Actions runs both test suites and builds `ghcr.io/mfoldager17/tesla-bridge:latest` (amd64 + arm64). A tag like `v1.2.0` also produces `:v1.2.0` and `:v1.2`.
-
-**BLE later:** create a `BleTransport : ICommandTransport` with `Priority = 0` and register it in `Program.cs`. `CommandRouter` tries BLE first and falls back to the Fleet API.
+**Adding a way to the car:** implement `ICommandTransport` (see `Ble/BleTransport.cs`) and register it in `Program.cs`. `CommandRouter` tries transports by `Priority` (Bluetooth 0, simulator 50, Fleet API 100) and falls back to the next one.

@@ -6,9 +6,8 @@ namespace TeslaBridge.State;
 public sealed record StateChange(string Vin, string Key, FieldValue? Effective);
 
 /// <summary>
-/// Al kendt tilstand pr. bil og felt. Holder adskilt hvad bilen har bekræftet,
-/// og hvad vi forventer efter en kommando. "Effektiv" værdi = forventet (hvis aktiv) ellers bekræftet.
-/// Trådsikker.
+/// Everything known per car and field. Keeps what the car has confirmed apart from what we expect after a
+/// command. The "effective" value = the expected one (while active), otherwise the confirmed one. Thread-safe.
 /// </summary>
 public sealed class VehicleStateStore
 {
@@ -24,10 +23,10 @@ public sealed class VehicleStateStore
 
     public VehicleStateStore(TimeProvider? time = null) => _time = time ?? TimeProvider.System;
 
-    /// <summary>Kaldes (uden lås) hver gang en effektiv værdi ændres.</summary>
+    /// <summary>Raised (outside the lock) whenever an effective value changes.</summary>
     public event Action<StateChange>? Changed;
 
-    /// <summary>Kaldes når en bekræftet værdi ændres (bruges til at gemme på disk).</summary>
+    /// <summary>Raised when a confirmed value changes (used to save to disk).</summary>
     public event Action? ConfirmedChanged;
 
     /// <summary>A field started or stopped waiting for the car to confirm a command (argument: VIN).</summary>
@@ -45,7 +44,7 @@ public sealed class VehicleStateStore
         get { lock (_lock) return _vehicles.Keys.ToArray(); }
     }
 
-    /// <summary>Ny værdi fra bilen.</summary>
+    /// <summary>A new value from the car.</summary>
     public void Apply(string vin, string key, JsonNode? value, DateTimeOffset at, ValueSource source = ValueSource.Stream)
     {
         StateChange? change;
@@ -57,8 +56,8 @@ public sealed class VehicleStateStore
 
             entry.Confirmed = new FieldValue(value?.DeepClone(), at, source);
 
-            // Bekræfter streamen det vi forventede? Så er vi færdige med at vente.
-            // Hvis ikke (fx gammelt snapshot lige efter opvågning) holder vi den forventede værdi til den udløber.
+            // Does the stream confirm what we expected? Then we're done waiting. If not (e.g. an old snapshot
+            // right after waking up), the expected value is kept until it expires.
             if (entry.Pending is { } p && p.IsConfirmedBy(value))
             {
                 entry.Pending = null;
@@ -73,7 +72,7 @@ public sealed class VehicleStateStore
         if (confirmed) PendingChanged?.Invoke(vin);
     }
 
-    /// <summary>Forvent en værdi efter en kommando.</summary>
+    /// <summary>Expect a value after a command.</summary>
     public void SetPending(string vin, string key, JsonNode? value, TimeSpan timeout, Func<JsonNode?, bool>? confirmedBy = null)
     {
         StateChange? change;
@@ -92,7 +91,7 @@ public sealed class VehicleStateStore
         PendingChanged?.Invoke(vin);
     }
 
-    /// <summary>Opgiv en forventet værdi (fx fordi kommandoen fejlede) og vis den bekræftede igen.</summary>
+    /// <summary>Give up an expected value (e.g. because the command failed) and show the confirmed one again.</summary>
     public void ClearPending(string vin, string key)
     {
         StateChange? change = null;
@@ -112,7 +111,7 @@ public sealed class VehicleStateStore
         if (cleared) PendingChanged?.Invoke(vin);
     }
 
-    /// <summary>Lad udløbne forventninger falde tilbage til bilens bekræftede værdi.</summary>
+    /// <summary>Let expired expectations fall back to the car's confirmed value.</summary>
     public int ExpirePending()
     {
         var now = _time.GetUtcNow();
@@ -121,16 +120,16 @@ public sealed class VehicleStateStore
         lock (_lock)
         {
             foreach (var (vin, fields) in _vehicles)
-            foreach (var (key, entry) in fields)
-            {
-                if (entry.Pending is { } p && p.ExpiresAt <= now)
+                foreach (var (key, entry) in fields)
                 {
-                    var before = EffectiveOf(entry);
-                    entry.Pending = null;
-                    vins.Add(vin);
-                    if (Diff(vin, key, before, EffectiveOf(entry)) is { } c) changes.Add(c);
+                    if (entry.Pending is { } p && p.ExpiresAt <= now)
+                    {
+                        var before = EffectiveOf(entry);
+                        entry.Pending = null;
+                        vins.Add(vin);
+                        if (Diff(vin, key, before, EffectiveOf(entry)) is { } c) changes.Add(c);
+                    }
                 }
-            }
         }
 
         foreach (var c in changes) Changed?.Invoke(c);
@@ -156,7 +155,7 @@ public sealed class VehicleStateStore
             return _vehicles.TryGetValue(vin, out var f) && f.TryGetValue(key, out var e) && e.Pending is not null;
     }
 
-    /// <summary>Alle effektive værdier for én bil.</summary>
+    /// <summary>All effective values for one car.</summary>
     public IReadOnlyDictionary<string, FieldValue> Snapshot(string vin)
     {
         lock (_lock)
@@ -169,7 +168,7 @@ public sealed class VehicleStateStore
         }
     }
 
-    // ---------- persistens (kun bekræftede værdier) ----------
+    // ---------- persistence (confirmed values only) ----------
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
@@ -185,7 +184,7 @@ public sealed class VehicleStateStore
         }
     }
 
-    /// <summary>Indlæs sidst kendte værdier, så intet står "unknown" efter genstart.</summary>
+    /// <summary>Loads the last known values, so nothing shows "unknown" after a restart.</summary>
     public void Restore(string json)
     {
         var dto = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, FieldValue>>>(json, JsonOpts);
@@ -193,18 +192,18 @@ public sealed class VehicleStateStore
         lock (_lock)
         {
             foreach (var (vin, fields) in dto)
-            foreach (var (key, fv) in fields)
-            {
-                // "online" gælder kun nu. Fra disk ved vi ikke, om bilen stadig er vågen – den sættes,
-                // når bilen sender næste gang. last_seen viser i mellemtiden, hvornår vi sidst hørte fra den.
-                if (key == "online") continue;
-                var entry = GetEntry(vin, key);
-                entry.Confirmed ??= fv with { Source = ValueSource.Restored };
-            }
+                foreach (var (key, fv) in fields)
+                {
+                    // "online" is only true right now. From disk we can't know whether the car is still awake – it is set
+                    // when the car sends next time. Meanwhile last_seen shows when we last heard from it.
+                    if (key == StateKeys.Online) continue;
+                    var entry = GetEntry(vin, key);
+                    entry.Confirmed ??= fv with { Source = ValueSource.Restored };
+                }
         }
     }
 
-    // ---------- hjælpere ----------
+    // ---------- helpers ----------
 
     private Entry GetEntry(string vin, string key)
     {
@@ -218,8 +217,8 @@ public sealed class VehicleStateStore
     private static FieldValue? EffectiveOf(Entry e) =>
         e.Pending is { } p ? new FieldValue(p.Value, p.SetAt, ValueSource.Optimistic) : e.Confirmed;
 
-    // Vi melder også ændring ved samme værdi, så updated_at i snapshot er frisk.
-    // StatePublisher dropper selv identiske retained-værdier.
+    // A change is reported even for the same value, so updated_at in the snapshot is fresh.
+    // StatePublisher drops identical retained values itself.
     private static StateChange? Diff(string vin, string key, FieldValue? before, FieldValue? after) =>
         before is null && after is null ? null : new StateChange(vin, key, after);
 }

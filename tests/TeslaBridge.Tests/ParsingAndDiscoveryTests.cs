@@ -70,7 +70,7 @@ public class ParsingAndDiscoveryTests
         Assert.Equal(ids.Count, ids.Distinct().Count());
         Assert.All(configs, c => Assert.StartsWith("homeassistant/", c.Topic));
 
-        // HA 2026.4+ kræver default_entity_id med domæne; object_id må ikke bruges.
+        // HA 2026.4+ needs default_entity_id with the domain; object_id must not be used.
         Assert.All(configs, c =>
         {
             var component = c.Topic.Split('/')[1];
@@ -78,7 +78,7 @@ public class ParsingAndDiscoveryTests
             Assert.Null(c.Payload["object_id"]);
         });
 
-        // Hver kommando HA kan sende skal kunne parses af bridgen.
+        // Every command HA can send must be understood by the bridge.
         foreach (var (_, p) in configs)
         {
             if (p["command_topic"]?.GetValue<string>() is not { } topic) continue;

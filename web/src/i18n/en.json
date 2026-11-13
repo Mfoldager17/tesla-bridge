@@ -1,6 +1,6 @@
 {
   "login.title": "Sign in",
-  "login.text": "Enter the token from Bridge__Web__Token in your .env.",
+  "login.text": "Enter the dashboard token: Bridge__Web__Token in your .env, or – if you didn't set one – the token the bridge made, shown with: docker compose exec tesla-bridge cat /data/web-token",
   "login.button": "Sign in",
   "nav.overview": "Car",
   "nav.controls": "Controls",
@@ -373,5 +373,6 @@
   "map.on": "Show the map and the address",
   "map.off": "Off – coordinates only",
   "map.saved": "Saved",
-  "loc.status": "Status"
+  "loc.status": "Status",
+  "login.wrong": "That token isn't right"
 }

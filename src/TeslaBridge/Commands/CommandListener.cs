@@ -10,15 +10,19 @@ using TeslaBridge.State;
 namespace TeslaBridge.Commands;
 
 /// <summary>
-/// Tager imod kommandoer på {bridge}/{vin}/cmd/{navn} og publicerer status på
-/// {bridge}/{vin}/command/status (pending → waking → succeeded/failed), så et dashboard kan vise en spinner.
+/// Takes commands on {bridge}/{vin}/cmd/{name} and publishes their status on {bridge}/{vin}/command/status
+/// (pending → waking → succeeded/failed), so a dashboard can show progress.
+///
+/// Anyone who may publish to those topics on the broker can unlock the car, so the broker must require logins
+/// (see docs/security.md). Bridge__Mqtt__Commands=false turns MQTT commands off – e.g. when only the Home Assistant
+/// integration (HTTP, with a token) is used.
 /// </summary>
 public sealed class CommandListener(
     MqttConnection mqtt,
     CommandService commands,
     VehicleStateStore store,
     IOptions<BridgeOptions> options,
-    ILogger<CommandListener> log) : IHostedService
+    ILogger<CommandListener> log) : IHostedService, IDisposable
 {
     private readonly string _base = options.Value.Mqtt.BridgeTopicBase;
     private readonly HashSet<string> _vins = options.Value.Vehicles.Select(v => v.Vin).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -28,7 +32,8 @@ public sealed class CommandListener(
     {
         _cts = new CancellationTokenSource();
         commands.StatusChanged += OnStatus;
-        mqtt.Subscribe($"{_base}/+/cmd/+", OnCommandAsync);
+        if (options.Value.Mqtt.Commands) mqtt.Subscribe($"{_base}/+/cmd/+", OnCommandAsync);
+        else log.LogInformation("MQTT commands are off (Bridge__Mqtt__Commands=false)");
         return Task.CompletedTask;
     }
 
@@ -47,24 +52,24 @@ public sealed class CommandListener(
 
         if (_vins.Count > 0 && !_vins.Contains(vin))
         {
-            log.LogWarning("Ignorerer kommando til ukendt VIN {Vin}", vin);
+            log.LogWarning("Ignoring a command for an unknown VIN {Vin}", vin);
             return Task.CompletedTask;
         }
 
         var command = CommandParser.Parse(name, payload, key => store.Get(vin, key));
         if (command is null)
         {
-            log.LogWarning("Ukendt kommando eller payload: {Name} = {Payload}", name, payload);
+            log.LogWarning("Unknown command or value: {Name} = {Payload}", name, payload);
             return Task.CompletedTask;
         }
 
-        // Kør i baggrunden: opvågning kan tage op til et minut, og MQTT-løkken må ikke blokere.
+        // In the background: waking the car can take up to a minute, and the MQTT loop must not block.
         var ct = _cts?.Token ?? CancellationToken.None;
         _ = Task.Run(async () =>
         {
             try { await commands.ExecuteAsync(vin, command, ct); }
             catch (OperationCanceledException) { }
-            catch (Exception ex) { log.LogError(ex, "Uventet fejl i {Command}", command); }
+            catch (Exception ex) { log.LogError(ex, "Unexpected error in {Command}", command); }
         }, ct);
         return Task.CompletedTask;
     }
@@ -82,4 +87,6 @@ public sealed class CommandListener(
         };
         _ = mqtt.PublishAsync($"{_base}/{s.Vin}/command/status", json.ToJsonString(Json.Relaxed), retain: true);
     }
+
+    public void Dispose() => _cts?.Dispose();
 }

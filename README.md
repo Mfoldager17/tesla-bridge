@@ -83,8 +83,11 @@ curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/insta
 | [Entities](docs/entities.md) | Everything you get in Home Assistant |
 | [Switching](docs/switching.md) | From MQTT to the integration and back |
 | [Versions and updating](docs/updating.md) | Releases, what `latest`/`edge`/`v1` mean, updating and pinning |
+| [Security](docs/security.md) | What's exposed, the token, MQTT and ESP32 logins, which container sees which key |
 | [Troubleshooting](docs/troubleshooting.md) | Symptoms and what to check |
 | [MQTT API](docs/mqtt-api.md) · [HTTP API](docs/http-api.md) | For ESP32 panels, Node-RED and scripts |
 | [Development](docs/development.md) | Run it locally with the simulator, project layout, tests |
 
-Tesla and Model Y are trademarks of Tesla, Inc. This project is not affiliated with Tesla.
+## License
+
+[MIT](LICENSE), except the bundled 3D model of the Model Y ([CC BY-NC 4.0](src/TeslaBridge/wwwroot/models/NOTICE.md), non-commercial only). Tesla and Model Y are trademarks of Tesla, Inc. This project is not affiliated with Tesla.

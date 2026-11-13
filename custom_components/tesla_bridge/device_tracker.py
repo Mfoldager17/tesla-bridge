@@ -8,10 +8,11 @@ from homeassistant.components.device_tracker import SourceType, TrackerEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import TeslaBridgeConfigEntry
 from .entity import BridgeEntity
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: Any, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: TeslaBridgeConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     async_add_entities(entry.runtime_data.build("device_tracker", BridgeTracker))
 
 

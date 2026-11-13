@@ -5,7 +5,7 @@ namespace TeslaBridge.Usage;
 
 public enum ApiCallKind { Command, Wake, Data }
 
-/// <summary>Forbrug for én kalendermåned (UTC), som Tesla afregner det.</summary>
+/// <summary>Usage for one calendar month (UTC), the way Tesla bills it.</summary>
 public sealed class MonthUsage
 {
     [JsonPropertyName("month")] public string Month { get; set; } = "";
@@ -35,8 +35,8 @@ public sealed record UsageSnapshot(
     double BleSavedUsd = 0);
 
 /// <summary>
-/// Tæller alt, bridgen sender til og modtager fra Tesla, pr. kalendermåned, efter Teslas Fleet API-takster.
-/// Overlever genstart (gemmes af UsageService). Det, der går uden om bridgen (fx tesla_fleet i HA), ses ikke.
+/// Counts everything the bridge sends to and gets from Tesla, per calendar month, at Tesla's Fleet API rates.
+/// Survives restarts (saved by UsageService). What goes around the bridge (e.g. tesla_fleet in HA) isn't seen.
 /// </summary>
 public sealed class UsageTracker(TimeProvider time)
 {
@@ -91,7 +91,7 @@ public sealed class UsageTracker(TimeProvider time)
         _dirty = true;
     }
 
-    /// <summary>Klassificerer et Fleet API-kald ud fra stien, som Tesla afregner det.</summary>
+    /// <summary>Classifies a Fleet API call by its path, the way Tesla bills it.</summary>
     public static (ApiCallKind Kind, string Name) Classify(string path)
     {
         var clean = path.Split('?')[0].TrimEnd('/');
@@ -119,11 +119,11 @@ public sealed class UsageTracker(TimeProvider time)
                 new("signals", "Signaler (stream)", signals, signals / SignalsPerDollar, "$1 / 150.000"),
                 new("commands", "Kommandoer", commands, commands / CommandsPerDollar, "$1 / 1.000"),
                 new("wakes", "Wakes", c.Wakes, c.Wakes / WakesPerDollar, "$1 / 50"),
-                new("data", "Data-forespørgsler", data, data / DataPerDollar, "$1 / 500"),
+                new("data", "Data requests", data, data / DataPerDollar, "$1 / 500"),
             };
             var total = categories.Sum(x => x.CostUsd);
 
-            // Fremskrivning giver først mening efter et døgn.
+            // A projection only makes sense after a day.
             var elapsed = now - start;
             double? projected = elapsed >= TimeSpan.FromDays(1)
                 ? total * ((end - start).TotalSeconds / elapsed.TotalSeconds)
@@ -171,7 +171,7 @@ public sealed class UsageTracker(TimeProvider time)
 
     public void MarkDirty() => _dirty = true;
 
-    // ---------- hjælpere ----------
+    // ---------- helpers ----------
 
     private void Roll()
     {

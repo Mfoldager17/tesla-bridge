@@ -30,6 +30,8 @@ public class BootstrapTests : IDisposable
                 FleetKeyFile = Path.Combine(_dir, "config", "tesla-proxy", "fleet-key.pem"),
                 ProxyCertFile = Path.Combine(_dir, "config", "tesla-proxy", "tls-cert.pem"),
                 ProxyKeyFile = Path.Combine(_dir, "config", "tesla-proxy", "tls-key.pem"),
+                FleetPublicKeyFile = Path.Combine(_dir, "config", "public", "fleet-key.pub.pem"),
+                PublicProxyCertFile = Path.Combine(_dir, "config", "public", "tesla-proxy-cert.pem"),
             },
         };
         o.Vehicles.Add(new VehicleOptions { Vin = "VIN1" });
@@ -44,9 +46,9 @@ public class BootstrapTests : IDisposable
 
         Assert.Equal(2, r.Created.Count);
         Assert.StartsWith("-----BEGIN EC PRIVATE KEY-----", File.ReadAllText(o.Tesla.FleetKeyFile));
-        Assert.NotNull(TeslaKey.FromPrivatePem(File.ReadAllText(o.Tesla.FleetKeyFile)));   // P-256, ellers kaster den
+        Assert.NotNull(TeslaKey.FromPem(File.ReadAllText(o.Tesla.FleetKeyFile)));   // P-256, otherwise it throws
 
-        // Bridgen pinner proxy-certifikatet sådan her
+        // The bridge pins the proxy certificate like this
         using var cert = X509Certificate2.CreateFromPem(File.ReadAllText(o.Tesla.ProxyCertFile), File.ReadAllText(o.Tesla.ProxyKeyFile));
         Assert.Contains("tesla-proxy", cert.Subject);
 
@@ -97,5 +99,47 @@ public class BootstrapTests : IDisposable
         var r = Bootstrap.Run(o);
         Assert.Contains(r.Warnings, w => w.Contains("Bridge__Vehicles__0__Vin"));
         Assert.Contains(r.Warnings, w => w.Contains("Hostname"));
+    }
+
+    [Fact]
+    public void The_bridge_gets_public_copies_and_never_needs_the_private_key()
+    {
+        var o = Options();
+        Bootstrap.Run(o);
+        Assert.Contains("PUBLIC KEY", File.ReadAllText(o.Tesla.FleetPublicKeyFile));
+        Assert.DoesNotContain("PRIVATE", File.ReadAllText(o.Tesla.FleetPublicKeyFile));
+        Assert.Equal(File.ReadAllText(o.Tesla.ProxyCertFile), File.ReadAllText(o.Tesla.PublicProxyCertFile));
+
+        // With the private key gone (as in the bridge container) the public key still reads the same.
+        var expected = TeslaKey.FromPem(File.ReadAllText(o.Tesla.FleetKeyFile)).UncompressedHex;
+        var onlyPublic = Options();
+        onlyPublic.Tesla.FleetKeyFile = Path.Combine(_dir, "nowhere.pem");
+        var key = new TeslaKey(Microsoft.Extensions.Options.Options.Create(onlyPublic));
+        Assert.Equal(expected, key.Public!.UncompressedHex);
+        Assert.Equal(o.Tesla.PublicProxyCertFile, o.Tesla.PinnedProxyCertFile);
+    }
+
+    [Fact]
+    public void The_embedded_broker_gets_a_telemetry_password_that_is_kept()
+    {
+        var o = Options();
+        o.Mqtt.EmbeddedBroker = true;
+        o.Telemetry.MqttPassword = "";
+        Bootstrap.Run(o);
+        var password = o.Telemetry.MqttPassword;
+        Assert.True(password.Length >= 32);
+        Assert.Equal(password, (string?)JsonNode.Parse(File.ReadAllText(o.Telemetry.ServerConfigFile))!["mqtt"]!["password"]);
+        if (!OperatingSystem.IsWindows())
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(o.GeneratedTelemetryPasswordFile));
+
+        // The bridge reads the same one at the next start …
+        var next = Options();
+        next.Mqtt.EmbeddedBroker = true;
+        next.Telemetry.MqttPassword = "";
+        next.Normalize();
+        Assert.Equal(password, next.Telemetry.MqttPassword);
+        // … and Bootstrap doesn't make a new one.
+        Bootstrap.Run(next);
+        Assert.Equal(password, next.Telemetry.MqttPassword);
     }
 }

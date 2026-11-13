@@ -5,8 +5,8 @@ using TeslaBridge.State;
 
 namespace TeslaBridge.Web;
 
-/// <summary>Kobler state store og kommandoer på hændelsesbussen til UI'et.</summary>
-public sealed class LiveEventsBridge(VehicleStateStore store, CommandService commands, LiveEvents events) : IHostedService
+/// <summary>Connects the state store and the commands to the event bus.</summary>
+public sealed class LiveEventsBridge(VehicleStateStore store, CommandService commands, LiveEvents events, TimeProvider time) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -24,24 +24,17 @@ public sealed class LiveEventsBridge(VehicleStateStore store, CommandService com
 
     private void OnChanged(StateChange c)
     {
-        events.Publish("field", c.Vin, new JsonObject
-        {
-            ["key"] = c.Key,
-            ["value"] = c.Effective?.Value?.DeepClone(),
-            ["updated_at"] = c.Effective?.UpdatedAt.ToString("O"),
-            ["source"] = c.Effective is null ? null : JsonNamingPolicy.SnakeCaseLower.ConvertName(c.Effective.Source.ToString()),
-        });
+        var field = FieldJson.Field(c.Effective);
+        field["key"] = c.Key;
+        events.Publish("field", c.Vin, field);
 
-        // Mellemtrin for låse og covers (LOCKING, opening …), så HA-integrationen viser det samme som MQTT-vejen.
-        if (TeslaBridge.Publishing.StatePublisher.Transitions.ContainsKey(c.Key))
-            events.Publish("field", c.Vin, new JsonObject
-            {
-                ["key"] = c.Key + "_motion",
-                ["value"] = TeslaBridge.Publishing.StatePublisher.Motion(c.Key, store.HasPending(c.Vin, c.Key),
-                    c.Effective?.Value, store.GetConfirmed(c.Vin, c.Key)?.Value),
-                ["updated_at"] = DateTimeOffset.UtcNow.ToString("O"),
-                ["source"] = "bridge",
-            });
+        // In-between steps for locks and covers (LOCKING, opening …), so the HA integration shows the same as MQTT.
+        if (FieldJson.Transitions.ContainsKey(c.Key))
+        {
+            var motion = FieldJson.Field(FieldJson.MotionValue(store, c.Vin, c.Key, time.GetUtcNow()));
+            motion["key"] = c.Key + FieldJson.MotionSuffix;
+            events.Publish("field", c.Vin, motion);
+        }
     }
 
     private void OnCommand(CommandStatus s) =>

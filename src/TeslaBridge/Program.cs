@@ -10,12 +10,17 @@ using TeslaBridge.Telemetry;
 using TeslaBridge.Usage;
 using TeslaBridge.Web;
 
-var cliCommand = args.FirstOrDefault(a => !a.StartsWith('-'));
+// "dotnet TeslaBridge.dll auth" etc. runs a one-off command (see Cli/CliCommands.cs); anything else starts the bridge.
+var cliCommand = args.Length > 0 && CliCommands.Names.Contains(args[0]) ? args[0] : null;
 
-var builder = WebApplication.CreateBuilder(args.Where(a => a != cliCommand).ToArray());
-builder.Services.Configure<BridgeOptions>(builder.Configuration.GetSection(BridgeOptions.Section));
-// Tomme VIN'er (fx en tom Bridge__Vehicles__0__Vin i .env) ignoreres.
-builder.Services.PostConfigure<BridgeOptions>(o => o.Vehicles.RemoveAll(v => string.IsNullOrWhiteSpace(v.Vin)));
+var builder = WebApplication.CreateBuilder(cliCommand is null ? args : args[1..]);
+builder.Services.AddOptions<BridgeOptions>()
+    .Bind(builder.Configuration.GetSection(BridgeOptions.Section))
+    .PostConfigure(o => o.Normalize())
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<BridgeOptions>, BridgeOptionsValidator>();
+// The same values, for the few decisions made before the services exist.
+var config = BridgeOptions.From(builder.Configuration);
 builder.Logging.AddSimpleConsole(o =>
 {
     o.SingleLine = true;
@@ -28,7 +33,7 @@ services.AddSingleton<VehicleStateStore>(sp => new VehicleStateStore(sp.GetRequi
 services.AddSingleton<UsageTracker>();
 services.AddSingleton<TeslaBridge.Settings.SettingsStore>();
 
-// Tesla: auth + proxy. Singletons – refresh tokens roterer, så der må kun være én der fornyer.
+// Tesla: sign-in and the command proxy. Singletons – refresh tokens rotate, so only one may renew them.
 services.AddHttpClient("tesla-auth");
 services.AddHttpClient("tesla-proxy", (sp, http) =>
     {
@@ -37,7 +42,7 @@ services.AddHttpClient("tesla-proxy", (sp, http) =>
         http.Timeout = TimeSpan.FromSeconds(60);
     })
     .ConfigurePrimaryHttpMessageHandler(sp =>
-        TeslaProxyClient.CreateHandler(sp.GetRequiredService<IOptions<BridgeOptions>>().Value.Tesla.ProxyCertFile));
+        TeslaProxyClient.CreateHandler(sp.GetRequiredService<IOptions<BridgeOptions>>().Value.Tesla.PinnedProxyCertFile));
 services.AddSingleton(sp => new TeslaTokenProvider(
     sp.GetRequiredService<IHttpClientFactory>().CreateClient("tesla-auth"),
     sp.GetRequiredService<IOptions<BridgeOptions>>(),
@@ -57,12 +62,12 @@ services.AddSingleton(sp => new TeslaProxyClient(
 services.AddSingleton<TeslaBridge.Ble.BleService>();
 services.AddSingleton<ICommandTransport, TeslaBridge.Ble.BleTransport>();
 services.AddSingleton<ICommandTransport, FleetApiTransport>();
-if (builder.Configuration.GetValue<bool>("Bridge:Web:Simulator"))
+if (config.Web.Simulator)
     services.AddSingleton<ICommandTransport, SimulatorTransport>();   // a pretend car, before the Fleet API
 services.AddSingleton<CommandRouter>();
 services.AddSingleton<CommandService>();
 
-// Telemetri-konfiguration (også brugt fra CLI)
+// The car's telemetry configuration (also used by the CLI)
 services.AddSingleton<TelemetryConfigService>();
 
 if (cliCommand is not null)
@@ -72,21 +77,23 @@ if (cliCommand is not null)
     return await CliCommands.RunAsync(cliCommand, cliHost.Services);
 }
 
-// Nøgler, intern TLS og fleet-telemetrys config laves, hvis de mangler (i Docker gør init-containeren det først).
+// Keys, internal TLS and fleet-telemetry's config are made if they are missing. In Docker the init container does it
+// first, and the bridge (which can't write those files) skips it: Bridge__RunBootstrap=false in docker-compose.yml.
+if (config.RunBootstrap)
 {
-    var bootOpts = new BridgeOptions();
-    builder.Configuration.GetSection(BridgeOptions.Section).Bind(bootOpts);
-    bootOpts.Vehicles.RemoveAll(v => string.IsNullOrWhiteSpace(v.Vin));
     try
     {
-        var r = TeslaBridge.Setup.Bootstrap.Run(bootOpts);
-        foreach (var c in r.Created) Console.WriteLine($"✓ Lavede {c}");
+        var r = TeslaBridge.Setup.Bootstrap.Run(config);
+        foreach (var c in r.Created) Console.WriteLine($"✓ Created {c}");
         foreach (var w in r.Warnings) Console.WriteLine($"⚠ {w}");
     }
-    catch (Exception ex) { Console.WriteLine($"⚠ Kunne ikke forberede filer: {ex.Message}"); }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+    {
+        Console.WriteLine($"⚠ Couldn't prepare the files: {ex.Message}");
+    }
 }
 
-// Kørende services. Rækkefølgen betyder noget: state indlæses og evt. broker starter før MQTT forbinder.
+// Running services. The order matters: state is loaded and the embedded broker starts before MQTT connects.
 services.AddHostedService<StatePersistenceService>();
 services.AddHostedService<EmbeddedBroker>();
 services.AddSingleton<MqttConnection>();
@@ -112,16 +119,17 @@ services.AddHostedService<OptimisticExpiryService>();
 services.AddHostedService<UsageService>();
 services.AddHostedService(sp => sp.GetRequiredService<TelemetryConfigService>());
 
-// Test-dashboard
+// Dashboard and API
+services.AddSingleton<WebAccess>();
+services.AddSingleton<TeslaBridge.Setup.SetupStatusService>();
 services.AddSingleton<LiveEvents>();
 services.AddHostedService<LiveEventsBridge>();
 services.AddHostedService<TeslaBridge.Auth.PartnerAutoRegistration>();
-var web = builder.Configuration.GetSection("Bridge:Web").Get<WebOptions>() ?? new WebOptions();
-builder.WebHost.UseUrls($"http://0.0.0.0:{web.Port}", $"http://0.0.0.0:{web.PublicPort}");
+builder.WebHost.UseUrls($"http://0.0.0.0:{config.Web.Port}", $"http://0.0.0.0:{config.Web.PublicPort}");
 
 var app = builder.Build();
-app.UsePublicListenerFilter();   // offentlig port: kun nøgle + login-callback
+app.UsePublicListenerFilter();   // public port: only the key and the sign-in callback
 app.MapPublicEndpoints();
-if (web.Enabled) app.MapBridgeApi();
+if (config.Web.Enabled) app.MapBridgeApi();
 await app.RunAsync();
 return 0;

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncIterator
 import json
 from typing import Any
@@ -41,7 +40,7 @@ class BridgeClient:
                 return await r.json(content_type=None)
         except BridgeAuthError:
             raise
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except (TimeoutError, aiohttp.ClientError) as err:
             raise BridgeError(str(err)) from err
 
     async def info(self) -> dict[str, Any]:
@@ -82,7 +81,7 @@ class BridgeClient:
                     except ValueError:
                         pass
                     raise BridgeError(text[:300])
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except (TimeoutError, aiohttp.ClientError) as err:
             raise BridgeError(str(err)) from err
 
     async def events(self) -> AsyncIterator[dict[str, Any]]:

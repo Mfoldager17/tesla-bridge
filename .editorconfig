@@ -1,0 +1,39 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,ts,tsx,js,mjs,css,html,md}]
+indent_size = 2
+
+[*.py]
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+# Analyzer rules (AnalysisLevel latest-recommended, warnings are errors). Turned off on purpose:
+# - CA1848/CA1873: LoggerMessage source generators – worth it on hot paths; the bridge logs a few lines a minute.
+# - CA1859: concrete types instead of interfaces for speed – the interfaces are kept for readability.
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none
+dotnet_diagnostic.CA1859.severity = none
+
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
+csharp_indent_case_contents_when_block = false
+
+[tests/**.cs]
+# Test names read as sentences (Two_cars_in_range_…)
+dotnet_diagnostic.CA1707.severity = none
+# Tests run with fixed inputs; culture and finalizer rules add noise there
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1816.severity = none

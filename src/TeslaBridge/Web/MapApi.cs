@@ -13,7 +13,7 @@ public static class MapApi
             ILoggerFactory lf, CancellationToken ct) =>
         {
             if (!settings.Current.MapEnabled)
-                return Results.Json(new { error = "The map is turned off under Settings" }, statusCode: StatusCodes.Status403Forbidden);
+                return ApiErrors.Problem(StatusCodes.Status403Forbidden, "The map is turned off under Settings");
             if (!TryCoord(req.Query["lat"], 90, out var lat) || !TryCoord(req.Query["lon"], 180, out var lon))
                 return Results.BadRequest(new { error = "lat and lon are required" });
             try
@@ -23,7 +23,12 @@ public static class MapApi
                 {
                     address = a is null ? null : new
                     {
-                        line1 = a.Line1, line2 = a.Line2, place = a.Place, country = a.Country, country_code = a.CountryCode, full = a.Full,
+                        line1 = a.Line1,
+                        line2 = a.Line2,
+                        place = a.Place,
+                        country = a.Country,
+                        country_code = a.CountryCode,
+                        full = a.Full,
                     },
                 });
             }
@@ -31,7 +36,7 @@ public static class MapApi
                                        && !ct.IsCancellationRequested)
             {
                 lf.CreateLogger("Map").LogInformation("Address lookup failed: {Error}", ex.Message);
-                return Results.Json(new { error = ex.Message }, statusCode: StatusCodes.Status502BadGateway);
+                return ApiErrors.Problem(StatusCodes.Status502BadGateway, ex.Message);
             }
         });
     }

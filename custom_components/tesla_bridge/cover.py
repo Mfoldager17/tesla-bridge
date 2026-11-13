@@ -8,10 +8,11 @@ from homeassistant.components.cover import CoverDeviceClass, CoverEntity, CoverE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import TeslaBridgeConfigEntry
 from .entity import BridgeEntity
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: Any, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: TeslaBridgeConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     async_add_entities(entry.runtime_data.build("cover", BridgeCover))
 
 

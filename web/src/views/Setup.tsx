@@ -1,6 +1,6 @@
 import { createSignal, For, onCleanup, Show, type JSX } from "solid-js";
 import { t } from "../i18n";
-import { api, token } from "../api/client";
+import { api } from "../api/client";
 import { vin } from "../state/selection";
 import { loadSetup, setup, stepStates, type SetupStatus } from "../state/setup";
 import { update } from "../state/update";
@@ -21,7 +21,6 @@ function ActionButton(props: { label: string; primary?: boolean; disabled?: bool
 function steps(st: SetupStatus): { title: string; detail: string; action?: JSX.Element }[] {
   const v = st.vehicles[0] ?? {};
   const reg = st.registration;
-  const tq = token() ? `?token=${encodeURIComponent(token())}` : "";
   const c = (s: string | null | undefined) => `<code>${esc(s)}</code>`;
   const link = (u: string) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>`;
   const post = (path: string, err: "err.register" | "err.push") => async () => {
@@ -35,10 +34,10 @@ function steps(st: SetupStatus): { title: string; detail: string; action?: JSX.E
     { title: t("s.reg"), detail: !reg ? t("s.regUnknown") : reg.error ? esc(reg.error) : reg.matches ? t("s.regOk") : reg.registered ? t("s.regOther") : t("s.regNo"),
       action: <ActionButton label={t("s.register")} disabled={!(st.key.present && st.credentials_set)} run={post("/api/setup/register", "err.register")} /> },
     { title: t("s.login"), detail: st.logged_in ? t("s.loginOk") : t("s.loginNo"),
-      action: <a href={`/api/auth/start${tq}`} target="_blank" rel="noopener">
+      action: <a href="/api/auth/start" target="_blank" rel="noopener">
         <button type="button" class={st.logged_in ? "" : "primary"} disabled={!st.credentials_set}>{st.logged_in ? t("s.loginAgain") : t("s.loginBtn")}</button></a> },
     { title: t("s.pair"), detail: (v.key_paired === true ? t("s.pairOk") : t("s.pairNo")) + `<br>${link(st.pairing_url)}`
-        + (v.key_paired === true ? "" : `<br><img class="qr" alt="QR" src="/api/setup/pair-qr.svg${tq}">`) },
+        + (v.key_paired === true ? "" : `<br><img class="qr" alt="QR" src="/api/setup/pair-qr.svg">`) },
     { title: t("s.tele"), detail: v.error ? esc(v.error) : v.synced === true ? t("s.teleOk", c(v.hostname ?? "")) : v.synced === false ? t("s.teleWait") : t("s.teleNone"),
       action: <ActionButton label={t("s.send")} disabled={!st.logged_in} run={post(`/api/vehicles/${vin()}/telemetry-config`, "err.push")} /> },
   ];

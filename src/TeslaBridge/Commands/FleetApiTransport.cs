@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace TeslaBridge.Commands;
 
-/// <summary>Kommandoer via tesla-http-proxy → Tesla Fleet API (cloud). Virker overalt, kræver 4G/WiFi i bilen.</summary>
+/// <summary>Commands through tesla-http-proxy → the Tesla Fleet API (cloud). Works anywhere the car has 4G or Wi-Fi.</summary>
 public sealed class FleetApiTransport(TeslaProxyClient proxy, ILogger<FleetApiTransport> log) : ICommandTransport
 {
     public string Name => "fleet-api";
@@ -56,7 +56,7 @@ public sealed class FleetApiTransport(TeslaProxyClient proxy, ILogger<FleetApiTr
         var reason = response?["reason"]?.ToString() ?? "";
         if (result) return CommandResult.Ok();
 
-        // "already_set", "already on" osv. = bilen er allerede i den ønskede tilstand.
+        // "already_set", "already on" etc. = the car is already in the wanted state.
         return Contains(reason, "already") ? CommandResult.Ok() : CommandResult.Refused(reason);
     }
 

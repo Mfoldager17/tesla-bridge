@@ -6,9 +6,9 @@ using System.Text.Json.Nodes;
 namespace TeslaBridge.Telemetry;
 
 /// <summary>
-/// Oversætter rå Fleet Telemetry-felter (som fleet-telemetry lægger på MQTT) til bridgens
-/// normaliserede nøgler i metriske enheder. Tesla kan skifte typer mellem firmwareversioner
-/// (fx 12.3 vs "12.3"), så alt parses tolerant.
+/// Translates raw Fleet Telemetry fields (as fleet-telemetry puts them on MQTT) to the bridge's normalised keys in
+/// metric units. Tesla can change types between firmware versions (e.g. 12.3 vs "12.3"), so everything is parsed
+/// leniently.
 /// </summary>
 public static class SignalMapper
 {
@@ -18,13 +18,13 @@ public static class SignalMapper
     {
         switch (field)
         {
-            // --- kørsel / position ---
+            // --- driving / position ---
             case "Location":
                 yield return ("location", MapLocation(raw));
                 break;
             case "GpsHeading": yield return ("heading", Round(Num(raw), 0)); break;
-            // Parkeret bil sender hastighed og gear som "invalid" (null). Som Tesla-appen: 0 km/h og P.
-            // Ellers bliver de "unknown" i HA, og en automation på D → P udløses aldrig.
+            // A parked car sends speed and gear as "invalid" (null). Like the Tesla app: 0 km/h and P. Otherwise they'd
+            // be "unknown" in HA, and an automation on D → P would never fire.
             case "VehicleSpeed": yield return ("speed", Round((Num(raw) ?? 0) * KmPerMile, 0)); break;
             case "Gear": yield return ("gear", Str(GearOf(raw))); break;
             case "Odometer": yield return ("odometer", Round(Num(raw) * KmPerMile, 1)); break;
@@ -32,7 +32,7 @@ public static class SignalMapper
             // --- batteri ---
             case "BatteryLevel": yield return ("battery_level", Round(Num(raw), 1)); break;
             case "Soc": yield return ("soc", Round(Num(raw), 1)); break;
-            // Rækkevidde: et ugyldigt signal (null) overskriver ikke den sidst kendte værdi.
+            // Range: an invalid signal (null) doesn't overwrite the last known value.
             case "EstBatteryRange": if (Num(raw) is { } er) yield return ("est_range", Round(er * KmPerMile, 0)); break;
             case "IdealBatteryRange": if (Num(raw) is { } ir) yield return ("ideal_range", Round(ir * KmPerMile, 0)); break;
             case "RatedRange": if (Num(raw) is { } rr) yield return ("rated_range", Round(rr * KmPerMile, 0)); break;
@@ -189,7 +189,7 @@ public static class SignalMapper
 
             case "Version": yield return ("software_version", Str(StrOf(raw))); break;
 
-            // Alt andet du tilføjer i telemetry-fields.json kommer igennem uændret som snake_case.
+            // Anything else you add to telemetry-fields.json comes through unchanged, as snake_case.
             default:
                 yield return (ToSnake(field), raw?.DeepClone());
                 break;
@@ -199,7 +199,7 @@ public static class SignalMapper
     public static readonly string[] WindowKeys =
         ["window_driver_front_open", "window_passenger_front_open", "window_driver_rear_open", "window_passenger_rear_open"];
 
-    /// <summary>Samlet rudestatus til HA's "Windows"-cover: true hvis én rude er åben, null hvis ingen er kendt.</summary>
+    /// <summary>All windows for HA's "Windows" cover: true when one is open, null when none is known.</summary>
     public static JsonNode? WindowsOpen(Func<string, JsonNode?> get)
     {
         var known = WindowKeys.Select(get).Where(v => v is JsonValue).Select(v => v!.GetValue<bool>()).ToList();
@@ -299,8 +299,8 @@ public static class SignalMapper
     private static JsonNode? Round(double? d, int digits) =>
         d is null ? null : JsonValue.Create(Math.Round(d.Value, digits));
 
-    /// <summary>"DetailedChargeStateNoPower" → "no_power". Accepterer også værdier uden præfiks.</summary>
-    /// <summary>"ShiftStateD" → "D". Ugyldig/ukendt (bilen holder parkeret) → "P".</summary>
+    /// <summary>"DetailedChargeStateNoPower" → "no_power". Also takes values without the prefix.</summary>
+    /// <summary>"ShiftStateD" → "D". Invalid/unknown (the car is parked) → "P".</summary>
     internal static string GearOf(JsonNode? raw) =>
         EnumTail(raw, "ShiftState")?.ToUpperInvariant() is { } g && g is "P" or "D" or "R" or "N" ? g : "P";
 

@@ -9,10 +9,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
+from . import TeslaBridgeConfigEntry
 from .entity import BridgeEntity, to_float
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: Any, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: TeslaBridgeConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     async_add_entities(entry.runtime_data.build("sensor", BridgeSensor))
 
 

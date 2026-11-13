@@ -40,15 +40,15 @@ public sealed class UpdateCheckService(
     /// <summary>{bridge}/bridge/update – the state of HA's update entity.</summary>
     public string Topic { get; } = $"{options.Value.Mqtt.BridgeTopicBase}/bridge/update";
 
-    protected override async Task ExecuteAsync(CancellationToken ct)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         mqtt.Connected += PublishAsync;
-        if (!_opts.Check) { await PublishAsync(ct); return; }
-        try { await Task.Delay(TimeSpan.FromSeconds(20), time, ct); } catch (OperationCanceledException) { return; }
-        while (!ct.IsCancellationRequested)
+        if (!_opts.Check) { await PublishAsync(stoppingToken); return; }
+        try { await Task.Delay(TimeSpan.FromSeconds(20), time, stoppingToken); } catch (OperationCanceledException) { return; }
+        while (!stoppingToken.IsCancellationRequested)
         {
-            await CheckAsync(ct);
-            try { await Task.Delay(TimeSpan.FromHours(Math.Max(1, _opts.IntervalHours)), time, ct); }
+            await CheckAsync(stoppingToken);
+            try { await Task.Delay(TimeSpan.FromHours(Math.Max(1, _opts.IntervalHours)), time, stoppingToken); }
             catch (OperationCanceledException) { break; }
         }
     }

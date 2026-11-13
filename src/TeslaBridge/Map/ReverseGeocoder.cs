@@ -11,7 +11,7 @@ public sealed record StreetAddress(string Line1, string? Line2, string? Place, s
 /// Turns the car's position into a street address with a Nominatim server (OpenStreetMap by default). Answers are
 /// cached per ~10 m, and the server is asked at most once a second, as Nominatim's usage policy asks.
 /// </summary>
-public sealed class ReverseGeocoder
+public sealed class ReverseGeocoder : IDisposable
 {
     private const int CacheSize = 1000;
 
@@ -97,4 +97,6 @@ public sealed class ReverseGeocoder
         var full = doc["display_name"]?.GetValue<string>() ?? string.Join(", ", new[] { line1, line2 }.Where(x => x is not null));
         return new StreetAddress(line1, line2, place, S("country"), S("country_code")?.ToLowerInvariant(), full);
     }
+
+    public void Dispose() => _gate.Dispose();
 }

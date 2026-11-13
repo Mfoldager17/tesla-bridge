@@ -13,14 +13,14 @@ public class SetupTests
     private static string NewKeyPem()
     {
         using var ec = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        return ec.ExportECPrivateKeyPem();   // samme format som "openssl ecparam -genkey" (EC PRIVATE KEY)
+        return ec.ExportECPrivateKeyPem();   // the same format as "openssl ecparam -genkey" (EC PRIVATE KEY)
     }
 
     [Fact]
     public void Public_key_is_derived_from_private_key()
     {
         var pem = NewKeyPem();
-        var info = TeslaKey.FromPrivatePem(pem);
+        var info = TeslaKey.FromPem(pem);
 
         Assert.StartsWith("-----BEGIN PUBLIC KEY-----", info.Pem);
         Assert.Equal(130, info.UncompressedHex.Length);   // 04 + X + Y = 65 bytes
@@ -38,7 +38,7 @@ public class SetupTests
     public void Wrong_curve_is_rejected()
     {
         using var ec = ECDsa.Create(ECCurve.NamedCurves.nistP384);
-        Assert.Throws<InvalidOperationException>(() => TeslaKey.FromPrivatePem(ec.ExportECPrivateKeyPem()));
+        Assert.Throws<InvalidOperationException>(() => TeslaKey.FromPem(ec.ExportECPrivateKeyPem()));
     }
 
     [Fact]
