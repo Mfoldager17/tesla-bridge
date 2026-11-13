@@ -46,6 +46,7 @@ public static class WebApi
         api.MapSettingsApi(opts);
         api.MapCarModelApi(opts);
         api.MapBleApi(opts);
+        api.MapMapApi();
 
         api.MapGet("/info", (MqttConnection mqtt, LiveEvents events) => Results.Json(new
         {
@@ -199,13 +200,26 @@ public static class WebApi
                     ("HvacPower", rnd.Next(2) == 0 ? "\"HvacPowerStateOn\"" : "\"HvacPowerStateOff\""),
                     ("DetailedChargeState", "\"DetailedChargeStateCharging\""),
                     ("ACChargingPower", "11.0"),
-                    ("Location", "{\"latitude\":56.1185,\"longitude\":10.1235}"),
                     ("DoorState", "{\"DriverFront\":false,\"PassengerFront\":false,\"DriverRear\":false,\"PassengerRear\":false,\"TrunkFront\":false,\"TrunkRear\":false}"),
-                };
+                }.ToList();
+                // Every other press the car drives a little around Aarhus towards a destination; otherwise it is parked.
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                var driving = rnd.Next(2) == 0;
+                var (lat, lon) = (56.1185 + (driving ? (rnd.NextDouble() - .5) * .02 : 0), 10.1235 + (driving ? (rnd.NextDouble() - .5) * .03 : 0));
+                samples.Add(("Location", string.Format(inv, "{{\"latitude\":{0:0.000000},\"longitude\":{1:0.000000}}}", lat, lon)));
+                samples.Add(("GpsHeading", rnd.Next(0, 360).ToString(inv)));
+                samples.Add(("Gear", driving ? "\"ShiftStateD\"" : "\"ShiftStateP\""));
+                samples.Add(("VehicleSpeed", driving ? rnd.Next(20, 50).ToString(inv) : "0"));
+                samples.Add(("DestinationName", driving ? "\"Aarhus Ø\"" : "\"\""));
+                if (driving)
+                {
+                    samples.Add(("DestinationLocation", "{\"latitude\":56.1612,\"longitude\":10.2190}"));
+                    samples.Add(("MinutesToArrival", rnd.Next(5, 20).ToString(inv)));
+                }
                 await mqtt.PublishAsync($"{b}/{vin}/connectivity", "{\"Status\":\"CONNECTED\",\"ConnectionId\":\"simulator\"}");
                 foreach (var (field, json) in samples)
                     await mqtt.PublishAsync($"{b}/{vin}/v/{field}", json);
-                return Results.Ok(new { sent = samples.Length });
+                return Results.Ok(new { sent = samples.Count });
             });
 
             // Puts the pretend car to sleep, so the next command has to wake it first.

@@ -22,6 +22,9 @@ export interface Settings {
   snapshot_default_minutes: number;
   car_view: string;
   climate_for_seat_heat: boolean;
+  map_enabled: boolean;
+  map_tile_url: string | null;
+  map_tile_attribution: string | null;
   month_start: string;
   month_end: string;
   now: string;

@@ -6,12 +6,29 @@
 
 The bridge has a built-in dashboard at `http://<server-IP>:8090` (`http://localhost:8080` when testing locally). It works on a phone too, follows your system's light/dark mode, and is in English or Danish (switch in the sidebar).
 
-- **Car**: the car in 3D – or a drawing, see [Car view](#car-view-3d-model-or-drawing) – showing open doors, frunk, trunk, windows and the charge cable live, the battery with range and charge limit, quick actions, and the latest commands with their status (*sent → waking the car → done/failed*)
+- **Car**: the car in 3D – or a drawing, see [Car view](#car-view-3d-model-or-drawing) – showing open doors, frunk, trunk, windows and the charge cable live, the battery with range and charge limit, quick actions, where the car is on a map with its street address (see [Map and address](#map-and-address)), and the latest commands with their status (*sent → waking the car → done/failed*)
 - **Controls**: everything you can do from Home Assistant – climate, Keep/Dog/Camp, seat and steering wheel heat, charging, locks, sentry, guest/valet mode, frunk, trunk, windows, HomeLink. Purple means the bridge is waiting for the car to confirm
 - **Data**: every value with its source (`stream`, `snapshot`, `optimistic`, `restored`, `bridge`) and age, the raw telemetry exactly as the car sent it, and the telemetry status on the car
 - **Usage**: the month's signals, commands, wakes and data requests, priced at Tesla's rates, with a projection to the end of the month
 - **Settings**: how often the car sends each value, and how often a snapshot is fetched – see [Fields and intervals](#fields-and-intervals)
 - **Setup**: domain, Tesla login, pairing and telemetry status, step by step
+
+## Map and address
+
+The Car page shows where the car is: a small map with the car (the arrow points the way it faces), its street address, whether it is parked or driving, and the destination with arrival time while you navigate. The map follows the car; drag it to look around, and the target button brings it back. On a phone you move the map with two fingers, so one finger still scrolls the page.
+
+- **The address** comes from [OpenStreetMap's Nominatim](https://nominatim.org). The bridge asks it, not your browser – at most once a second, only when the car has moved about 25 m, and remembers the answers.
+- **The map** is OpenStreetMap's own, loaded by your browser (it needs internet). In the dark theme it is darkened to match.
+
+Both see the car's position. If you'd rather keep it at home, choose **Settings → Map and address → Off**: the page then only shows the coordinates, and links to Google Maps and OpenStreetMap that you can open yourself.
+
+Other map services can be set in `.env`:
+
+```bash
+Bridge__Map__GeocoderUrl=https://nominatim.example.com          # your own Nominatim
+Bridge__Map__TileUrl=https://tiles.example.com/{z}/{x}/{y}.png   # your own map tiles
+Bridge__Map__TileAttribution=© OpenStreetMap contributors
+```
 
 ## Car view: 3D model or drawing
 
@@ -37,7 +54,7 @@ If a 3D model can't be loaded (or the device has no WebGL), the page shows the d
 
 Other `.glb` files are kept out of Git and out of images you build yourself (`.gitignore`, `.dockerignore`), so a model you bought can't end up public by accident. Check the licence before you share a model.
 
-<a id="credits"></a>**Credits.** The bundled model is [“2025 Tesla Model Y”](https://sketchfab.com/3d-models/2025-tesla-model-y-619601e7800d418da5922c4fa7833f74) by **BloxBloger**, licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), modified for Tesla Bridge (converted to `.glb`, simplified, doors, wheels and seats split into animatable parts, new materials). The model is **not** covered by the rest of this repository's licence and may only be used non-commercially – see [`NOTICE.md`](../src/TeslaBridge/wwwroot/models/NOTICE.md). The dashboard is built with [SolidJS](https://www.solidjs.com) and the 3D view with [three.js](https://threejs.org) (both MIT), bundled in the image so it works without internet – their licences are served at `/assets/THIRD-PARTY-LICENSES.txt`. Tesla and Model Y are trademarks of Tesla, Inc.; this project is not affiliated with Tesla.
+<a id="credits"></a>**Credits.** The bundled model is [“2025 Tesla Model Y”](https://sketchfab.com/3d-models/2025-tesla-model-y-619601e7800d418da5922c4fa7833f74) by **BloxBloger**, licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), modified for Tesla Bridge (converted to `.glb`, simplified, doors, wheels and seats split into animatable parts, new materials). The model is **not** covered by the rest of this repository's licence and may only be used non-commercially – see [`NOTICE.md`](../src/TeslaBridge/wwwroot/models/NOTICE.md). The dashboard is built with [SolidJS](https://www.solidjs.com), the 3D view with [three.js](https://threejs.org) (both MIT) and the map with [Leaflet](https://leafletjs.com) (BSD-2-Clause), bundled in the image so it works without internet (apart from the map) – their licences are served at `/assets/THIRD-PARTY-LICENSES.txt`. Map data and addresses © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright). Tesla and Model Y are trademarks of Tesla, Inc.; this project is not affiliated with Tesla.
 
 The dashboard can unlock your car. Always set `Bridge__Web__Token`, and **never forward port 8090**. The public port 8091 only answers with the public key and the login callback. `Bridge__Web__Enabled=false` turns off the dashboard and the HTTP API – way B then stops working.
 

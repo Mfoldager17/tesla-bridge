@@ -27,6 +27,12 @@ public sealed class BridgeSettings
     /// </summary>
     public bool ClimateForSeatHeat { get; set; } = true;
 
+    /// <summary>
+    /// The dashboard's map and street address. Off: the position is only shown as coordinates, and nothing about
+    /// it leaves your network.
+    /// </summary>
+    public bool MapEnabled { get; set; } = true;
+
     /// <summary>ESP32 per VIN, set on the dashboard. Wins over Bridge__Vehicles__N__Ble__* from .env; an empty URL turns it off.</summary>
     public Dictionary<string, BleSetting> Ble { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
@@ -101,7 +107,7 @@ public sealed class SettingsStore
     }
 
     /// <summary>Applies changes. Fields set back to their default are removed from the file.</summary>
-    public BridgeSettings Update(IReadOnlyDictionary<string, FieldSetting>? fields, int? snapshotMinutes, string? carView = null, bool? climateForSeatHeat = null)
+    public BridgeSettings Update(IReadOnlyDictionary<string, FieldSetting>? fields, int? snapshotMinutes, string? carView = null, bool? climateForSeatHeat = null, bool? mapEnabled = null)
     {
         if (carView is not null && !CarViews.Contains(carView)) throw new ArgumentException($"car_view must be one of {string.Join(", ", CarViews)}");
         var defaults = fields is null ? null : Defaults;   // only read the defaults file when fields change
@@ -127,6 +133,7 @@ public sealed class SettingsStore
             if (snapshotMinutes is { } m) next.SnapshotIntervalMinutes = m;
             if (carView is not null) next.CarView = carView;
             if (climateForSeatHeat is { } cs) next.ClimateForSeatHeat = cs;
+            if (mapEnabled is { } me) next.MapEnabled = me;
             Save(_file, next);
             _current = next;
             saved = Clone(next);
@@ -140,7 +147,7 @@ public sealed class SettingsStore
     {
         lock (_lock)
         {
-            _current = new BridgeSettings { CarView = _current.CarView, ClimateForSeatHeat = _current.ClimateForSeatHeat, Ble = Clone(_current).Ble };
+            _current = new BridgeSettings { CarView = _current.CarView, ClimateForSeatHeat = _current.ClimateForSeatHeat, MapEnabled = _current.MapEnabled, Ble = Clone(_current).Ble };
             Save(_file, _current);
         }
         Changed?.Invoke();
@@ -178,6 +185,7 @@ public sealed class SettingsStore
         SnapshotIntervalMinutes = s.SnapshotIntervalMinutes,
         CarView = CarViews.Contains(s.CarView) ? s.CarView : DefaultCarView,
         ClimateForSeatHeat = s.ClimateForSeatHeat,
+        MapEnabled = s.MapEnabled,
         Ble = new Dictionary<string, BleSetting>(s.Ble, StringComparer.OrdinalIgnoreCase),
     };
 

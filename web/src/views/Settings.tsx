@@ -53,6 +53,13 @@ export function Settings() {
       toast(t("seatClimate.saved"));
     } catch (e) { toast((e as Error).message); }
   };
+  const setMapEnabled = async (on: boolean) => {
+    try {
+      await sendJson("/api/settings", "PUT", { map_enabled: on, push: false });
+      setSettings({ ...settings()!, map_enabled: on });
+      toast(t("map.saved"));
+    } catch (e) { toast((e as Error).message); }
+  };
 
   return (
     <section class="view">
@@ -79,6 +86,15 @@ export function Settings() {
           </div>
 
           <CarModelPanel />
+
+          <div class="panel">
+            <h2>{t("map.title")}</h2>
+            <p class="sub">{t("map.sub")}</p>
+            <select value={s().map_enabled === false ? "off" : "on"} onChange={(e) => setMapEnabled(e.currentTarget.value === "on")}>
+              <option value="on">{t("map.on")}</option>
+              <option value="off">{t("map.off")}</option>
+            </select>
+          </div>
 
           <div class="panel">
             <h2>{t("seatClimate.title")}</h2>

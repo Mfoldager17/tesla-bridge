@@ -1,11 +1,12 @@
 import { createSignal, For, Show, type JSX } from "solid-js";
-import { t, locale } from "../i18n";
+import { t } from "../i18n";
 import { state } from "../state/live";
 import { vin, val, pending, motion, chargingNow } from "../state/selection";
 import { ago, hm, nf } from "../lib/format";
 import { CarView } from "../components/CarView";
 import { CarTiles } from "../components/CarTiles";
 import { CommandLog } from "../components/CommandLog";
+import { LocationCard } from "../components/LocationCard";
 
 function Battery() {
   const pct = () => val<number>("battery_level");
@@ -46,19 +47,10 @@ function Facts() {
     const m = motion("locked"), lk = val<boolean>("locked");
     return m === "LOCKING" ? t("locking") : m === "UNLOCKING" ? t("unlocking") : lk === true ? t("locked") : lk === false ? t("unlocked") : "–";
   };
-  const loc = () => val<{ latitude: number; longitude: number }>("location");
-  const dest = () => val<string>("destination");
-  const arrive = () => {
-    const m = val<number>("minutes_to_arrival");
-    return dest() && m != null ? t("arrive", new Date(Date.now() + m * 60000).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })) : "";
-  };
   const rows = (): [string, JSX.Element, string, string | null][] => [
     [t("f.climate"), yes(val("climate_on")), `${val("inside_temp") ?? "–"} °C ${t("f.inside").toLowerCase()} · ${val("outside_temp") ?? "–"} °C ${t("f.outside")}`, "climate_on"],
     [t("f.lock"), lockText(), "", "locked"],
     [t("f.sentry"), yes(val("sentry_mode")), "", "sentry_mode"],
-    [t("f.drive"), !val("gear") || val("gear") === "P" ? t("parked") : `${val("gear")} · ${val("speed") ?? 0} km/h`, "", "gear"],
-    [t("f.location"), loc() ? <a href={`https://www.openstreetmap.org/?mlat=${loc()!.latitude}&mlon=${loc()!.longitude}#map=16/${loc()!.latitude}/${loc()!.longitude}`} target="_blank" rel="noopener">{t("showmap")}</a> : "–", "", null],
-    [t("f.destination"), dest() ?? t("nonav"), arrive(), null],
     [t("f.seen"), ago(val("last_seen")), "", null],
     [t("f.odometer"), val("odometer") != null ? `${nf(val<number>("odometer")!)} km` : "–", "", null],
     [t("f.software"), val<string>("software_version") ?? "–", "", null],
@@ -82,6 +74,7 @@ export function Overview() {
         <Battery />
       </div>
       <div class="tiles compact"><CarTiles compact /></div>
+      <LocationCard />
       <Facts />
       <div class="panel">
         <h2>{t("log.title")}</h2>

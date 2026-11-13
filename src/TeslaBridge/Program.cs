@@ -98,6 +98,13 @@ services.AddHostedService<TeslaBridge.Telemetry.VehicleDataSeeder>();
 services.AddHostedService(sp => sp.GetRequiredService<TeslaBridge.Ble.BleService>());
 services.AddHostedService<CommandListener>();
 services.AddHttpClient("github", c => c.Timeout = TimeSpan.FromSeconds(15));
+services.AddHttpClient("geocoder", c =>
+{
+    // Nominatim asks every app to say who it is.
+    c.Timeout = TimeSpan.FromSeconds(10);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd($"TeslaBridge/{TeslaBridge.Versioning.BuildInfo.Version} (+https://github.com/Mfoldager17/tesla-bridge)");
+});
+services.AddSingleton<TeslaBridge.Map.ReverseGeocoder>();
 services.AddSingleton<TeslaBridge.Versioning.UpdateCheckService>();
 services.AddHostedService(sp => sp.GetRequiredService<TeslaBridge.Versioning.UpdateCheckService>());
 services.AddHostedService<TeslaBridge.State.PendingTracker>();
