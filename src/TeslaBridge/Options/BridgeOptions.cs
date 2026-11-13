@@ -11,6 +11,7 @@ public sealed class BridgeOptions
     public CommandOptions Commands { get; set; } = new();
     public WebOptions Web { get; set; } = new();
     public UpdatesOptions Updates { get; set; } = new();
+    public MapOptions Map { get; set; } = new();
     public string StateFile { get; set; } = "/data/state.json";
 
     /// <summary>Domænet appen er registreret med hos Tesla (Allowed Origin). Tom = samme som telemetri-hostname.</summary>
@@ -186,4 +187,23 @@ public sealed class UpdatesOptions
     public bool Check { get; set; } = true;
     public string Repository { get; set; } = "Mfoldager17/tesla-bridge";
     public int IntervalHours { get; set; } = 6;
+}
+
+/// <summary>
+/// The map and street address on the dashboard (Bridge__Map__*). Can be turned off under Settings, so the car's
+/// position is never sent to a map service.
+/// </summary>
+public sealed class MapOptions
+{
+    /// <summary>Nominatim-compatible reverse geocoder. The bridge asks it (at most once a second, cached) for the address.</summary>
+    public string GeocoderUrl { get; set; } = "https://nominatim.openstreetmap.org";
+
+    /// <summary>
+    /// Map tiles the dashboard loads in your browser, with {z}/{x}/{y} (and optionally {s}). Empty: OpenStreetMap's
+    /// own map (tile.openstreetmap.org), darkened by the dashboard in the dark theme.
+    /// </summary>
+    public string? TileUrl { get; set; }
+
+    /// <summary>Attribution shown on the map when TileUrl is set.</summary>
+    public string? TileAttribution { get; set; }
 }

@@ -16,7 +16,7 @@ public static class SettingsApi
     /// Body: { "fields": { "Location": { "enabled": true, "interval_seconds": 10 } },
     ///         "snapshot_interval_minutes": 60, "push": true } – every part optional.
     /// </summary>
-    internal static (Dictionary<string, FieldSetting>? Fields, int? Snapshot, bool Push, string? CarView, bool? ClimateForSeats) Parse(JsonNode? body)
+    internal static (Dictionary<string, FieldSetting>? Fields, int? Snapshot, bool Push, string? CarView, bool? ClimateForSeats, bool? MapEnabled) Parse(JsonNode? body)
     {
         if (body is not JsonObject o) throw new ArgumentException("Expected a JSON object");
         Dictionary<string, FieldSetting>? fields = null;
@@ -35,12 +35,13 @@ public static class SettingsApi
         var push = o["push"] is not JsonValue pv || !pv.TryGetValue(out bool p) || p;
         var carView = o["car_view"] is JsonValue cv && cv.TryGetValue(out string? c) ? c : null;
         bool? climateForSeats = o["climate_for_seat_heat"] is JsonValue cs && cs.TryGetValue(out bool cb) ? cb : null;
-        return (fields, snapshot, push, carView, climateForSeats);
+        bool? mapEnabled = o["map_enabled"] is JsonValue me && me.TryGetValue(out bool mb) ? mb : null;
+        return (fields, snapshot, push, carView, climateForSeats, mapEnabled);
     }
 
     public static void MapSettingsApi(this RouteGroupBuilder api, BridgeOptions opts)
     {
-        api.MapGet("/settings", (SettingsStore store, UsageTracker usage) => Results.Json(Describe(store, usage)));
+        api.MapGet("/settings", (SettingsStore store, UsageTracker usage) => Results.Json(Describe(store, usage, opts)));
 
         api.MapPut("/settings", async (HttpRequest req, SettingsStore store, UsageTracker usage,
             TelemetryConfigService telemetry, CancellationToken ct) =>
@@ -49,15 +50,15 @@ public static class SettingsApi
             bool push;
             try
             {
-                (fields, var snapshot, push, var carView, var climateForSeats) = Parse(await JsonNode.ParseAsync(req.Body, cancellationToken: ct));
-                store.Update(fields, snapshot, carView, climateForSeats);
+                (fields, var snapshot, push, var carView, var climateForSeats, var mapEnabled) = Parse(await JsonNode.ParseAsync(req.Body, cancellationToken: ct));
+                store.Update(fields, snapshot, carView, climateForSeats, mapEnabled);
             }
             catch (Exception ex) when (ex is ArgumentException or System.Text.Json.JsonException)
             {
                 return Results.Json(new { error = ex.Message }, statusCode: 400);
             }
 
-            var result = Describe(store, usage);
+            var result = Describe(store, usage, opts);
             if (push && fields is { Count: > 0 }) result["push"] = await PushAsync(opts, telemetry, ct);
             return Results.Json(result);
         });
@@ -65,7 +66,7 @@ public static class SettingsApi
         api.MapPost("/settings/reset", async (SettingsStore store, UsageTracker usage, TelemetryConfigService telemetry, CancellationToken ct) =>
         {
             store.Reset();
-            var result = Describe(store, usage);
+            var result = Describe(store, usage, opts);
             result["push"] = await PushAsync(opts, telemetry, ct);
             return Results.Json(result);
         });
@@ -90,7 +91,7 @@ public static class SettingsApi
         return results;
     }
 
-    internal static JsonObject Describe(SettingsStore store, UsageTracker usage)
+    internal static JsonObject Describe(SettingsStore store, UsageTracker usage, BridgeOptions? opts = null)
     {
         var s = store.Current;
         var u = usage.Snapshot();
@@ -124,6 +125,9 @@ public static class SettingsApi
             ["snapshot_interval_minutes"] = s.SnapshotIntervalMinutes,
             ["car_view"] = s.CarView,
             ["climate_for_seat_heat"] = s.ClimateForSeatHeat,
+            ["map_enabled"] = s.MapEnabled,
+            ["map_tile_url"] = string.IsNullOrWhiteSpace(opts?.Map.TileUrl) ? null : opts!.Map.TileUrl,
+            ["map_tile_attribution"] = string.IsNullOrWhiteSpace(opts?.Map.TileAttribution) ? null : opts!.Map.TileAttribution,
             ["snapshot_default_minutes"] = SettingsStore.DefaultSnapshotMinutes,
             ["signals_per_dollar"] = UsageTracker.SignalsPerDollar,
             ["credit_usd"] = u.CreditUsd,
