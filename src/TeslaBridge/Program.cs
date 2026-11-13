@@ -104,6 +104,8 @@ services.AddHostedService<HomeAssistantDiscovery>();
 services.AddHostedService<TeslaBridge.Telemetry.VehicleDataSeeder>();
 services.AddHostedService(sp => sp.GetRequiredService<TeslaBridge.Ble.BleService>());
 services.AddHostedService<CommandListener>();
+services.AddSingleton<BrokerSecurityCheck>();
+services.AddHostedService(sp => sp.GetRequiredService<BrokerSecurityCheck>());
 services.AddHttpClient("github", c => c.Timeout = TimeSpan.FromSeconds(15));
 services.AddHttpClient("geocoder", c =>
 {

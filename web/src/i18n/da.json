@@ -374,5 +374,7 @@
   "map.off": "Fra – kun koordinater",
   "map.saved": "Gemt",
   "loc.status": "Status",
-  "login.wrong": "Det token passer ikke"
+  "login.wrong": "Det token passer ikke",
+  "mqttOpen.title": "Din MQTT-broker lukker alle ind",
+  "mqttOpen.text": "Den tillader login uden kodeord, og bridgen tager imod kommandoer via MQTT – så enhver enhed på dit netværk kan sende <code>tesla/&lt;VIN&gt;/cmd/unlock</code>. Kræv login i brokeren (Mosquitto: <code>allow_anonymous false</code> og en <code>password_file</code>), eller sæt <code>Bridge__Mqtt__Commands=false</code> i .env, hvis du kun bruger Home Assistant-integrationen. Se docs/security.md."
 }

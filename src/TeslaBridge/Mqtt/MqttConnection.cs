@@ -120,7 +120,7 @@ public sealed class MqttConnection : BackgroundService
             foreach (var h in connected.GetInvocationList().Cast<Func<CancellationToken, Task>>())
             {
                 try { await h(ct); }
-                catch (Exception ex) { _log.LogError(ex, "Fejl i Connected-handler"); }
+                catch (Exception ex) { _log.LogError(ex, "Error in a Connected handler"); }
             }
         }
     }

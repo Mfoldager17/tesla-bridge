@@ -18,6 +18,7 @@ public sealed class SetupStatusService(
     TeslaTokenProvider tokens,
     TeslaPartnerClient partner,
     TelemetryConfigService telemetry,
+    TeslaBridge.Mqtt.BrokerSecurityCheck broker,
     TimeProvider time,
     ILogger<SetupStatusService> log) : IDisposable
 {
@@ -77,6 +78,14 @@ public sealed class SetupStatusService(
                 ["registration"] = Describe(_registration),
                 ["logged_in"] = tokens.HasTokens,
                 ["vehicles"] = vehicles,
+                ["mqtt"] = new JsonObject
+                {
+                    ["embedded"] = broker.Embedded,
+                    ["commands"] = broker.CommandsEnabled,
+                    ["anonymous_allowed"] = broker.Current.AnonymousAllowed,
+                    ["checked_at"] = broker.Current.CheckedAt?.ToString("O"),
+                    ["error"] = broker.Current.Error,
+                },
             };
         }
     }

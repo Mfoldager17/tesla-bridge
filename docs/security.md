@@ -41,6 +41,7 @@ Anyone who may publish to `tesla/<VIN>/cmd/…` on your broker can send commands
   user homeassistant
   topic readwrite #
   ```
+- **The bridge checks this for you.** Shortly after it starts, and then every six hours, it tries to log in to your broker without a username or password. If that works, it warns in the log and at the top of the dashboard's **Setup** page (and counts it in the menu).
 - **Not using MQTT commands?** If Home Assistant uses the integration (HTTP), set `Bridge__Mqtt__Commands=false`: then only the HTTP API, with its token, can send commands.
 
 ## The ESP32 (Bluetooth)

@@ -2,7 +2,7 @@ import { createSignal, For, onCleanup, Show, type JSX } from "solid-js";
 import { t } from "../i18n";
 import { api } from "../api/client";
 import { vin } from "../state/selection";
-import { loadSetup, setup, stepStates, type SetupStatus } from "../state/setup";
+import { loadSetup, openBroker, setup, stepStates, type SetupStatus } from "../state/setup";
 import { update } from "../state/update";
 import { state } from "../state/live";
 import { esc } from "../lib/format";
@@ -53,6 +53,12 @@ export function Setup() {
     <section class="view">
       <h1>{t("nav.setup")}</h1>
       <p class="lede">{t("setup.lede")}</p>
+      <Show when={setup() && openBroker(setup()!)}>
+        <div class="panel warnbox" role="alert">
+          <h2>{t("mqttOpen.title")}</h2>
+          <p innerHTML={t("mqttOpen.text")} />
+        </div>
+      </Show>
       <Show when={setup()}>{(st) => {
         const states = () => stepStates(st());
         const list = () => steps(st());
