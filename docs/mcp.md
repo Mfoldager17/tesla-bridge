@@ -8,16 +8,17 @@
 
 1. Dashboard → **Settings → AI assistants (MCP)** → **On**.
 2. Press **Make a token** and copy it. It is shown only this once; the bridge keeps only its fingerprint (SHA-256). It's a token of its own, not the dashboard's, so you can give an assistant access and take it back (**Revoke the token**) without changing anything else.
-3. Connect the assistant. The panel shows the exact lines with your address and token filled in:
+3. Choose which **commands** the assistant may send (below).
+4. Connect the assistant. The token goes into the assistant's configuration, not into the bridge. The panel shows the exact lines with your address and token filled in:
 
-**Claude Code**
+**Claude Code** (the terminal)
 
 ```bash
 claude mcp add --transport http tesla-bridge http://<server-IP>:8090/mcp \
   --header "Authorization: Bearer <token>"
 ```
 
-**Claude Desktop** – in `claude_desktop_config.json` (needs Node.js):
+**Claude Desktop** (the app) – **Settings → Developer → Edit Config** opens `claude_desktop_config.json`. Add this, save, and restart the app (needs Node.js, because `mcp-remote` connects for the app):
 
 ```json
 {
@@ -30,7 +31,7 @@ claude mcp add --transport http tesla-bridge http://<server-IP>:8090/mcp \
 }
 ```
 
-The assistant must run on a computer that can reach the dashboard: on your network, or over a VPN such as Tailscale. claude.ai in the browser can't, because the dashboard is deliberately not on the internet.
+The assistant must run on a computer that can reach the dashboard: on your network, or away from home over a VPN such as Tailscale. **Custom connectors** in claude.ai, the mobile apps and the Desktop app's *Connectors* page don't work: Anthropic's servers call those, so they need a public HTTPS address with OAuth sign-in – and the dashboard is deliberately not on the internet.
 
 ## What the assistant can do
 
@@ -40,13 +41,23 @@ The assistant must run on a computer that can reach the dashboard: on your netwo
 | `get_car_status` | battery and range, charging, locks, doors, windows, climate and temperatures, sentry, driving and navigation, odometer, software, and where the car is – with the street address when the map is on |
 | `get_car_fields` | every value the bridge knows, with when and where it came from |
 | `get_usage` | this month's Fleet API cost, the projection and what Bluetooth saved |
-| `run_command` | a command, waiting until the car has done it (waking it first if needed): climate, temperature, keep/dog/camp, defrost, seat and steering wheel heat, cabin overheat protection, charging, charge limit and current, close the charge port, lock, close the windows, sentry on, flash the lights, honk, wake |
+| `list_commands` | the commands, how to write them, and which ones you allow |
+| `run_command` | a command you allow, waiting until the car has done it (waking it first if needed) |
 
 Commands go the same way as from the dashboard: over Bluetooth when the [ESP32](ble.md) has the car in range, otherwise the Fleet API. They show up in the command log and in Home Assistant like any other.
 
-## Commands that open the car
+## Which commands
 
-Unlocking, opening the frunk, trunk, windows or charge port, turning sentry off, guest and valet mode, HomeLink and keyless driving are **refused** unless you choose **Commands that open the car → Allowed**. Only do that if you trust every assistant you give the token to. Your assistant will normally also ask you before it runs a tool.
+**Settings → AI assistants (MCP) → Commands the assistant may send**:
+
+| Choice | |
+|---|---|
+| **None – read only** | the assistant sees state, position and usage, but sends nothing |
+| **Safe commands** (default) | climate, temperature, keep/dog/camp, defrost, seat and steering wheel heat, cabin overheat protection, charging, charge limit and current, close the charge port, lock, close the windows, sentry on, flash the lights, honk, wake |
+| **All commands** | also what opens the car: unlock, frunk, trunk, vent the windows, open the charge port, sentry off, guest and valet mode, HomeLink, keyless driving |
+| **Custom** | a list of every command to tick on or off. Those that open the car are marked and ask once more |
+
+Only allow what opens the car if you trust every assistant you give the token to. A refused command tells the assistant why, and your assistant will normally also ask you before it runs a tool.
 
 ## Good to know
 

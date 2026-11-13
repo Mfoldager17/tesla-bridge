@@ -18,9 +18,13 @@ export interface FieldSettingInfo {
 /** Settings → AI assistants (MCP) */
 export interface McpSettings {
   enabled: boolean;
-  allow_security_commands: boolean;
+  /** read_only · safe (default) · all · custom */
+  policy: "read_only" | "safe" | "all" | "custom";
+  allowed_commands: string[];
   token_set: boolean;
   path: string;
+  /** every command, with its group, whether it opens the car, and whether the current policy allows it */
+  commands: { id: string; group: string; security: boolean; allowed: boolean }[];
 }
 
 export interface Settings {

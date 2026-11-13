@@ -18,8 +18,14 @@ public sealed record McpSetting
 {
     public bool Enabled { get; init; }
 
-    /// <summary>Unlock, frunk, trunk, windows, HomeLink, keyless driving, guest/valet mode, sentry off, charge cable.</summary>
-    public bool AllowSecurityCommands { get; init; }
+    /// <summary>
+    /// Which commands an assistant may send: read_only (none), safe (everything that doesn't open the car – the
+    /// default), all, or custom (AllowedCommands). See Mcp/McpCommands.cs.
+    /// </summary>
+    public string Policy { get; init; } = "safe";
+
+    /// <summary>With Policy = custom: the command ids that are allowed.</summary>
+    public string[] AllowedCommands { get; init; } = [];
 
     /// <summary>SHA-256 of the MCP token (base64), or null when none has been made.</summary>
     public string? TokenHash { get; init; }

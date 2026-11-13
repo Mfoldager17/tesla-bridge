@@ -50,7 +50,7 @@ The ESP32 is a key to your car: its web server can unlock it over Bluetooth, wit
 
 ## AI assistants (MCP)
 
-[MCP](mcp.md) is off until you turn it on. It has its own token (only its SHA-256 is stored, and it can be revoked on its own), and commands that open the car – unlock, frunk, trunk, windows, charge port, sentry off, guest/valet mode, HomeLink, keyless driving – are refused unless you allow them.
+[MCP](mcp.md) is off until you turn it on. It has its own token (only its SHA-256 is stored, and it can be revoked on its own), and you choose which commands it may send: none, the safe ones (the default), all, or your own list. Commands that open the car – unlock, frunk, trunk, windows, charge port, sentry off, guest/valet mode, HomeLink, keyless driving – are refused unless you allow them.
 
 ## Keys and files
 

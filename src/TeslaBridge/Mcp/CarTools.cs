@@ -15,8 +15,8 @@ namespace TeslaBridge.Mcp;
 
 /// <summary>
 /// The tools an AI assistant gets over MCP (/mcp): the car's state, where it is, the month's Fleet API usage, and
-/// commands. Commands that open the car (unlock, frunk, trunk, windows …) are refused unless they are allowed under
-/// Settings → AI assistants (MCP).
+/// commands. Which commands are allowed is the owner's choice under Settings → AI assistants (MCP) – by default
+/// everything except what opens the car (see McpCommands).
 /// </summary>
 [McpServerToolType]
 public sealed class CarTools(
@@ -28,48 +28,6 @@ public sealed class CarTools(
     ReverseGeocoder geocoder)
 {
     private readonly BridgeOptions _opts = options.Value;
-
-    /// <summary>The commands run_command takes: name → what the value is.</summary>
-    internal static readonly (string Name, string Value, string What)[] Commands =
-    [
-        ("wake", "", "wake the car up"),
-        ("climate", "on | off", "climate on or off"),
-        ("driver_temp", "15–28", "the climate temperature in °C"),
-        ("climate_keeper", "off | keep | dog | camp", "keep the climate on after leaving"),
-        ("defrost", "on | off", "max defrost"),
-        ("seat_heater_left", "off | low | medium | high", "driver's seat heat (also _right, _rear_left, _rear_center, _rear_right)"),
-        ("steering_wheel_heat", "on | off", "steering wheel heat"),
-        ("cabin_overheat_protection", "off | on | fan_only", "cabin overheat protection"),
-        ("charging", "on | off", "start or stop charging"),
-        ("charge_limit", "50–100", "the charge limit in %"),
-        ("charging_amps", "1–48", "the charging current in A"),
-        ("charge_port_door", "close", "close the charge port"),
-        ("lock", "lock", "lock the car"),
-        ("windows", "close", "close the windows"),
-        ("sentry", "on", "turn sentry mode on"),
-        ("flash_lights", "", "flash the lights"),
-        ("honk_horn", "", "honk"),
-    ];
-
-    /// <summary>The commands that open the car or let someone drive it – only when allowed under Settings.</summary>
-    internal static readonly (string Name, string Value, string What)[] SecurityCommands =
-    [
-        ("lock", "unlock", "unlock the car"),
-        ("frunk", "", "open the frunk"),
-        ("trunk", "open | close", "open or close the trunk"),
-        ("windows", "vent", "vent the windows"),
-        ("charge_port_door", "open", "open the charge port (also releases the cable)"),
-        ("sentry", "off", "turn sentry mode off"),
-        ("guest_mode", "on | off", "guest mode"),
-        ("valet_mode", "on | off", "valet mode"),
-        ("homelink", "", "press HomeLink (e.g. the garage door) – the car must be near it"),
-        ("keyless_driving", "", "allow driving without a key for two minutes"),
-    ];
-
-    /// <summary>Commands that open the car, let someone drive it, or leave it less protected.</summary>
-    internal static bool IsSecurityCommand(VehicleCommand c) => c is Cmd.Unlock or Cmd.OpenFrunk or Cmd.ToggleTrunk
-        or Cmd.VentWindows or Cmd.OpenChargePort or Cmd.SetGuestMode or Cmd.SetValetMode or Cmd.TriggerHomelink
-        or Cmd.RemoteStartDrive or Cmd.SetSentry { On: false };
 
     [McpServerTool(Name = "list_cars", Title = "List the cars", ReadOnly = true, OpenWorld = false)]
     [Description("The cars this bridge knows, with VIN, name, whether they are online and when they were last heard from.")]
@@ -187,15 +145,30 @@ public sealed class CarTools(
                  "to the end of the month, the free monthly credit, and what Bluetooth saved.")]
     public JsonObject GetUsage() => UsageService.ToJson(usage.Snapshot());
 
+    [McpServerTool(Name = "list_commands", Title = "Commands you may send", ReadOnly = true, OpenWorld = false)]
+    [Description("The commands run_command takes – with how to write them and whether the owner allows them over MCP. " +
+                 "'security' marks commands that open the car or lower its protection.")]
+    public JsonObject ListCommands()
+    {
+        var m = settings.Current.Mcp;
+        return new JsonObject
+        {
+            ["policy"] = m.Policy,
+            ["commands"] = new JsonArray(McpCommands.Catalogue.Select(e => (JsonNode)new JsonObject
+            {
+                ["id"] = e.Id,
+                ["usage"] = e.Usage,
+                ["security"] = e.Security,
+                ["allowed"] = McpCommands.IsAllowed(m, e.Id),
+            }).ToArray()),
+        };
+    }
+
     [McpServerTool(Name = "run_command", Title = "Send a command to the car", Destructive = false, Idempotent = false, OpenWorld = true)]
     [Description("Sends a command to the car and waits until the car has done it (waking it first if needed, up to about " +
-                 "a minute). Commands: wake · climate on|off · driver_temp 15–28 · climate_keeper off|keep|dog|camp · " +
-                 "defrost on|off · seat_heater_left|seat_heater_right|seat_heater_rear_left|seat_heater_rear_center|" +
-                 "seat_heater_rear_right off|low|medium|high · steering_wheel_heat on|off · cabin_overheat_protection " +
-                 "off|on|fan_only · charging on|off · charge_limit 50–100 · charging_amps 1–48 · charge_port_door close · " +
-                 "lock lock · windows close · sentry on · flash_lights · honk_horn. Commands that open the car (lock unlock, frunk, " +
-                 "trunk, windows vent, charge_port_door open, sentry off, guest_mode, valet_mode, homelink, keyless_driving) only work when " +
-                 "the owner has allowed them under Settings. Always tell the user what you are about to do first.")]
+                 "a minute). Call list_commands first: it shows which commands the owner allows and their values, e.g. " +
+                 "'climate on', 'driver_temp 21', 'charge_limit 80', 'seat_heater_left high'. Always tell the user what you " +
+                 "are about to do first, and don't retry a failed command on your own.")]
     public async Task<JsonObject> RunCommand(
         [Description("The command, e.g. \"climate\".")] string command,
         [Description("Its value, e.g. \"on\" or \"21\". Leave empty for commands without one (wake, flash_lights …).")] string? value = null,
@@ -206,10 +179,13 @@ public sealed class CarTools(
         var name = command.Trim().ToLowerInvariant();
         var parsed = CommandParser.Parse(name, string.IsNullOrWhiteSpace(value) ? "PRESS" : value, k => store.Get(v, k))
             ?? throw new McpException($"Unknown command or value: {name} = '{value}'. See the tool's description for the list.");
-        if (IsSecurityCommand(parsed) && !settings.Current.Mcp.AllowSecurityCommands)
+        var id = McpCommands.IdOf(parsed);
+        if (!McpCommands.IsAllowed(settings.Current.Mcp, id))
             throw new McpException(
-                $"'{$"{name} {value}".Trim()}' opens the car or lowers its protection, and the owner hasn't allowed that over MCP. " +
-                "It can be allowed on the bridge's dashboard under Settings → AI assistants (MCP), or done in the Tesla app.");
+                $"The owner hasn't allowed '{$"{name} {value}".Trim()}' over MCP" +
+                (id is not null && McpCommands.IsSecurity(id) ? " – it opens the car or lowers its protection" : "") +
+                ". list_commands shows what is allowed. The owner can change it on the bridge's dashboard under " +
+                "Settings → AI assistants (MCP), or do it in the Tesla app.");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(_opts.Commands.WakeTimeoutSeconds + 30));

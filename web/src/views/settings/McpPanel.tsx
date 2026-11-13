@@ -1,5 +1,5 @@
-import { createSignal, Show } from "solid-js";
-import { t } from "../../i18n";
+import { createSignal, For, Show } from "solid-js";
+import { t, type Key } from "../../i18n";
 import { sendJson } from "../../api/client";
 import { setSettings, settings, type McpSettings } from "../../state/settings";
 import { toast } from "../../components/Toast";
@@ -15,7 +15,7 @@ export function McpPanel() {
   const shown = () => token() ?? "<token>";
 
   const save = (m: McpSettings) => setSettings({ ...settings()!, mcp: m });
-  const change = async (patch: { enabled?: boolean; allow_security_commands?: boolean }) => {
+  const change = async (patch: { enabled?: boolean; policy?: McpSettings["policy"]; allowed_commands?: string[] }) => {
     try {
       save(await sendJson<McpSettings>("/api/mcp-settings", "PUT", patch));
       toast(t("mcp.saved"));
@@ -38,6 +38,25 @@ export function McpPanel() {
       toast(t("mcp.revoked"));
     } catch (e) { toast((e as Error).message); }
   };
+  const setPolicy = (policy: McpSettings["policy"], el: HTMLSelectElement) => {
+    if (policy === "all" && !confirm(t("mcp.securityConfirm"))) { el.value = mcp()!.policy; return; }
+    // Custom starts from what the current choice allows, so it's a small step from there.
+    const allowed = policy === "custom" && mcp()!.policy !== "custom"
+      ? mcp()!.commands.filter((c) => c.allowed).map((c) => c.id) : undefined;
+    void change({ policy, allowed_commands: allowed });
+  };
+  const toggle = (id: string, on: boolean, security: boolean, el: HTMLInputElement) => {
+    if (on && security && !confirm(t("mcp.securityOneConfirm", t(`mcpcmd.${id}` as Key)))) { el.checked = false; return; }
+    const set = new Set(mcp()!.allowed_commands);
+    if (on) set.add(id); else set.delete(id);
+    void change({ allowed_commands: [...set] });
+  };
+  const groups = () => {
+    const by = new Map<string, McpSettings["commands"]>();
+    for (const c of mcp()!.commands) by.set(c.group, [...(by.get(c.group) ?? []), c]);
+    const order = ["climate", "charging", "access", "car"];
+    return [...by.entries()].sort(([a], [b]) => order.indexOf(a) - order.indexOf(b));
+  };
   const copy = async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast(t("mcp.copied")); } catch { /* the text can be selected by hand */ }
   };
@@ -56,19 +75,33 @@ export function McpPanel() {
             </select>
           </label>
           <label>
-            <span>{t("mcp.security")}</span>
-            <select value={m().allow_security_commands ? "yes" : "no"}
-              onChange={(e) => {
-                const yes = e.currentTarget.value === "yes";
-                if (yes && !confirm(t("mcp.securityConfirm"))) { e.currentTarget.value = "no"; return; }
-                void change({ allow_security_commands: yes });
-              }}>
-              <option value="no">{t("mcp.securityNo")}</option>
-              <option value="yes">{t("mcp.securityYes")}</option>
+            <span>{t("mcp.commands")}</span>
+            <select value={m().policy} onChange={(e) => setPolicy(e.currentTarget.value as McpSettings["policy"], e.currentTarget)}>
+              <option value="read_only">{t("mcp.policy.read_only")}</option>
+              <option value="safe">{t("mcp.policy.safe")}</option>
+              <option value="all">{t("mcp.policy.all")}</option>
+              <option value="custom">{t("mcp.policy.custom")}</option>
             </select>
           </label>
         </div>
-        <p class="small muted">{t("mcp.securitySub")}</p>
+        <p class="small muted">{t(`mcp.policySub.${m().policy}` as Key)}</p>
+        <Show when={m().policy === "custom"}>
+          <div class="mcp-cmds">
+            <For each={groups()}>{([group, cmds]) => (
+              <fieldset>
+                <legend>{t(`mcpgroup.${group}` as Key)}</legend>
+                <For each={cmds}>{(c) => (
+                  <label class="mcp-cmd" classList={{ sec: c.security }}>
+                    <input type="checkbox" checked={c.allowed}
+                      onChange={(e) => toggle(c.id, e.currentTarget.checked, c.security, e.currentTarget)} />
+                    <span>{t(`mcpcmd.${c.id}` as Key)}</span>
+                    <Show when={c.security}><span class="mcp-sec" title={t("mcp.securityHint")}>{t("mcp.securityTag")}</span></Show>
+                  </label>
+                )}</For>
+              </fieldset>
+            )}</For>
+          </div>
+        </Show>
 
         <Show when={m().enabled}>
           <h3>{t("mcp.token")}</h3>

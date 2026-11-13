@@ -40,23 +40,27 @@ public static class McpEndpoint
         app.MapMcp(Path);
     }
 
-    /// <summary>PUT /api/mcp-settings { enabled, allow_security_commands }</summary>
+    /// <summary>PUT /api/mcp-settings { enabled, policy, allowed_commands } – every part optional.</summary>
     public sealed record McpSettingsRequest(
         [property: System.Text.Json.Serialization.JsonPropertyName("enabled")] bool? Enabled,
-        [property: System.Text.Json.Serialization.JsonPropertyName("allow_security_commands")] bool? AllowSecurityCommands);
+        [property: System.Text.Json.Serialization.JsonPropertyName("policy")] string? Policy,
+        [property: System.Text.Json.Serialization.JsonPropertyName("allowed_commands")] string[]? AllowedCommands);
 
     /// <summary>
-    /// PUT /api/mcp-settings turns MCP on/off and allows security commands. POST /api/mcp-token makes a new MCP token
+    /// PUT /api/mcp-settings turns MCP on/off and sets which commands are allowed. POST /api/mcp-token makes a new MCP token
     /// (shown once; the old one stops working), DELETE /api/mcp-token revokes it.
     /// </summary>
     public static void MapMcpTokenApi(this RouteGroupBuilder api)
     {
         api.MapPut("/mcp-settings", (McpSettingsRequest body, SettingsStore settings) =>
         {
+            if (body.Policy is not null && !McpCommands.Policies.Contains(body.Policy))
+                return ApiErrors.BadRequest($"policy must be one of {string.Join(", ", McpCommands.Policies)}");
             var s = settings.SetMcp(m => m with
             {
                 Enabled = body.Enabled ?? m.Enabled,
-                AllowSecurityCommands = body.AllowSecurityCommands ?? m.AllowSecurityCommands,
+                Policy = body.Policy ?? m.Policy,
+                AllowedCommands = body.AllowedCommands is null ? m.AllowedCommands : McpCommands.Clean(body.AllowedCommands),
             });
             return Results.Json(Describe(s.Mcp));
         });
@@ -73,8 +77,15 @@ public static class McpEndpoint
         });
     }
 
-    internal static object Describe(McpSetting m) =>
-        new { enabled = m.Enabled, allow_security_commands = m.AllowSecurityCommands, token_set = m.TokenHash is not null, path = Path };
+    internal static object Describe(McpSetting m) => new
+    {
+        enabled = m.Enabled,
+        policy = m.Policy,
+        allowed_commands = m.AllowedCommands,
+        token_set = m.TokenHash is not null,
+        path = Path,
+        commands = McpCommands.Catalogue.Select(e => new { id = e.Id, group = e.Group, security = e.Security, allowed = McpCommands.IsAllowed(m, e.Id) }),
+    };
 
     internal static string Hash(string token) => Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 

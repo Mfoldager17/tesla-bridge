@@ -24,7 +24,7 @@ This is the API the integration and the dashboard use. It runs on port 8090 in b
 | `GET /api/setup` | the setup steps: key, Tesla app, partner registration, sign-in, pairing and telemetry per car. `?check=true` asks Tesla again now |
 | `POST /api/setup/register` · `GET /api/setup/pair-qr.svg` | register the partner domain with Tesla; the pairing link as a QR code |
 | `GET /api/auth/start` | starts "Sign in with Tesla" (a redirect to Tesla) |
-| `PUT /api/mcp-settings` | MCP on/off and whether commands that open the car are allowed: `{"enabled": true, "allow_security_commands": false}` |
+| `PUT /api/mcp-settings` | MCP on/off and which commands an assistant may send: `{"enabled": true, "policy": "custom", "allowed_commands": ["climate", "lock"]}`. `policy` is `read_only`, `safe`, `all` or `custom`; every field is optional |
 | `POST /api/mcp-token` · `DELETE /api/mcp-token` | make a new MCP token (returned once) or revoke it |
 | `POST /mcp` | the [MCP](mcp.md) server (Streamable HTTP) – its own token, not the dashboard's; 404 while turned off |
 | `GET /api/geocode?lat=…&lon=…&lang=da` | the street address for a position (OpenStreetMap, cached). `403` when the map is turned off |
