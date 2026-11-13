@@ -1,53 +1,81 @@
-# Dependabot opens pull requests when something this project uses has a new version. Each one runs the full
-# checks (.github/workflows/checks.yml) before it can be merged. Minor and patch updates are grouped into one PR
-# per ecosystem a week; major versions come one by one, so their release notes can be read.
+# Dependabot keeps dependencies up to date – quietly: once a month, one pull request per area with every minor and
+# patch update in it. Major versions (a new .NET, Node, xunit …) are skipped: those are planned upgrades, done by
+# hand. Security fixes still come straight away when "Dependabot security updates" is on in the repository settings.
 #
-# Commit prefixes follow release-please: "fix(deps)" for what ships in the image or the HA integration (a patch
-# release), "chore(deps)" for CI and test tooling (no release).
+# Commit prefixes follow release-please: "fix(deps)" for what ships (the image, the dashboard) – a patch release;
+# "chore(deps)"/"chore(ci)" for tests and CI – no release.
 version: 2
 updates:
-  # The bridge (.NET packages)
+  # The bridge
   - package-ecosystem: nuget
-    directory: /
-    schedule: { interval: weekly, day: monday }
+    directory: /src/TeslaBridge
+    schedule: { interval: monthly }
     commit-message: { prefix: "fix(deps)" }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
-      nuget-minor:
-        update-types: [minor, patch]
+      bridge:
+        patterns: ["*"]
+
+  # The .NET tests
+  - package-ecosystem: nuget
+    directory: /tests/TeslaBridge.Tests
+    schedule: { interval: monthly }
+    commit-message: { prefix: "chore(deps)" }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      tests:
+        patterns: ["*"]
 
   # The dashboard (web/)
   - package-ecosystem: npm
     directory: /web
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     commit-message: { prefix: "fix(deps)", prefix-development: "chore(deps)" }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
-      npm-minor:
-        update-types: [minor, patch]
+      dashboard:
+        patterns: ["*"]
 
-  # Base images in the Dockerfile (.NET SDK/runtime, Node for the dashboard build)
+  # Base images in the Dockerfile (.NET SDK/runtime, Node for the dashboard build) – patch/minor tags only
   - package-ecosystem: docker
     directory: /
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     commit-message: { prefix: "fix(deps)" }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      images:
+        patterns: ["*"]
 
-  # Tesla's fleet-telemetry and vehicle-command images in docker-compose.yml – pinned on purpose, so updates are
-  # reviewed here instead of arriving silently
+  # Tesla's fleet-telemetry and vehicle-command in docker-compose.yml – pinned on purpose, reviewed here
   - package-ecosystem: docker-compose
     directory: /
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     commit-message: { prefix: "fix(deps)" }
+    groups:
+      tesla:
+        patterns: ["*"]
 
-  # GitHub Actions used by the workflows
+  # GitHub Actions and the Home Assistant test harness
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     commit-message: { prefix: "chore(ci)" }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       actions:
         patterns: ["*"]
 
-  # The Home Assistant test harness (tests/ha/requirements.txt)
   - package-ecosystem: pip
     directory: /tests/ha
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     commit-message: { prefix: "chore(deps)" }
