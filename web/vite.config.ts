@@ -1,14 +1,15 @@
 import { defineConfig } from "vitest/config";
 import solid from "vite-plugin-solid";
 
-// The bridge serves this build from wwwroot/next (http://<server>:8090/next/) next to the current dashboard,
-// until phase 2.5 makes it the main one. `npm run dev` proxies the API to a bridge on localhost:8080.
+// Built into the bridge's wwwroot (served on http://<server>:8090/). wwwroot also holds files that aren't
+// built (models/ with the bundled Model Y), so the build only replaces index.html and assets/ – see
+// scripts/clean.mjs. `npm run dev` proxies the API to a bridge on localhost:8080.
 export default defineConfig({
   plugins: [solid()],
-  base: "/next/",
+  base: "/",
   build: {
-    outDir: "../src/TeslaBridge/wwwroot/next",
-    emptyOutDir: true,
+    outDir: "../src/TeslaBridge/wwwroot",
+    emptyOutDir: false,
     target: "es2022",
     // three.js is its own chunk, only loaded when the 3D car is shown
     chunkSizeWarningLimit: 700,

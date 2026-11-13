@@ -2,10 +2,10 @@
   "name": "tesla-bridge-web",
   "private": true,
   "type": "module",
-  "description": "The Tesla Bridge dashboard (SolidJS + Vite + TypeScript). Built into src/TeslaBridge/wwwroot/next.",
+  "description": "The Tesla Bridge dashboard (SolidJS + Vite + TypeScript). Built into src/TeslaBridge/wwwroot.",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/clean.mjs && vite build && node scripts/licenses.mjs",
     "check": "tsc --noEmit",
     "test": "vitest run"
   },

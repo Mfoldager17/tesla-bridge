@@ -10,9 +10,13 @@ import { loadSettings } from "./state/settings";
 import { Nav, carStatus } from "./components/Nav";
 import { Login } from "./components/Login";
 import { Toast } from "./components/Toast";
-import { Placeholder } from "./views/Placeholder";
 import { Overview } from "./views/Overview";
 import { Controls } from "./views/Controls";
+import { Data } from "./views/Data";
+import { Usage } from "./views/Usage";
+import { Settings } from "./views/Settings";
+import { Setup } from "./views/Setup";
+import { loadSetup } from "./state/setup";
 
 async function boot(): Promise<Info> {
   const info = await getJson<Info>("/api/info");
@@ -23,6 +27,7 @@ async function boot(): Promise<Info> {
   addEvents((await getJson<LiveEvent[]>("/api/events/recent")).reverse());
   void loadModelInfo();
   void loadSettings();
+  void loadSetup(false);
   return info;
 }
 
@@ -71,10 +76,10 @@ export function App() {
           <HashRouter root={Shell}>
             <Route path="/overview" component={Overview} />
             <Route path="/controls" component={Controls} />
-            <Route path="/data" component={() => <Placeholder view="data" phase="2.3" />} />
-            <Route path="/usage" component={() => <Placeholder view="usage" phase="2.3" />} />
-            <Route path="/settings" component={() => <Placeholder view="settings" phase="2.4" />} />
-            <Route path="/setup" component={() => <Placeholder view="setup" phase="2.4" />} />
+            <Route path="/data" component={Data} />
+            <Route path="/usage" component={Usage} />
+            <Route path="/settings" component={Settings} />
+            <Route path="/setup" component={Setup} />
             <Route path="*" component={() => <Navigate href="/overview" />} />
           </HashRouter>
         </Match>

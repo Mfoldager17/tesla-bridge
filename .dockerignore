@@ -14,4 +14,5 @@ tests
 
 # Built inside the image from web/
 web/node_modules
-src/TeslaBridge/wwwroot/next
+src/TeslaBridge/wwwroot/index.html
+src/TeslaBridge/wwwroot/assets
