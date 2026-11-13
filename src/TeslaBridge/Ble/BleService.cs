@@ -52,14 +52,14 @@ public sealed class BleService(
     /// <summary>For tests: build devices on a fake HTTP handler.</summary>
     internal Func<Uri, string?, string?, HttpMessageHandler?>? HandlerFactory { get; set; }
 
-    public Task StartAsync(CancellationToken ct)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         settings.Changed += Reconcile;
         Reconcile();
         return Task.CompletedTask;
     }
 
-    public async Task StopAsync(CancellationToken ct)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         settings.Changed -= Reconcile;
         await DisposeAsync();

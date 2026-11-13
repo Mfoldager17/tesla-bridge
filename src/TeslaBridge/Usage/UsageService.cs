@@ -2,10 +2,11 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using TeslaBridge.Mqtt;
 using TeslaBridge.Options;
+using TeslaBridge.Storage;
 
 namespace TeslaBridge.Usage;
 
-/// <summary>Gemmer forbruget på disk og udgiver det på {bridge}/bridge/usage, så HA kan vise det.</summary>
+/// <summary>Saves the usage to disk and publishes it on {bridge}/bridge/usage, so HA can show it.</summary>
 public sealed class UsageService(
     UsageTracker tracker,
     MqttConnection mqtt,
@@ -22,11 +23,12 @@ public sealed class UsageService(
             try
             {
                 tracker.Restore(File.ReadAllText(_file));
-                log.LogInformation("Indlæste forbrug fra {File}", _file);
+                log.LogInformation("Loaded usage from {File}", _file);
             }
             catch (Exception ex)
             {
-                log.LogWarning(ex, "Kunne ikke læse {File} – starter forfra", _file);
+                var moved = AtomicFile.Quarantine(_file);
+                log.LogWarning(ex, "Can't read {File} – counting from zero (the file was moved to {Moved})", _file, moved);
             }
         }
         mqtt.Connected += PublishAsync;
@@ -58,15 +60,12 @@ public sealed class UsageService(
         if (!tracker.IsDirty) return;
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_file))!);
-            var tmp = _file + ".tmp";
-            File.WriteAllText(tmp, tracker.Serialize());
-            File.Move(tmp, _file, overwrite: true);
+            AtomicFile.WriteAllText(_file, tracker.Serialize());
         }
         catch (Exception ex)
         {
             tracker.MarkDirty();
-            log.LogWarning(ex, "Kunne ikke gemme forbrug til {File}", _file);
+            log.LogWarning(ex, "Couldn't save the usage to {File}", _file);
         }
     }
 

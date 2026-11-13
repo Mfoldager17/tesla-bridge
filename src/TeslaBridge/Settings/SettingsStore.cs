@@ -160,23 +160,27 @@ public sealed class SettingsStore
         {
             if (file is not null && File.Exists(file))
             {
+                // Files from before 1.2 were readable by everyone; this one can hold the ESP32's password.
+                if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 var s = JsonSerializer.Deserialize<BridgeSettings>(File.ReadAllText(file), Json) ?? new BridgeSettings();
                 s.TelemetryFields = new Dictionary<string, FieldSetting>(s.TelemetryFields ?? [], StringComparer.Ordinal);
                 s.Ble = new Dictionary<string, BleSetting>(s.Ble ?? [], StringComparer.OrdinalIgnoreCase);
                 return s;
             }
         }
-        catch (Exception) { /* a broken file must not stop the bridge – fall back to defaults */ }
+        catch (Exception) when (file is not null)
+        {
+            // A broken file must not stop the bridge: keep it aside and fall back to defaults.
+            TeslaBridge.Storage.AtomicFile.Quarantine(file);
+        }
         return new BridgeSettings();
     }
 
     private static void Save(string? file, BridgeSettings s)
     {
         if (file is null) return;
-        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-        var tmp = file + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(s, Json));
-        File.Move(tmp, file, overwrite: true);
+        // Owner-only: it can hold the ESP32's web password.
+        TeslaBridge.Storage.AtomicFile.WriteAllText(file, JsonSerializer.Serialize(s, Json), secret: true);
     }
 
     private static BridgeSettings Clone(BridgeSettings s) => new()
@@ -192,8 +196,13 @@ public sealed class SettingsStore
     /// <summary>Sets (or with null: forgets, so .env applies again) the ESP32 for one car.</summary>
     public BridgeSettings SetBle(string vin, BleSetting? ble)
     {
-        if (ble is { Url.Length: > 0 } && !(Uri.TryCreate(ble.Url, UriKind.Absolute, out var u) && u.Scheme is "http" or "https"))
-            throw new ArgumentException("The ESP32 address must look like http://192.168.1.50");
+        if (ble is { Url.Length: > 0 })
+        {
+            if (!(Uri.TryCreate(ble.Url, UriKind.Absolute, out var u) && u.Scheme is "http" or "https"))
+                throw new ArgumentException("The ESP32 address must look like http://192.168.1.50");
+            if (!TeslaBridge.Ble.LocalAddress.IsLocal(u))
+                throw new ArgumentException("The ESP32 must be on your own network: use its local IP address (e.g. http://192.168.1.50) or a .local name");
+        }
         lock (_lock)
         {
             var next = Clone(_current);

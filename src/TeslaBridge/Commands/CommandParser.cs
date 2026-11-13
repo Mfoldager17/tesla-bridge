@@ -5,8 +5,8 @@ using TeslaBridge.State;
 namespace TeslaBridge.Commands;
 
 /// <summary>
-/// Oversætter MQTT-kommandoer ({bridge}/{vin}/cmd/{navn} + payload) til VehicleCommand.
-/// Payloads er bevidst simple, så de virker fra HA, ESP32-paneler og mosquitto_pub:
+/// Translates MQTT commands ({bridge}/{vin}/cmd/{name} + payload) to VehicleCommand. Payloads are deliberately
+/// simple, so they work from HA, ESP32 panels and mosquitto_pub (a few Danish words are accepted too):
 ///   climate on|off · climate_keeper none|keep|dog|camp · lock LOCK|UNLOCK · charge_limit 80 · seat_heater_left off|low|medium|high|0-3 · wake PRESS
 /// </summary>
 public static class CommandParser
@@ -52,7 +52,7 @@ public static class CommandParser
             "frunk" => new Cmd.OpenFrunk(),
             "trunk" => p.ToUpperInvariant() switch
             {
-                // Bagagerummet skiftes: åbn ikke et åbent / luk ikke et lukket (så det ikke går den forkerte vej).
+                // The trunk toggles: don't open an open one or close a closed one (so it doesn't go the wrong way).
                 "OPEN" => IsTrue(state, "trunk_open") ? null : new Cmd.ToggleTrunk(true),
                 "CLOSE" => IsFalse(state, "trunk_open") ? null : new Cmd.ToggleTrunk(false),
                 _ => new Cmd.ToggleTrunk(),
@@ -90,7 +90,7 @@ public static class CommandParser
         };
     }
 
-    /// <summary>Teslemetry-navne på entiteter → bridgens kommandonavne (begge virker).</summary>
+    /// <summary>Teslemetry's entity names → the bridge's command names (both work).</summary>
     private static readonly Dictionary<string, string> Aliases = new()
     {
         ["charge"] = "charging",
@@ -100,7 +100,7 @@ public static class CommandParser
         ["seat_heater_front_right"] = "seat_heater_right",
     };
 
-    /// <summary>HA-presets med samme værdier som Teslemetry (off = normal) – dashboards kan oversætte dem.</summary>
+    /// <summary>HA presets with the same values as Teslemetry (off = normal) – dashboards can translate them.</summary>
     public static readonly (string Preset, string Key)[] KeeperPresets =
         [("off", "off"), ("keep", "keep"), ("dog", "dog"), ("camp", "camp")];
 
@@ -109,7 +109,7 @@ public static class CommandParser
         var s = p.ToLowerInvariant().Replace(" mode", "");          // "Dog mode" → "dog"
         if (s is "none" or "off" or "normal" or "fra" or "0") return 0;
         foreach (var (preset, key) in KeeperPresets)
-            if (s == preset.ToLowerInvariant() || s == key) return Array.IndexOf(Cmd.SetClimateKeeper.Names, key);
+            if (string.Equals(s, preset, StringComparison.OrdinalIgnoreCase) || s == key) return Array.IndexOf(Cmd.SetClimateKeeper.Names, key);
         if (s == "on") return 1;
         return Num(p) is { } n && n is >= 0 and <= 3 ? (int)n : null;
     }

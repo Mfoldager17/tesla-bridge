@@ -12,8 +12,8 @@ using TeslaBridge.Web;
 namespace TeslaBridge.Telemetry;
 
 /// <summary>
-/// Lytter på fleet-telemetrys rå topics og fodrer state store:
-///   {telemetry}/{vin}/v/{Field}       → normaliserede felter
+/// Listens to fleet-telemetry's raw topics and feeds the state store:
+///   {telemetry}/{vin}/v/{Field}       → normalised fields
 ///   {telemetry}/{vin}/connectivity    → online / last_seen
 /// </summary>
 public sealed class TelemetryIngestService(
@@ -61,7 +61,7 @@ public sealed class TelemetryIngestService(
         if (windows)
             store.Apply(vin, "windows_open", SignalMapper.WindowsOpen(k => store.GetConfirmed(vin, k)?.Value), now);
 
-        // Data betyder at bilen er vågen og forbundet.
+        // Data means the car is awake and connected.
         MarkSeen(vin, now);
         return Task.CompletedTask;
     }
@@ -79,16 +79,16 @@ public sealed class TelemetryIngestService(
 
         if (status is null) return Task.CompletedTask;
         var online = status.Equals("CONNECTED", StringComparison.OrdinalIgnoreCase);
-        log.LogInformation("{Vin} er nu {Status}", vin, online ? "online" : "offline");
+        log.LogInformation("{Vin} is now {Status}", vin, online ? "online" : "offline");
         events.Publish("connectivity", vin, new JsonObject { ["status"] = status });
-        store.Apply(vin, "online", JsonValue.Create(online), now, ValueSource.Bridge);
-        if (online) store.Apply(vin, "last_seen", JsonValue.Create(now.ToString("O")), now, ValueSource.Bridge);
+        store.Apply(vin, StateKeys.Online, JsonValue.Create(online), now, ValueSource.Bridge);
+        if (online) store.Apply(vin, StateKeys.LastSeen, JsonValue.Create(now.ToString("O")), now, ValueSource.Bridge);
         return Task.CompletedTask;
     }
 
     private Task OnErrorAsync(string topic, string payload, CancellationToken ct)
     {
-        log.LogWarning("Telemetri-fejl fra bilen på {Topic}: {Payload}", topic, payload);
+        log.LogWarning("Telemetry error from the car on {Topic}: {Payload}", topic, payload);
         JsonNode? body = null;
         try { body = JsonNode.Parse(payload); } catch (JsonException) { }
         events.Publish("telemetry_error", topic.Split('/')[^3], new JsonObject { ["topic"] = topic, ["body"] = body ?? JsonValue.Create(payload) });
@@ -97,12 +97,12 @@ public sealed class TelemetryIngestService(
 
     private void MarkSeen(string vin, DateTimeOffset now)
     {
-        if (store.GetConfirmed(vin, "online")?.Value?.GetValue<bool>() != true)
-            store.Apply(vin, "online", JsonValue.Create(true), now, ValueSource.Bridge);
+        if (store.GetConfirmed(vin, StateKeys.Online)?.Value?.GetValue<bool>() != true)
+            store.Apply(vin, StateKeys.Online, JsonValue.Create(true), now, ValueSource.Bridge);
 
-        // last_seen opdateres højst hvert 30. sekund for ikke at spamme MQTT.
-        var last = store.GetConfirmed(vin, "last_seen");
+        // last_seen is updated at most every 30 seconds, so MQTT isn't flooded.
+        var last = store.GetConfirmed(vin, StateKeys.LastSeen);
         if (last is null || now - last.UpdatedAt > TimeSpan.FromSeconds(30))
-            store.Apply(vin, "last_seen", JsonValue.Create(now.ToString("O")), now, ValueSource.Bridge);
+            store.Apply(vin, StateKeys.LastSeen, JsonValue.Create(now.ToString("O")), now, ValueSource.Bridge);
     }
 }

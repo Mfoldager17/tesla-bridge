@@ -36,13 +36,13 @@ public sealed class SimulatorTransport(VehicleStateStore store, TimeProvider tim
             if (!Awake(vin)) return Task.FromResult(CommandResult.Asleep());
             _awakeUntil[vin] = time.GetUtcNow() + StaysAwake;
         }
-        store.Apply(vin, "online", JsonValue.Create(true), time.GetUtcNow(), ValueSource.Stream);
+        store.Apply(vin, StateKeys.Online, JsonValue.Create(true), time.GetUtcNow(), ValueSource.Stream);
         var expected = command.Expectations;
         _ = Task.Run(async () =>
         {
             await Task.Delay(ConfirmAfter, time);
             foreach (var e in expected) store.Apply(vin, e.Key, e.Value?.DeepClone(), time.GetUtcNow(), ValueSource.Stream);
-        });
+        }, CancellationToken.None);   // confirms even when the caller stops waiting
         return Task.FromResult(CommandResult.Ok());
     }
 

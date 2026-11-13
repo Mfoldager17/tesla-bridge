@@ -18,7 +18,7 @@ If no entities appear, check that `Bridge__Mqtt__DiscoveryPrefix=homeassistant` 
 3. Search for **Tesla Bridge** in HACS → *Download*
 4. **Restart Home Assistant**
 5. *Settings → Devices & services → Add integration → Tesla Bridge*
-6. URL: `http://<server-IP>:8090`, token: `Bridge__Web__Token` from `.env`
+6. URL: `http://<server-IP>:8090`, token: `Bridge__Web__Token` from `.env` – or, if you didn't set one, the token the bridge made: `docker compose exec tesla-bridge cat /data/web-token`
 
 **Without HACS:** copy the folder `custom_components/tesla_bridge` from this repo to HA's `config/custom_components/tesla_bridge`, restart HA and continue from point 5.
 

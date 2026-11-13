@@ -18,13 +18,13 @@ export const MAX_LOG = 200;
 
 /** Pure: applies one event to the state. Kept apart from the store so it can be tested. */
 export function applyEvent(s: LiveState, e: LiveEvent): void {
-  if (e.type === "field" && e.vin) {
-    const d = (e as Extract<LiveEvent, { type: "field" }>).data;
+  if (e.type === "field") {
+    const d = e.data;
     const car = (s.cars[e.vin.toUpperCase()] ??= { name: e.vin, fields: {} });
     if (d.value === undefined && !d.source) delete car.fields[d.key];
     else car.fields[d.key] = { value: d.value ?? null, updated_at: d.updated_at ?? e.at, source: d.source ?? "stream" };
-  } else if (e.type === "command" && e.vin) {
-    s.commands.unshift({ ...(e.data as unknown as CommandStatus), vin: e.vin, at: e.at });
+  } else if (e.type === "command") {
+    s.commands.unshift({ ...e.data, vin: e.vin, at: e.at });
     if (s.commands.length > MAX_LOG) s.commands.length = MAX_LOG;
   } else {
     s.raw.unshift(e);
@@ -52,11 +52,19 @@ export function value<T = unknown>(vin: string | undefined, key: string): T | un
 }
 export const isPending = (vin: string | undefined, key: string) => field(vin, key)?.source === "optimistic";
 
-/** Opens /api/events and keeps it open (the browser reconnects by itself). */
-export function connect(url: string): () => void {
+/**
+ * Opens /api/events and keeps it open (the browser reconnects by itself). Changes made while the stream was down
+ * aren't sent again, so resync() runs each time it comes back.
+ */
+export function connect(url: string, resync: () => void): () => void {
   const es = new EventSource(url);
-  es.onopen = () => setConnected(true);
-  es.onerror = () => setConnected(false);
+  let wasDown = false;
+  es.onopen = () => {
+    setConnected(true);
+    if (wasDown) resync();
+    wasDown = false;
+  };
+  es.onerror = () => { setConnected(false); wasDown = true; };
   es.onmessage = (m) => {
     try { addEvents([JSON.parse(m.data) as LiveEvent]); } catch { /* ignore a malformed event */ }
   };

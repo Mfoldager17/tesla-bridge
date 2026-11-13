@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Tesla Bridge",
-        "description": "Adressen på bridgens dashboard, fx http://192.168.0.122:8090. Token = Bridge__Web__Token fra .env (tom hvis den ikke er sat).",
+        "description": "Adressen på bridgens dashboard, fx http://192.168.1.10:8090. Token = Bridge__Web__Token fra .env – eller, hvis du ikke har sat et, det token bridgen selv lavede (docker compose exec tesla-bridge cat /data/web-token).",
         "data": {
           "url": "URL",
           "token": "Token"
@@ -11,7 +11,7 @@
       },
       "reauth_confirm": {
         "title": "Nyt token",
-        "description": "Bridgen afviste tokenet. Skriv Bridge__Web__Token fra .env.",
+        "description": "Bridgen afviste tokenet. Skriv Bridge__Web__Token fra .env, eller det i bridgens /data/web-token.",
         "data": {
           "token": "Token"
         }

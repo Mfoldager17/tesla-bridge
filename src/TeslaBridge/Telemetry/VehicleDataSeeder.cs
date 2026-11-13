@@ -10,10 +10,10 @@ using TeslaBridge.State;
 namespace TeslaBridge.Telemetry;
 
 /// <summary>
-/// Bilen streamer kun ændringer. Startede bridgen, mens bilen holdt stille, kender den derfor ikke
-/// gear, ruder, ladekabellås osv., før de ændrer sig. Som Teslemetry henter vi ét snapshot
-/// (GET vehicle_data, $0,002) når bilen kommer online, og udfylder KUN felter, streamen ikke har givet os.
-/// Vækker aldrig bilen (vehicle_data svarer 408, hvis den sover). Højst én gang i timen pr. bil.
+/// The car only streams changes. If the bridge started while the car stood still, it doesn't know the gear,
+/// windows, charge cable lock etc. until they change. Like Teslemetry, one snapshot (GET vehicle_data, $0.002) is
+/// fetched when the car comes online, and it fills in ONLY the fields the stream hasn't given yet. Never wakes the
+/// car (vehicle_data answers 408 when it sleeps). At most once an hour per car.
 /// </summary>
 public sealed class VehicleDataSeeder(
     VehicleStateStore store,
@@ -40,7 +40,7 @@ public sealed class VehicleDataSeeder(
                 try { await SeedAsync(vin, stoppingToken); }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    log.LogWarning("Kunne ikke hente snapshot fra {Vin}: {Error}", vin, ex.Message);
+                    log.LogWarning("Couldn't fetch a snapshot from {Vin}: {Error}", vin, ex.Message);
                 }
             }
         }
@@ -49,34 +49,34 @@ public sealed class VehicleDataSeeder(
     }
 
     /// <summary>
-    /// Ved opstart: spørg Tesla om bilen sover (GET /vehicles/{vin}, vækker den ikke), så dashboard og HA
-    /// kan vise "sover" i stedet for "venter på signal". Telemetrien overtager, så snart bilen sender noget.
+    /// At start: ask Tesla whether the car sleeps (GET /vehicles/{vin}, doesn't wake it), so the dashboard and HA can
+    /// show "asleep" instead of "waiting for a signal". Telemetry takes over as soon as the car sends something.
     /// </summary>
     private async Task CheckSleepStateAsync(CancellationToken ct)
     {
         try { await Task.Delay(TimeSpan.FromSeconds(15), ct); } catch (OperationCanceledException) { return; }
         foreach (var v in options.Value.Vehicles)
         {
-            if (store.GetConfirmed(v.Vin, "online") is not null) continue;   // streamen nåede først
+            if (store.GetConfirmed(v.Vin, StateKeys.Online) is not null) continue;   // the stream got there first
             try
             {
                 var (status, body, _) = await proxy.SendAsync(HttpMethod.Get, $"/api/1/vehicles/{v.Vin}", null, ct);
                 var state = body?["response"]?["state"]?.ToString();
                 if ((int)status >= 300 || state is null) continue;
-                if (store.GetConfirmed(v.Vin, "online") is not null) continue;
-                store.Apply(v.Vin, "online", JsonValue.Create(state == "online"), time.GetUtcNow(), ValueSource.Snapshot);
-                log.LogInformation("{Vin} er {State} ifølge Tesla", v.Vin, state);
+                if (store.GetConfirmed(v.Vin, StateKeys.Online) is not null) continue;
+                store.Apply(v.Vin, StateKeys.Online, JsonValue.Create(state == "online"), time.GetUtcNow(), ValueSource.Snapshot);
+                log.LogInformation("{Vin} is {State} according to Tesla", v.Vin, state);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                log.LogInformation("Kunne ikke spørge Tesla om {Vin} sover: {Error}", v.Vin, ex.Message);
+                log.LogInformation("Couldn't ask Tesla whether {Vin} sleeps: {Error}", v.Vin, ex.Message);
             }
         }
     }
 
     private void OnChanged(StateChange c)
     {
-        if (c.Key == "online" && c.Effective?.Value is JsonValue v && v.TryGetValue(out bool online) && online
+        if (c.Key == StateKeys.Online && c.Effective?.Value is JsonValue v && v.TryGetValue(out bool online) && online
             && options.Value.Vehicles.Any(x => string.Equals(x.Vin, c.Vin, StringComparison.OrdinalIgnoreCase)))
             _queue.Writer.TryWrite(c.Vin);
     }
@@ -91,10 +91,10 @@ public sealed class VehicleDataSeeder(
 
         const string endpoints = "charge_state%3Bclimate_state%3Bvehicle_state%3Bdrive_state%3Blocation_data";
         var (status, body, raw) = await proxy.SendAsync(HttpMethod.Get, $"/api/1/vehicles/{vin}/vehicle_data?endpoints={endpoints}", null, ct);
-        if ((int)status == 408) { log.LogInformation("{Vin} sover – snapshot springes over", vin); _lastSeed.TryRemove(vin, out _); return; }
+        if ((int)status == 408) { log.LogInformation("{Vin} is asleep – no snapshot", vin); _lastSeed.TryRemove(vin, out _); return; }
         if ((int)status >= 300 || body?["response"] is not JsonObject response)
         {
-            log.LogWarning("vehicle_data for {Vin} svarede {Status}: {Raw}", vin, (int)status, raw.Length > 300 ? raw[..300] : raw);
+            log.LogWarning("vehicle_data for {Vin} answered {Status}: {Raw}", vin, (int)status, raw.Length > 300 ? raw[..300] : raw);
             return;
         }
 
@@ -103,23 +103,25 @@ public sealed class VehicleDataSeeder(
         {
             if (value is null) continue;
             var current = store.GetConfirmed(vin, key);
-            if (current?.Value is not null && current.Source != ValueSource.Restored) continue;   // streamen vinder altid
+            if (current?.Value is not null && current.Source != ValueSource.Restored) continue;   // the stream always wins
             store.Apply(vin, key, value, now, ValueSource.Snapshot);
             filled++;
         }
-        log.LogInformation("Snapshot fra {Vin}: udfyldte {Count} felter, streamen ikke havde givet endnu", vin, filled);
+        log.LogInformation("Snapshot from {Vin}: filled in {Count} fields the stream hadn't given yet", vin, filled);
     }
 
     private bool NeedsSeed(string vin) =>
         VehicleDataMapper.Keys.Any(k => store.GetConfirmed(vin, k) is not { Value: not null } fv || fv.Source == ValueSource.Restored);
 }
 
-/// <summary>vehicle_data (Fleet API, miles/Fahrenheit-agnostisk: Tesla svarer i miles og °C) → bridgens nøgler.</summary>
+/// <summary>vehicle_data (Fleet API: Tesla answers in miles and °C) → the bridge's keys.</summary>
 public static class VehicleDataMapper
 {
+    private static readonly string[] WindowKeys = ["fd_window", "fp_window", "rd_window", "rp_window"];
+
     private const double KmPerMile = 1.609344;
 
-    /// <summary>Nøgler, snapshot'et kan udfylde (bruges til at afgøre om det overhovedet er nødvendigt).</summary>
+    /// <summary>Keys the snapshot can fill in (used to decide whether it's needed at all).</summary>
     public static readonly string[] Keys =
     [
         "gear", "speed", "locked", "windows_open", "charge_cable_locked", "guest_mode", "valet_mode",
@@ -167,15 +169,25 @@ public static class VehicleDataMapper
         yield return ("climate_on", B(cl?["is_climate_on"]));
         yield return ("climate_keeper_mode", S(cl?["climate_keeper_mode"])?.ToLowerInvariant() switch
         {
-            "off" => V("off"), "on" => V("keep"), "dog" => V("dog"), "camp" or "party" => V("camp"), _ => null,
+            "off" => V("off"),
+            "on" => V("keep"),
+            "dog" => V("dog"),
+            "camp" or "party" => V("camp"),
+            _ => null,
         });
         yield return ("cabin_overheat_protection", S(cl?["cabin_overheat_protection"])?.ToLowerInvariant() switch
         {
-            "off" => V("off"), "on" => V("on"), "fanonly" or "fan_only" => V("fan_only"), _ => null,
+            "off" => V("off"),
+            "on" => V("on"),
+            "fanonly" or "fan_only" => V("fan_only"),
+            _ => null,
         });
         yield return ("cop_temp_limit", S(cl?["cop_activation_temperature"])?.ToLowerInvariant() switch
         {
-            "high" => V(40), "medium" => V(35), "low" => V(30), _ => null,
+            "high" => V(40),
+            "medium" => V(35),
+            "low" => V(30),
+            _ => null,
         });
         yield return ("defrost", cl?["defrost_mode"] is JsonNode dm ? V((N(dm)?.GetValue<double>() ?? 0) != 0) : B(cl?["is_front_defroster_on"]));
         yield return ("preconditioning_enabled", B(cl?["is_preconditioning"]));
@@ -200,7 +212,7 @@ public static class VehicleDataMapper
         yield return ("door_passenger_rear_open", B(vs?["pr"]));
         yield return ("frunk_open", B(vs?["ft"]));
         yield return ("trunk_open", B(vs?["rt"]));
-        var windows = new[] { "fd_window", "fp_window", "rd_window", "rp_window" }.Select(w => B(vs?[w])).ToArray();
+        var windows = WindowKeys.Select(w => B(vs?[w])).ToArray();
         yield return ("window_driver_front_open", windows[0]);
         yield return ("window_passenger_front_open", windows[1]);
         yield return ("window_driver_rear_open", windows[2]);
@@ -215,10 +227,10 @@ public static class VehicleDataMapper
         yield return ("tire_pressure_rear_right", N(vs?["tpms_pressure_rr"], 1, 2));
         yield return ("user_present", B(vs?["is_user_present"]));
 
-        // --- kørsel ---
+        // --- driving ---
         if (ds is not null)
         {
-            // Står bilen stille, er shift_state/speed null i vehicle_data.
+            // When the car stands still, shift_state/speed are null in vehicle_data.
             yield return ("gear", V((S(ds["shift_state"]) ?? "P").ToUpperInvariant()));
             yield return ("speed", ds["speed"] is null ? V(0d) : N(ds["speed"], KmPerMile, 0));
             yield return ("heading", N(ds["heading"]));

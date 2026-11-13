@@ -46,10 +46,11 @@ export interface CommandStatus {
 }
 
 /** GET /api/events (SSE) and /api/events/recent */
-export type LiveEvent =
-  | { type: "field"; vin: string; at: string; data: { key: string; value?: Json; updated_at?: string; source?: FieldSource } }
-  | { type: "command"; vin: string; at: string; data: CommandStatus }
-  | { type: string; vin: string | null; at: string; data: Record<string, Json> };
+export type FieldEvent = { type: "field"; vin: string; at: string; data: { key: string; value?: Json; updated_at?: string; source?: FieldSource } };
+export type CommandEvent = { type: "command"; vin: string; at: string; data: CommandStatus };
+/** Raw telemetry, connectivity and errors the car reports – shown as they come on the Data page. */
+export type OtherEvent = { type: "raw" | "connectivity" | "telemetry_error"; vin: string | null; at: string; data: Record<string, Json> };
+export type LiveEvent = FieldEvent | CommandEvent | OtherEvent;
 
 /** GET /api/update */
 export interface UpdateInfo {

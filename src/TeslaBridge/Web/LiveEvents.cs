@@ -4,11 +4,11 @@ using System.Threading.Channels;
 
 namespace TeslaBridge.Web;
 
-/// <summary>Én hændelse til UI'et: feltændring, rå telemetri, kommandostatus eller log.</summary>
+/// <summary>One event for the dashboard: a field change, raw telemetry, a command status or a log line.</summary>
 public sealed record LiveEvent(string Type, string? Vin, JsonObject Data, DateTimeOffset At);
 
 /// <summary>
-/// In-memory hændelsesbus til web-UI'et (Server-Sent Events).
+/// In-memory event bus for the dashboard and the HA integration (Server-Sent Events).
 /// </summary>
 public sealed class LiveEvents(TimeProvider time)
 {
@@ -31,7 +31,7 @@ public sealed class LiveEvents(TimeProvider time)
             }
         }
         foreach (var ch in _subscribers.Values)
-            ch.Writer.TryWrite(e);   // langsomme klienter mister bare hændelser (bounded, DropOldest)
+            ch.Writer.TryWrite(e);   // slow clients just miss events (bounded, DropOldest)
     }
 
     public IReadOnlyList<LiveEvent> Recent()

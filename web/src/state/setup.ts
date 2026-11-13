@@ -12,7 +12,12 @@ export interface SetupStatus {
   registration: { registered: boolean; matches: boolean; error: string | null; checked_at: string } | null;
   logged_in: boolean;
   vehicles: { vin: string; name: string; synced?: boolean; key_paired?: boolean; hostname?: string; error?: string }[];
+  /** Whether the MQTT broker lets anyone in (checked by the bridge after start and every 6 hours). */
+  mqtt?: { embedded: boolean; commands: boolean; anonymous_allowed: boolean | null; checked_at: string | null; error: string | null };
 }
+
+/** The broker lets anyone in, and the bridge takes commands over MQTT: anyone on the network can unlock the car. */
+export const openBroker = (st: SetupStatus) => st.mqtt?.anonymous_allowed === true && st.mqtt.commands;
 
 const [setup, setSetup] = createSignal<SetupStatus | null>(null);
 export { setup };

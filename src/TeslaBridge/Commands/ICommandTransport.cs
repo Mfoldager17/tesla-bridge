@@ -3,9 +3,9 @@ namespace TeslaBridge.Commands;
 public enum CommandOutcome
 {
     Success,
-    /// <summary>Bilen sover eller er offline – væk den og prøv igen.</summary>
+    /// <summary>The car sleeps or is offline – wake it and try again.</summary>
     VehicleAsleep,
-    /// <summary>Bilen modtog kommandoen men sagde nej (fx "is_charging").</summary>
+    /// <summary>The car got the command but said no (e.g. "is_charging").</summary>
     Refused,
     Failed,
 }
@@ -20,17 +20,17 @@ public sealed record CommandResult(CommandOutcome Outcome, string? Reason = null
 }
 
 /// <summary>
-/// En vej til bilen. I dag kun Fleet API; senere fx BLE.
-/// Resten af bridgen kender kun dette interface.
+/// A way to the car: the Fleet API, Bluetooth through an ESP32, or the simulator. The rest of the bridge only knows
+/// this interface.
 /// </summary>
 public interface ICommandTransport
 {
     string Name { get; }
 
-    /// <summary>Lavere tal vælges først (BLE får fx 0, cloud 100).</summary>
+    /// <summary>Lower numbers are tried first (Bluetooth 0, the simulator 50, the Fleet API 100).</summary>
     int Priority { get; }
 
-    /// <summary>Kan transporten nå bilen lige nu? (BLE: er bilen inden for rækkevidde.)</summary>
+    /// <summary>Can the transport reach the car right now? (Bluetooth: is the car in range.)</summary>
     ValueTask<bool> CanReachAsync(string vin, CancellationToken ct);
 
     Task<CommandResult> SendAsync(string vin, VehicleCommand command, CancellationToken ct);
@@ -38,7 +38,7 @@ public interface ICommandTransport
     Task<CommandResult> WakeAsync(string vin, CancellationToken ct);
 }
 
-/// <summary>Vælger transport pr. kommando. Med én transport er den triviel – det er pointen.</summary>
+/// <summary>Picks the transports for each command, in order of priority.</summary>
 public sealed class CommandRouter(IEnumerable<ICommandTransport> transports)
 {
     private readonly ICommandTransport[] _transports = transports.OrderBy(t => t.Priority).ToArray();

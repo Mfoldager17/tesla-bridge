@@ -12,9 +12,9 @@ namespace TeslaBridge.Mqtt;
 public delegate Task MqttMessageHandler(string topic, string payload, CancellationToken ct);
 
 /// <summary>
-/// Én delt MQTT-forbindelse med automatisk genopkobling. Andre services registrerer
-/// topic-filtre + handlers; abonnementer genoprettes ved hver genopkobling.
-/// Sætter Last Will på {bridge}/bridge/status, så HA ser bridgen som utilgængelig hvis den dør.
+/// One shared MQTT connection that reconnects by itself. Other services register topic filters and handlers;
+/// subscriptions are restored on every reconnect. Sets a Last Will on {bridge}/bridge/status, so HA shows the
+/// bridge as unavailable if it dies.
 /// </summary>
 public sealed class MqttConnection : BackgroundService
 {
@@ -35,7 +35,7 @@ public sealed class MqttConnection : BackgroundService
 
     public string StatusTopic => $"{_opts.BridgeTopicBase}/bridge/status";
 
-    /// <summary>Kaldes efter hver (gen)opkobling – fx til at genudsende HA discovery.</summary>
+    /// <summary>Raised after every (re)connect – e.g. to send HA discovery again.</summary>
     public event Func<CancellationToken, Task>? Connected;
 
     public bool IsConnected => _client.IsConnected;
@@ -46,7 +46,9 @@ public sealed class MqttConnection : BackgroundService
     {
         lock (_lock) _handlers.Add((filter, handler));
         if (_client.IsConnected)
-            _ = SubscribeFiltersAsync([filter], CancellationToken.None);
+            _ = SubscribeFiltersAsync([filter], CancellationToken.None).ContinueWith(
+                t => _log.LogWarning(t.Exception?.GetBaseException(), "Couldn't subscribe to {Filter}", filter),
+                CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
     }
 
     public async Task PublishAsync(string topic, string payload, bool retain = false, CancellationToken ct = default)
@@ -61,7 +63,7 @@ public sealed class MqttConnection : BackgroundService
         try { await _client.PublishAsync(msg, ct); }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _log.LogWarning(ex, "Kunne ikke publicere til {Topic}", topic);
+            _log.LogWarning(ex, "Couldn't publish to {Topic}", topic);
         }
     }
 
@@ -77,7 +79,7 @@ public sealed class MqttConnection : BackgroundService
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _log.LogWarning("MQTT-forbindelse til {Host}:{Port} fejlede: {Error}. Prøver igen om 5 s.",
+                    _log.LogWarning("The MQTT connection to {Host}:{Port} failed: {Error}. Trying again in 5 s.",
                         _opts.ConnectHost, _opts.Port, ex.Message);
                 }
             }
@@ -104,7 +106,7 @@ public sealed class MqttConnection : BackgroundService
             builder = builder.WithCredentials(_opts.Username, _opts.Password);
 
         await _client.ConnectAsync(builder.Build(), ct);
-        _log.LogInformation("Forbundet til MQTT {Host}:{Port}", _opts.ConnectHost, _opts.Port);
+        _log.LogInformation("Connected to MQTT {Host}:{Port}", _opts.ConnectHost, _opts.Port);
 
         await PublishAsync(StatusTopic, "online", retain: true, ct);
 
@@ -118,7 +120,7 @@ public sealed class MqttConnection : BackgroundService
             foreach (var h in connected.GetInvocationList().Cast<Func<CancellationToken, Task>>())
             {
                 try { await h(ct); }
-                catch (Exception ex) { _log.LogError(ex, "Fejl i Connected-handler"); }
+                catch (Exception ex) { _log.LogError(ex, "Error in a Connected handler"); }
             }
         }
     }
@@ -130,7 +132,7 @@ public sealed class MqttConnection : BackgroundService
         foreach (var f in filters)
             b.WithTopicFilter(f, MqttQualityOfServiceLevel.AtLeastOnce);
         await _client.SubscribeAsync(b.Build(), ct);
-        _log.LogDebug("Abonnerer på {Filters}", string.Join(", ", filters));
+        _log.LogDebug("Subscribing to {Filters}", string.Join(", ", filters));
     }
 
     private async Task OnMessageAsync(MqttApplicationMessageReceivedEventArgs e)
@@ -144,11 +146,11 @@ public sealed class MqttConnection : BackgroundService
         foreach (var handler in matches)
         {
             try { await handler(topic, payload, CancellationToken.None); }
-            catch (Exception ex) { _log.LogError(ex, "Fejl ved håndtering af {Topic}", topic); }
+            catch (Exception ex) { _log.LogError(ex, "Error while handling {Topic}", topic); }
         }
     }
 
-    /// <summary>MQTT-wildcard match (+ og #).</summary>
+    /// <summary>MQTT wildcard match (+ and #).</summary>
     public static bool TopicMatches(string filter, string topic)
     {
         var f = filter.Split('/');

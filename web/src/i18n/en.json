@@ -1,6 +1,6 @@
 {
   "login.title": "Sign in",
-  "login.text": "Enter the token from Bridge__Web__Token in your .env.",
+  "login.text": "Enter the dashboard token: Bridge__Web__Token in your .env, or – if you didn't set one – the token the bridge made, shown with: docker compose exec tesla-bridge cat /data/web-token",
   "login.button": "Sign in",
   "nav.overview": "Car",
   "nav.controls": "Controls",
@@ -373,5 +373,8 @@
   "map.on": "Show the map and the address",
   "map.off": "Off – coordinates only",
   "map.saved": "Saved",
-  "loc.status": "Status"
+  "loc.status": "Status",
+  "login.wrong": "That token isn't right",
+  "mqttOpen.title": "Your MQTT broker lets anyone in",
+  "mqttOpen.text": "It accepts logins without a password, and the bridge takes commands over MQTT – so any device on your network can send <code>tesla/&lt;VIN&gt;/cmd/unlock</code>. Require logins in the broker (Mosquitto: <code>allow_anonymous false</code> and a <code>password_file</code>), or set <code>Bridge__Mqtt__Commands=false</code> in .env if you only use the Home Assistant integration. See docs/security.md."
 }

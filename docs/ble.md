@@ -66,7 +66,7 @@ Get the two files from this repository into your ESPHome folder (in the Device B
 mkdir tesla-ble && cd tesla-ble
 curl -fsSLO https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/esphome/tesla-ble.yaml
 curl -fsSL  https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/esphome/secrets.yaml.example -o secrets.yaml
-nano secrets.yaml          # Wi-Fi, VIN, MAC address, an API key (openssl rand -base64 32)
+nano secrets.yaml          # Wi-Fi, VIN, MAC address, an API key (openssl rand -base64 32), a web password (openssl rand -hex 16)
 ```
 
 Connect the ESP32 with USB and flash it:
@@ -76,7 +76,9 @@ pip install esphome
 esphome run tesla-ble.yaml            # the first build takes a while; later updates go over Wi-Fi
 ```
 
-When it's running, `http://tesla-ble.local` (or `http://<the ESP32's IP>`) opens the ESP32's own little web page with all its values. Give it a fixed IP address in your router, so the bridge can always find it.
+When it's running, `http://tesla-ble.local` (or `http://<the ESP32's IP>`) opens the ESP32's own little web page with all its values, after you log in with `web_username` and `web_password`. Give it a fixed IP address in your router, so the bridge can always find it.
+
+> **The ESP32 is a key to your car.** Its web server can unlock the car over Bluetooth, which is why `tesla-ble.yaml` always sets a username and password for it. Use a long random password, and if your router can, put the ESP32 on a separate network for smart-home devices that guests don't use. The firmware version is pinned (`ref:` in the YAML), so a rebuild never pulls in changes you haven't looked at.
 
 **Already running ESPHome Tesla BLE in Home Assistant?** Then you don't need a new ESP32. Add these lines to your existing YAML and flash it again:
 
@@ -84,6 +86,9 @@ When it's running, `http://tesla-ble.local` (or `http://<the ESP32's IP>`) opens
 web_server:
   port: 80
   version: 3
+  auth:
+    username: !secret web_username
+    password: !secret web_password
 api:
   reboot_timeout: 0s
 ```
@@ -92,7 +97,7 @@ Keep the English entity names: the bridge finds the entities by name, so leave o
 
 ## Step 3 – Connect it to the bridge
 
-On the dashboard: **Settings → Bluetooth (ESP32)**. Type the address, e.g. `http://192.168.1.50`, and press **Save**.
+On the dashboard: **Settings → Bluetooth (ESP32)**. Type the address, e.g. `http://192.168.1.50`, and the `web_username` and `web_password` from `secrets.yaml`, and press **Save**.
 
 Within a few seconds the status shows one of these:
 
@@ -103,7 +108,7 @@ Within a few seconds the status shows one of these:
 | 🔴 *Can't reach the ESP32* | Wrong address, ESP32 off, or a different network. The reason is shown underneath |
 | 🟡 *…doesn't have the Tesla BLE entities* | It is an ESPHome device, but not flashed with `tesla-ble.yaml` |
 
-You can also put the address in `.env` instead (`Bridge__Vehicles__0__Ble__Url=http://192.168.1.50`), and the setup script asks for it too. If both are set, the dashboard's setting wins. With `auth:` in `web_server`, also fill in the username and password.
+You can also put it in `.env` instead (`Bridge__Vehicles__0__Ble__Url=http://192.168.1.50` plus `…__Ble__Username` and `…__Ble__Password`), and the setup script asks for it too. If both are set, the dashboard's setting wins.
 
 ## Step 4 – Pair the ESP32 with the car (once)
 
@@ -127,7 +132,7 @@ Then press **Test: wake the car**. If the car wakes, you're done.
 
 | Problem | Check |
 |---|---|
-| *Can't reach the ESP32* | Open `http://<ESP32>/` in a browser on the server's network. Docker on the server must be able to reach the ESP32's IP (same LAN). `.local` names often don't work inside Docker, so use the IP |
+| *Can't reach the ESP32* or *401* | Open `http://<ESP32>/` in a browser on the server's network and log in – the same username and password must be on the dashboard. Docker on the server must be able to reach the ESP32's IP (same LAN). `.local` names often don't work inside Docker, so use the IP |
 | The car is never "in range" | Look at *BLE Status* on the ESP32's web page. Move it closer, check the MAC address in `secrets.yaml` |
 | Commands still use the Fleet API | Is the key paired (step 4)? Check the `transport` attribute of *Command status* in HA, or the command log on the dashboard's Data page: it says `ble` or `fleet-api` |
 | The ESP32 restarts every 15 minutes | `api: reboot_timeout: 0s` is missing from its YAML |

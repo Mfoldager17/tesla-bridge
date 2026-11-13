@@ -26,11 +26,19 @@ x-logging: &logging
     max-size: "10m"
     max-file: "3"
 
+# No container needs extra privileges: drop them all, and never gain new ones.
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+
 services:
   # Runs once on every start and exits: creates the app key and internal TLS if missing,
   # writes fleet-telemetry's config.json from .env and hands the files to PUID:PGID.
   tesla-init:
     logging: *logging
+    <<: *hardening
+    cap_add: [CHOWN, FOWNER, DAC_OVERRIDE]   # runs as root only to hand the files to PUID:PGID
     image: *bridge-image
     command: ["init"]
     env_file: .env
@@ -41,6 +49,7 @@ services:
 
   fleet-telemetry:
     logging: *logging
+    <<: *hardening
     image: tesla/fleet-telemetry:v0.9.5
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
@@ -70,8 +79,7 @@ services:
       TESLA_HTTP_PROXY_PORT: "4443"
       TESLA_HTTP_PROXY_TIMEOUT: 30s
       TESLA_KEY_FILE: /config/fleet-key.pem   # the app's private key
-    security_opt:
-      - no-new-privileges:true
+    <<: *hardening
     volumes:
       - ./config/tesla-proxy:/config:ro
     depends_on:
@@ -80,18 +88,24 @@ services:
 
   tesla-bridge:
     logging: *logging
+    <<: *hardening
     image: *bridge-image
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
     env_file: .env
     environment:
       HOME: /data
+      Bridge__RunBootstrap: "false"   # tesla-init has made the keys and config already
     ports:
-      - "8090:8080"            # dashboard + API on http://<server>:8090. LAN only – do NOT forward this port.
+      # Dashboard + API on http://<server>:8090. LAN only – do NOT forward this port. DASHBOARD_BIND=192.168.1.10
+      # in .env makes it listen on that address only (e.g. not on a VPN or a second network card).
+      - "${DASHBOARD_BIND:-0.0.0.0}:8090:8080"
       - "8091:8091"            # public: ONLY public key + login callback. Your reverse proxy sends https://<your domain> here.
-      # - "1884:1883"          # only if others (e.g. HA) should use the embedded broker – otherwise keep it closed
+      # - "1884:1883"          # only if others (e.g. HA) should use the embedded broker – it then needs Bridge__Mqtt__Username/Password
     volumes:
-      - ./config:/config
+      # Only what the bridge needs: never the app's private key or the telemetry certificate's key.
+      - ./config/public:/config/public:ro      # the app's public key + tesla-proxy's certificate (written by tesla-init)
+      - ./config/bridge:/config/bridge:ro      # optional: your own car.glb / telemetry-fields.json
       - ./data:/data
     depends_on:
       tesla-init:

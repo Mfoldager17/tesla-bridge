@@ -428,6 +428,10 @@ label:focus-within .btnlike { outline: 2px solid var(--accent); outline-offset: 
 .login { max-width: 380px; margin: 14vh auto; padding: 28px; }
 .login h1 { font-size: 20px; margin: 0 0 6px; }
 .login input { width: 100%; margin: 14px 0 10px; }
+.warnbox { border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); background: color-mix(in srgb, var(--warn) 8%, var(--surface)); margin-bottom: 16px; }
+.warnbox h2 { color: var(--warn); }
+.warnbox code { font-size: .92em; }
+.login-error { color: var(--danger); margin: 6px 0 0; font-size: 14px; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: var(--r-md); font-size: 14px; max-width: calc(100% - 32px); }
 @media (max-width: 860px) { .toast { bottom: 84px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

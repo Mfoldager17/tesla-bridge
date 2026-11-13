@@ -8,60 +8,16 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
-      - run: dotnet test TeslaBridge.sln -c Release
-
-  # The dashboard (web/): types, unit tests and a production build
-  web:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - run: npm ci
-      - run: npm run check
-      - run: npm test
-      - run: npm run build
-
-  # The HA integration (custom_components/tesla_bridge) against a real, running bridge with the simulator
-  ha-integration:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install pytest-homeassistant-custom-component
-      - name: Start the bridge (Development, embedded broker, simulator)
-        working-directory: src/TeslaBridge
-        run: |
-          dotnet build
-          ASPNETCORE_ENVIRONMENT=Development nohup dotnet run --no-build > /tmp/bridge.log 2>&1 &
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8080/api/info && break; sleep 1; done
-      - run: python -m pytest tests/ha -v
-      - if: failure()
-        run: cat /tmp/bridge.log
+  checks:
+    uses: ./.github/workflows/checks.yml
 
   # Every push to main: the image tagged edge (releases are built by release.yml)
   image:
-    needs: [test, web, ha-integration]
+    needs: checks
     if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/image.yml

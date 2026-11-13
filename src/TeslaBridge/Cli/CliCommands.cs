@@ -9,7 +9,7 @@ using TeslaBridge.Telemetry;
 
 namespace TeslaBridge.Cli;
 
-/// <summary>Engangs-værktøjer: docker compose exec tesla-bridge dotnet TeslaBridge.dll &lt;kommando&gt;</summary>
+/// <summary>One-off tools: docker compose exec tesla-bridge dotnet TeslaBridge.dll &lt;command&gt;</summary>
 public static class CliCommands
 {
     public static readonly string[] Names = ["init", "auth", "register", "public-key", "push-config", "telemetry-status", "telemetry-errors", "help"];
@@ -27,8 +27,8 @@ public static class CliCommands
                 case "init":
                 {
                     var r = TeslaBridge.Setup.Bootstrap.Run(opts);
-                    foreach (var c in r.Created) Console.WriteLine($"✓ Lavede {c}");
-                    Console.WriteLine($"✓ Skrev {opts.Telemetry.ServerConfigFile} (broker {opts.Mqtt.Host}:{opts.Mqtt.Port})");
+                    foreach (var c in r.Created) Console.WriteLine($"✓ Created {c}");
+                    Console.WriteLine($"✓ Wrote {opts.Telemetry.ServerConfigFile} (broker {opts.Mqtt.BrokerForTelemetry})");
                     foreach (var w in r.Warnings) Console.WriteLine($"⚠ {w}");
                     return 0;
                 }
@@ -39,9 +39,9 @@ public static class CliCommands
                 case "public-key":
                 {
                     var key = sp.GetRequiredService<TeslaKey>().Public;
-                    if (key is null) { Console.Error.WriteLine($"Ingen nøgle i {opts.Tesla.FleetKeyFile}. Kør: docker compose run --rm tesla-init"); return 1; }
+                    if (key is null) { Console.Error.WriteLine($"No key in {opts.Tesla.FleetKeyFile}. Run: docker compose run --rm tesla-init"); return 1; }
                     Console.Write(key.Pem);
-                    Console.WriteLine($"\nFingeraftryk: {key.Fingerprint}\nSkal kunne hentes på: {opts.PublicKeyUrl}");
+                    Console.WriteLine($"\nFingerprint: {key.Fingerprint}\nMust be reachable at: {opts.PublicKeyUrl}");
                     return 0;
                 }
 
@@ -49,7 +49,7 @@ public static class CliCommands
                 {
                     var resp = await sp.GetRequiredService<TeslaPartnerClient>().RegisterAsync(ct);
                     Console.WriteLine(resp?.ToJsonString(Pretty));
-                    Console.WriteLine($"\n✓ {opts.PartnerDomain} er registreret. Par nu nøglen med bilen: {opts.PairingUrl}");
+                    Console.WriteLine($"\n✓ {opts.PartnerDomain} is registered. Now pair the key with the car: {opts.PairingUrl}");
                     return 0;
                 }
 
@@ -58,7 +58,7 @@ public static class CliCommands
                     var svc = sp.GetRequiredService<TelemetryConfigService>();
                     var resp = await svc.PushAsync(opts.Vehicles.Select(v => v.Vin).ToArray(), ct);
                     Console.WriteLine(resp?.ToJsonString(Pretty));
-                    Console.WriteLine("\nTjek om bilen har modtaget den med: telemetry-status (vent på \"synced\": true)");
+                    Console.WriteLine("\nCheck that the car has it with: telemetry-status (wait for \"synced\": true)");
                     return 0;
                 }
 
@@ -80,23 +80,23 @@ public static class CliCommands
 
                 default:
                     Console.WriteLine("""
-                        Brug: tesla-bridge [kommando]
+                        Usage: tesla-bridge [command]
 
-                          (ingen)            Kør bridgen
-                          init               Lav nøgler, intern TLS og fleet-telemetrys config (sker også automatisk)
-                          auth               Log ind hos Tesla i terminalen (alternativ til dashboardets knap)
-                          public-key         Vis den offentlige nøgle og hvor den skal kunne hentes
-                          register           Registrér partnerdomænet hos Tesla
-                          push-config        Send telemetri-konfiguration til bilen(e) nu
-                          telemetry-status   Vis bilens aktuelle telemetri-konfiguration (synced?)
-                          telemetry-errors   Vis fejl bilen har rapporteret om forbindelsen til din server
+                          (none)             Run the bridge
+                          init               Make keys, internal TLS and fleet-telemetry's config (also happens by itself)
+                          auth               Sign in with Tesla in the terminal (instead of the dashboard's button)
+                          public-key         Show the public key and where it must be reachable
+                          register           Register the partner domain with Tesla
+                          push-config        Send the telemetry configuration to the car(s) now
+                          telemetry-status   Show the car's current telemetry configuration (synced?)
+                          telemetry-errors   Show errors the car has reported about the connection to your server
                         """);
                     return command == "help" ? 0 : 1;
             }
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Fejl: {ex.Message}");
+            Console.Error.WriteLine($"Error: {ex.Message}");
             return 1;
         }
     }
@@ -105,20 +105,20 @@ public static class CliCommands
     {
         if (string.IsNullOrWhiteSpace(opts.Tesla.ClientId) || string.IsNullOrWhiteSpace(opts.PartnerDomain))
         {
-            Console.Error.WriteLine("Sæt Bridge__Tesla__ClientId, Bridge__Tesla__ClientSecret og Bridge__Telemetry__Hostname i .env først.");
+            Console.Error.WriteLine("Set Bridge__Tesla__ClientId, Bridge__Tesla__ClientSecret and Bridge__Telemetry__Hostname in .env first.");
             return 1;
         }
 
         var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant();
         Console.WriteLine($"""
 
-            1. Åbn denne adresse og log ind med din Tesla-konto:
+            1. Open this address and sign in with your Tesla account:
 
                {tokens.BuildAuthorizeUrl(state)}
 
-            2. Godkend adgang. Browseren sendes videre til {opts.RedirectUri}
-               (det er fint, hvis siden ikke findes).
-            3. Kopiér HELE adressen fra browserens adresselinje og indsæt den her:
+            2. Allow access. The browser is sent on to {opts.RedirectUri}
+               (it's fine if that page doesn't exist).
+            3. Copy the WHOLE address from the browser's address bar and paste it here:
 
             """);
         Console.Write("> ");
@@ -128,9 +128,9 @@ public static class CliCommands
         if (Uri.TryCreate(input, UriKind.Absolute, out var uri))
         {
             var q = HttpUtility.ParseQueryString(uri.Query);
-            if (q["state"] is { } s && s != state)
+            if (q["state"] != state)
             {
-                Console.Error.WriteLine("state matcher ikke – brug linket ovenfor og prøv igen.");
+                Console.Error.WriteLine("The state in the address doesn't match – use the link above and try again.");
                 return 1;
             }
             code = q["code"] ?? "";
@@ -138,12 +138,12 @@ public static class CliCommands
 
         if (string.IsNullOrEmpty(code))
         {
-            Console.Error.WriteLine("Fandt ingen 'code' i adressen.");
+            Console.Error.WriteLine("No 'code' in the address.");
             return 1;
         }
 
         await tokens.ExchangeCodeAsync(code, ct);
-        Console.WriteLine($"\n✓ Tokens gemt i {opts.Tesla.TokenFile}. Start nu bridgen: docker compose up -d");
+        Console.WriteLine($"\n✓ Tokens saved in {opts.Tesla.TokenFile}. Now start the bridge: docker compose up -d");
         return 0;
     }
 }

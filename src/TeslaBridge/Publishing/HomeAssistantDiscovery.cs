@@ -9,9 +9,9 @@ using TeslaBridge.Options;
 namespace TeslaBridge.Publishing;
 
 /// <summary>
-/// Udgiver MQTT discovery, så Home Assistant selv opretter én enhed pr. bil med alle entiteter.
-/// Genudsendes når HA melder "online" på {discovery}/status. Andre klienter kan ignorere dette
-/// og læse {bridge}/{vin}/state/* direkte.
+/// Publishes MQTT discovery, so Home Assistant creates one device per car with all its entities by itself.
+/// Sent again when HA says "online" on {discovery}/status. Other clients can ignore this and read
+/// {bridge}/{vin}/state/* directly.
 /// </summary>
 public sealed class HomeAssistantDiscovery(
     MqttConnection mqtt,
@@ -54,7 +54,7 @@ public sealed class HomeAssistantDiscovery(
         }
     }
 
-    /// <summary>Config-topics fra tidligere versioner, der ikke længere bruges (tømmes, så HA fjerner entiteten).</summary>
+    /// <summary>Config topics from earlier versions that are no longer used (emptied, so HA removes the entity).</summary>
     internal static IEnumerable<string> LegacyTopics(VehicleOptions v, string prefix, List<(string Topic, JsonObject Payload)> current)
     {
         var id = $"tesla_bridge_{v.Vin.ToLowerInvariant()}";
@@ -62,15 +62,15 @@ public sealed class HomeAssistantDiscovery(
         return Legacy.Select(l => $"{prefix}/{l.Component}/{id}/{l.Key}/config").Where(t => !live.Contains(t));
     }
 
-    // ---------- samme definitioner til HA-integrationen (uden MQTT) ----------
+    // ---------- the same definitions for the HA integration (without MQTT) ----------
 
     private const string ApiBase = "__bridge__";
 
     /// <summary>
-    /// Entiteterne som JSON til custom_components/tesla_bridge (GET /api/entities). Det er de samme
-    /// discovery-configs som MQTT-vejen bruger, bare med topics byttet til nøgler:
-    /// "state:&lt;nøgle&gt;" (felt i /api/state), "cmd:&lt;navn&gt;" (POST /api/vehicles/{vin}/cmd/&lt;navn&gt;) og "usage".
-    /// Så de to veje kan ikke glide fra hinanden: navne, typer, ikoner og templates er identiske.
+    /// The entities as JSON for custom_components/tesla_bridge (GET /api/entities). They are the same discovery
+    /// configs the MQTT way uses, with the topics swapped for keys: "state:&lt;key&gt;" (a field in /api/state),
+    /// "cmd:&lt;name&gt;" (POST /api/vehicles/{vin}/cmd/&lt;name&gt;) and "usage". So the two ways can't drift apart:
+    /// names, types, icons and templates are identical.
     /// </summary>
     public static JsonObject ApiDefinitions(BridgeOptions o)
     {
@@ -133,7 +133,7 @@ public sealed class HomeAssistantDiscovery(
 
     private sealed record Binary(string Key, string Name, string? DeviceClass = null, string? Icon = null, string? Category = null);
 
-    // Navne og typer følger Teslemetry-integrationen, så dashboards kan flyttes 1:1
+    // Names and types follow the Teslemetry integration, so dashboards can be moved over 1:1
     // (sensor.tesla_battery_level → sensor.model_y_battery_level).
     private static readonly Sensor[] Sensors =
     [
@@ -165,13 +165,13 @@ public sealed class HomeAssistantDiscovery(
         new("hvac_power_state", "HVAC power state", Icon: "mdi:fan", Category: "diagnostic"),
         new("sentry_mode", "Sentry mode", Icon: "mdi:cctv", Category: "diagnostic"),
         new("destination", "Destination", Icon: "mdi:map-marker"),
-        new("time_to_arrival", "Time to arrival", null, "timestamp", null),   // tidspunkt, som Teslemetry
+        new("time_to_arrival", "Time to arrival", null, "timestamp", null),   // a point in time, like Teslemetry
         new("distance_to_arrival", "Distance to arrival", "km", "distance", null),
         new("state_of_charge_at_arrival", "State of charge at arrival", "%", "battery", null),
         new("version", "Version", Icon: "mdi:update", Category: "diagnostic"),
     ];
 
-    /// <summary>Teslemetry-nøgle → bridgens tilstandsnøgle, hvor de er forskellige.</summary>
+    /// <summary>Teslemetry key → the bridge's state key, where they differ.</summary>
     private static readonly Dictionary<string, string> StateKeyOf = new()
     {
         ["charging"] = "charging_state",
@@ -229,8 +229,8 @@ public sealed class HomeAssistantDiscovery(
     ];
 
     /// <summary>
-    /// Entiteter fra tidligere versioner af bridgen. Deres discovery-config tømmes, så HA fjerner dem
-    /// (de nye har Teslemetrys navne). Kun nøgler, der ikke længere findes, ryddes.
+    /// Entities from earlier versions of the bridge. Their discovery config is emptied, so HA removes them
+    /// (the new ones have Teslemetry's names). Only keys that no longer exist are cleared.
     /// </summary>
     private static readonly (string Component, string Key)[] Legacy =
     [
@@ -252,7 +252,7 @@ public sealed class HomeAssistantDiscovery(
         ("button", "open_charge_port"), ("button", "close_charge_port"),
     ];
 
-    /// <summary>"Model Y" → "model_y". Kun a-z, 0-9 og _ (gyldigt i et entity id).</summary>
+    /// <summary>"Model Y" → "model_y". Only a-z, 0-9 and _ (valid in an entity id).</summary>
     internal static string Slug(string name)
     {
         var sb = new System.Text.StringBuilder();
@@ -268,7 +268,7 @@ public sealed class HomeAssistantDiscovery(
         return slug.Length == 0 ? "tesla" : slug;
     }
 
-    /// <summary>Én enhed "Tesla Bridge" med Fleet API-forbruget for måneden (fra {bridge}/bridge/usage).</summary>
+    /// <summary>One device, "Tesla Bridge", with the month's Fleet API usage (from {bridge}/bridge/usage).</summary>
     internal static List<(string Topic, JsonObject Payload)> BuildUsage(string bridgeBase, string prefix, string availabilityTopic)
     {
         const string id = "tesla_bridge";
@@ -292,18 +292,18 @@ public sealed class HomeAssistantDiscovery(
             if (deviceClass is not null) c["device_class"] = deviceClass;
             if (stateClass is not null) c["state_class"] = stateClass;
             if (attributes) c["json_attributes_topic"] = topic;
-            // Tælleren nulstilles den 1.; last_reset fortæller HA's statistik det.
+            // The counter starts over on the 1st; last_reset tells HA's statistics.
             if (stateClass == "total") c["last_reset_value_template"] = "{{ value_json.month_start }}";
             list.Add(($"{prefix}/sensor/{id}/{key}/config", c));
         }
 
-        Add("cost_month", "Forbrug denne måned", "{{ value_json.total_usd }}", "USD", "monetary", "total", "mdi:currency-usd", attributes: true);
-        Add("cost_projected", "Forventet forbrug for måneden", "{{ value_json.projected_usd if value_json.projected_usd is not none else None }}", "USD", "monetary", null, "mdi:chart-line");
-        Add("credit_left", "Tilbage af gratis rabat", "{{ [value_json.credit_usd - value_json.total_usd, 0] | max | round(2) }}", "USD", "monetary", null, "mdi:gift-outline");
-        Add("signals_month", "Signaler denne måned", "{{ value_json.categories.signals.count }}", null, null, "total_increasing", "mdi:access-point");
-        Add("commands_month", "Kommandoer denne måned", "{{ value_json.categories.commands.count }}", null, null, "total_increasing", "mdi:console");
-        Add("wakes_month", "Wakes denne måned", "{{ value_json.categories.wakes.count }}", null, null, "total_increasing", "mdi:sleep-off");
-        Add("data_month", "Data-forespørgsler denne måned", "{{ value_json.categories.data.count }}", null, null, "total_increasing", "mdi:database-search");
+        Add("cost_month", "Cost this month", "{{ value_json.total_usd }}", "USD", "monetary", "total", "mdi:currency-usd", attributes: true);
+        Add("cost_projected", "Projected cost this month", "{{ value_json.projected_usd if value_json.projected_usd is not none else None }}", "USD", "monetary", null, "mdi:chart-line");
+        Add("credit_left", "Free credit left", "{{ [value_json.credit_usd - value_json.total_usd, 0] | max | round(2) }}", "USD", "monetary", null, "mdi:gift-outline");
+        Add("signals_month", "Signals this month", "{{ value_json.categories.signals.count }}", null, null, "total_increasing", "mdi:access-point");
+        Add("commands_month", "Commands this month", "{{ value_json.categories.commands.count }}", null, null, "total_increasing", "mdi:console");
+        Add("wakes_month", "Wake-ups this month", "{{ value_json.categories.wakes.count }}", null, null, "total_increasing", "mdi:sleep-off");
+        Add("data_month", "Data requests this month", "{{ value_json.categories.data.count }}", null, null, "total_increasing", "mdi:database-search");
 
         // New releases show up under Settings → Updates. No install button: the bridge runs in Docker,
         // so updating stays `docker compose pull && docker compose up -d` (the release notes say so).
@@ -358,7 +358,7 @@ public sealed class HomeAssistantDiscovery(
             return o;
         }
 
-        // default_entity_id (HA 2025.10+; object_id virker ikke fra 2026.4): fx "switch.model_y_climate".
+        // default_entity_id (HA 2025.10+; object_id stopped working in 2026.4): e.g. "switch.model_y_climate".
         void Add(string component, string key, JsonObject cfg)
         {
             cfg["default_entity_id"] = $"{component}.{Slug(v.Name)}_{key}";
@@ -378,7 +378,7 @@ public sealed class HomeAssistantDiscovery(
             if (s.Icon is not null) c["icon"] = s.Icon;
             if (s.Category is not null) c["entity_category"] = s.Category;
             if (!s.Enabled) c["enabled_by_default"] = false;
-            if (s.Key == "sentry_mode") c["unique_id"] = $"{id}_sentry_state";   // kontakten hedder også sentry_mode
+            if (s.Key == "sentry_mode") c["unique_id"] = $"{id}_sentry_state";   // the switch is called sentry_mode too
             Add("sensor", s.Key, c);
         }
 
@@ -412,7 +412,7 @@ public sealed class HomeAssistantDiscovery(
             Add("binary_sensor", b.Key, c);
         }
 
-        // ---------- Controls (samme som Teslemetry) ----------
+        // ---------- Controls (the same as Teslemetry) ----------
 
         // While a command waits for the car (being woken, or not confirmed yet), the entity gets the attributes
         // pending: true and waiting_for: "car to wake up" / "car to confirm" – HA has no "loading" state for
@@ -486,7 +486,7 @@ public sealed class HomeAssistantDiscovery(
         Number("charge_current", "Charge current", "charge_current_request", 5, 32, "A", "mdi:current-ac");
         Number("charge_limit", "Charge limit", "charge_limit", 50, 100, "%", "mdi:battery-charging-high");
 
-        // cover: state_topic giver true/false → open/closed
+        // cover: state_topic gives true/false → open/closed
         void Cover(string key, string name, string stateKey, string deviceClass, bool canClose, string? icon = null)
         {
             var c = Base(key, name);
@@ -510,7 +510,7 @@ public sealed class HomeAssistantDiscovery(
         Cover("trunk", "Trunk", "trunk_open", "door", canClose: true);
         Cover("windows", "Windows", "windows_open", "window", canClose: true);
 
-        // Klima-kortet: tænd/sluk, temperatur, kabintemperatur og klimatilstande (Normal/Keep/Dog/Camp).
+        // The climate card: on/off, temperature, cabin temperature and climate modes (Normal/Keep/Dog/Camp).
         {
             var c = Base("climate", "Climate");
             c["unique_id"] = $"{id}_climate_entity";
@@ -538,7 +538,7 @@ public sealed class HomeAssistantDiscovery(
             Add("climate", "climate", c);
         }
 
-        // Overophedningsbeskyttelse som klima-kort: fra / køl / kun blæser + grænse 30/35/40 °C.
+        // Cabin overheat protection as a climate card: off / cool / fan only + limit 30/35/40 °C.
         {
             var c = Base("cabin_overheat_protection", "Cabin overheat protection");
             c["modes"] = new JsonArray("off", "cool", "fan_only");
@@ -561,7 +561,7 @@ public sealed class HomeAssistantDiscovery(
             Add("climate", "cabin_overheat_protection", c);
         }
 
-        // Sædevarme og rattvarme
+        // Seat and steering wheel heat
         void Select(string key, string name, string stateKey, string[] options, string template, string icon)
         {
             var c = Base(key, name);

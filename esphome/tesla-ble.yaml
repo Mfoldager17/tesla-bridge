@@ -27,6 +27,10 @@ substitutions:
 packages:
   tesla_ble:
     url: https://github.com/PedroKTFC/esphome-tesla-ble/
+    # Pinned: this firmware becomes a key to your car, so it must not change by itself when you rebuild.
+    # To update: pick a newer release at https://github.com/PedroKTFC/esphome-tesla-ble/releases, read its notes,
+    # and put its commit (or tag) here.
+    ref: 651b4c25dcb24ce8d16d625a51868576e83bf2fe
     files:
       - packages/base.yml
       - packages/common.yml
@@ -43,10 +47,11 @@ api:
   reboot_timeout: 0s
 
 # What Tesla Bridge talks to: http://<ESP32>/events (live states) and POST /<domain>/<name>/<action>.
+# The web server can unlock the car, so it always needs a password: type the same username and password on the
+# bridge's dashboard (Settings → Bluetooth).
 web_server:
   port: 80
   version: 3
-  # Optional – then type the same username and password on the bridge's dashboard:
-  # auth:
-  #   username: !secret web_username
-  #   password: !secret web_password
+  auth:
+    username: !secret web_username
+    password: !secret web_password

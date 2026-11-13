@@ -15,14 +15,14 @@ from datetime import timedelta
 import logging
 from typing import Any
 
+from awesomeversion import AwesomeVersion
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers import issue_registry as ir
-from awesomeversion import AwesomeVersion
 
 from .api import BridgeAuthError, BridgeClient, BridgeError
 from .const import BRIDGE, CONF_TOKEN, CONF_URL, DOMAIN, MIN_BRIDGE_VERSION, PLATFORMS
@@ -192,7 +192,7 @@ class BridgeHub:
             identifiers={(DOMAIN, "bridge")},
             name="Tesla Bridge",
             manufacturer="Tesla Bridge",
-            model="Fleet API-forbrug",
+            model="Fleet API usage",
             sw_version=self.version,
             configuration_url=self.client.url,
         )

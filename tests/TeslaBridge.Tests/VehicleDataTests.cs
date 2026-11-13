@@ -49,13 +49,13 @@ public class MotionTests
     [Fact]
     public void Lock_and_cover_show_intermediate_state_while_command_is_pending()
     {
-        Assert.Equal("UNLOCKING", TeslaBridge.Publishing.StatePublisher.Motion("locked", pending: true, B(false), B(true)));
-        Assert.Equal("UNLOCKED", TeslaBridge.Publishing.StatePublisher.Motion("locked", pending: false, B(false), B(false)));
-        Assert.Equal("opening", TeslaBridge.Publishing.StatePublisher.Motion("frunk_open", pending: true, B(true), B(false)));
-        Assert.Equal("closed", TeslaBridge.Publishing.StatePublisher.Motion("windows_open", pending: false, B(false), B(false)));
-        Assert.Null(TeslaBridge.Publishing.StatePublisher.Motion("trunk_open", pending: false, null, null));
+        Assert.Equal("UNLOCKING", TeslaBridge.State.FieldJson.Motion("locked", pending: true, B(false), B(true)));
+        Assert.Equal("UNLOCKED", TeslaBridge.State.FieldJson.Motion("locked", pending: false, B(false), B(false)));
+        Assert.Equal("opening", TeslaBridge.State.FieldJson.Motion("frunk_open", pending: true, B(true), B(false)));
+        Assert.Equal("closed", TeslaBridge.State.FieldJson.Motion("windows_open", pending: false, B(false), B(false)));
+        Assert.Null(TeslaBridge.State.FieldJson.Motion("trunk_open", pending: false, null, null));
         // Forventet = allerede bekræftet → ingen mellemtilstand
-        Assert.Equal("LOCKED", TeslaBridge.Publishing.StatePublisher.Motion("locked", pending: true, B(true), B(true)));
+        Assert.Equal("LOCKED", TeslaBridge.State.FieldJson.Motion("locked", pending: true, B(true), B(true)));
     }
 
     [Fact]

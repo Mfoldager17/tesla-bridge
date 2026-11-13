@@ -12,16 +12,16 @@ namespace TeslaBridge.Auth;
 public sealed class PartnerAutoRegistration(
     TeslaPartnerClient partner, TeslaKey key, IOptions<BridgeOptions> options, ILogger<PartnerAutoRegistration> log) : BackgroundService
 {
-    protected override async Task ExecuteAsync(CancellationToken ct)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var o = options.Value;
-        if (!o.Tesla.AutoRegister || !TeslaBridge.Web.SetupApi.HasCredentials(o)) return;
-        try { await Task.Delay(TimeSpan.FromSeconds(20), ct); } catch (OperationCanceledException) { return; }
+        if (!o.Tesla.AutoRegister || !TeslaBridge.Setup.SetupStatusService.HasCredentials(o)) return;
+        try { await Task.Delay(TimeSpan.FromSeconds(20), stoppingToken); } catch (OperationCanceledException) { return; }
 
-        for (var attempt = 0; !ct.IsCancellationRequested; attempt++)
+        for (var attempt = 0; !stoppingToken.IsCancellationRequested; attempt++)
         {
-            if (await TryOnceAsync(o, ct)) return;
-            try { await Task.Delay(attempt < 6 ? TimeSpan.FromMinutes(10) : TimeSpan.FromHours(6), ct); }
+            if (await TryOnceAsync(o, stoppingToken)) return;
+            try { await Task.Delay(attempt < 6 ? TimeSpan.FromMinutes(10) : TimeSpan.FromHours(6), stoppingToken); }
             catch (OperationCanceledException) { return; }
         }
     }

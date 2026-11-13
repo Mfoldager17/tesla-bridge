@@ -14,12 +14,12 @@ namespace TeslaBridge.State;
 /// </summary>
 public sealed class PendingTracker(VehicleStateStore store, CommandService commands, IOptions<BridgeOptions> options, TimeProvider time) : IHostedService
 {
-    public const string Key = "pending";
+    public const string Key = StateKeys.Pending;
     private readonly Dictionary<string, bool> _waking = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _last = new(StringComparer.OrdinalIgnoreCase);
     private readonly Lock _lock = new();
 
-    public Task StartAsync(CancellationToken ct)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         store.PendingChanged += Publish;
         commands.StatusChanged += OnCommand;
@@ -27,7 +27,7 @@ public sealed class PendingTracker(VehicleStateStore store, CommandService comma
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken ct)
+    public Task StopAsync(CancellationToken cancellationToken)
     {
         store.PendingChanged -= Publish;
         commands.StatusChanged -= OnCommand;

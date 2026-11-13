@@ -13,30 +13,16 @@ using TeslaBridge.Usage;
 
 namespace TeslaBridge.Web;
 
-/// <summary>Lille HTTP-API til test-dashboardet. Kører i samme proces som bridgen.</summary>
+/// <summary>The dashboard's HTTP API, live events (SSE) and static files. Runs in the bridge's own process.</summary>
 public static class WebApi
 {
+    private static int _simulatorPresses;
+
     public static void MapBridgeApi(this WebApplication app)
     {
         var opts = app.Services.GetRequiredService<IOptions<BridgeOptions>>().Value;
-        var token = opts.Web.Token;
-
-        // Simpel token-beskyttelse: API'et kan låse bilen op, så sæt Bridge__Web__Token hvis porten er tilgængelig for andre.
-        app.Use(async (ctx, next) =>
-        {
-            var path = ctx.Request.Path;
-            if (!string.IsNullOrEmpty(token) && path.StartsWithSegments("/api") && path != "/api/info")
-            {
-                var given = ctx.Request.Headers.Authorization.ToString() is { Length: > 7 } h && h.StartsWith("Bearer ")
-                    ? h[7..] : ctx.Request.Query["token"].ToString();
-                if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(given), Encoding.UTF8.GetBytes(token)))
-                {
-                    ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    return;
-                }
-            }
-            await next();
-        });
+        var access = app.Services.GetRequiredService<WebAccess>();
+        app.UseBridgeSecurity(access, opts);
 
         app.UseDefaultFiles();
         app.UseStaticFiles();
@@ -48,22 +34,37 @@ public static class WebApi
         api.MapBleApi(opts);
         api.MapMapApi();
 
-        api.MapGet("/info", (MqttConnection mqtt, LiveEvents events) => Results.Json(new
+        var vehicles = api.MapGroup("/vehicles/{vin}").OnlyKnownVehicles(opts);
+        api.MapSessionApi(access);
+
+        // Without a valid token only what the sign-in page needs; the rest (VINs, host names) after signing in.
+        api.MapGet("/info", (HttpRequest req, MqttConnection mqtt, LiveEvents events) =>
         {
-            version = TeslaBridge.Versioning.BuildInfo.Version,
-            version_display = TeslaBridge.Versioning.BuildInfo.Display,
-            commit = TeslaBridge.Versioning.BuildInfo.Commit,
-            channel = TeslaBridge.Versioning.BuildInfo.Channel,
-            api_version = 2,
-            started_at = events.StartedAt,
-            mqtt_connected = mqtt.IsConnected,
-            embedded_broker = opts.Mqtt.EmbeddedBroker,
-            auth_required = !string.IsNullOrEmpty(token),
-            simulator = opts.Web.Simulator,
-            telemetry_hostname = opts.Telemetry.Hostname,
-            telemetry_port = opts.Telemetry.Port,
-            vehicles = opts.Vehicles.Select(v => new { vin = v.Vin, name = v.Name }),
-        }));
+            var basic = new Dictionary<string, object?>
+            {
+                ["version"] = TeslaBridge.Versioning.BuildInfo.Version,
+                ["version_display"] = TeslaBridge.Versioning.BuildInfo.Display,
+                ["api_version"] = 2,
+                ["auth_required"] = !access.Anonymous,
+            };
+            if (!access.IsAuthenticated(req))
+            {
+                // A wrong token (as opposed to none) is an error, so clients can tell the user.
+                return req.Headers.Authorization.Count > 0
+                    ? ApiErrors.Problem(StatusCodes.Status401Unauthorized, "Wrong token")
+                    : Results.Json(basic);
+            }
+            basic["commit"] = TeslaBridge.Versioning.BuildInfo.Commit;
+            basic["channel"] = TeslaBridge.Versioning.BuildInfo.Channel;
+            basic["started_at"] = events.StartedAt;
+            basic["mqtt_connected"] = mqtt.IsConnected;
+            basic["embedded_broker"] = opts.Mqtt.EmbeddedBroker;
+            basic["simulator"] = opts.Web.Simulator;
+            basic["telemetry_hostname"] = opts.Telemetry.Hostname;
+            basic["telemetry_port"] = opts.Telemetry.Port;
+            basic["vehicles"] = opts.Vehicles.Select(v => new { vin = v.Vin, name = v.Name });
+            return Results.Json(basic);
+        });
 
         // Newest release vs. this version; POST checks again now.
         api.MapGet("/update", (TeslaBridge.Versioning.UpdateCheckService u) => Results.Json(UpdateJson(u)));
@@ -79,24 +80,7 @@ public static class WebApi
             var result = new JsonArray();
             foreach (var vin in vins)
             {
-                var fields = new JsonObject();
-                foreach (var (key, fv) in store.Snapshot(vin).OrderBy(kv => kv.Key, StringComparer.Ordinal))
-                {
-                    fields[key] = new JsonObject
-                    {
-                        ["value"] = fv.Value?.DeepClone(),
-                        ["updated_at"] = fv.UpdatedAt.ToString("O"),
-                        ["source"] = JsonNamingPolicy.SnakeCaseLower.ConvertName(fv.Source.ToString()),
-                    };
-                    // Låse/covers: LOCKING/opening osv. mens en kommando venter (samme som MQTT-vejen)
-                    if (StatePublisher.Transitions.ContainsKey(key))
-                        fields[key + "_motion"] = new JsonObject
-                        {
-                            ["value"] = StatePublisher.Motion(key, store.HasPending(vin, key), fv.Value, store.GetConfirmed(vin, key)?.Value),
-                            ["updated_at"] = fv.UpdatedAt.ToString("O"),
-                            ["source"] = "bridge",
-                        };
-                }
+                var fields = FieldJson.Fields(store, vin);
                 result.Add(new JsonObject
                 {
                     ["vin"] = vin,
@@ -107,7 +91,7 @@ public static class WebApi
             return Results.Content(result.ToJsonString(Json.Relaxed), "application/json");
         });
 
-        // Entitetsdefinitioner til HA-integrationen (custom_components/tesla_bridge)
+        // Entity definitions for the HA integration (custom_components/tesla_bridge)
         api.MapGet("/entities", () =>
             Results.Content(TeslaBridge.Publishing.HomeAssistantDiscovery.ApiDefinitions(opts).ToJsonString(Json.Relaxed), "application/json"));
 
@@ -117,7 +101,7 @@ public static class WebApi
         api.MapGet("/events/recent", (LiveEvents events) =>
             Results.Content(new JsonArray(events.Recent().Select(ToJson).ToArray<JsonNode?>()).ToJsonString(Json.Relaxed), "application/json"));
 
-        // Server-Sent Events: alt der sker, live.
+        // Server-Sent Events: everything that happens, live.
         api.MapGet("/events", async (HttpContext ctx, LiveEvents events, CancellationToken ct) =>
         {
             ctx.Response.Headers.ContentType = "text/event-stream";
@@ -149,19 +133,19 @@ public static class WebApi
             finally { events.Unsubscribe(id); }
         });
 
-        api.MapPost("/vehicles/{vin}/cmd/{name}", async (string vin, string name, HttpRequest req,
+        vehicles.MapPost("/cmd/{name}", async (string vin, string name, HttpRequest req,
             VehicleStateStore store, CommandService commands, IHostApplicationLifetime life, ILoggerFactory lf) =>
         {
             var payload = (await new StreamReader(req.Body).ReadToEndAsync()).Trim();
             var command = CommandParser.Parse(name, payload.Length == 0 ? "PRESS" : payload, k => store.Get(vin, k));
-            if (command is null) return Results.BadRequest(new { error = $"Ukendt kommando eller payload: {name} = '{payload}'" });
+            if (command is null) return ApiErrors.BadRequest($"Unknown command or value: {name} = '{payload}'");
 
             var log = lf.CreateLogger("WebApi");
             var run = Task.Run(async () =>
             {
                 try { return await commands.ExecuteAsync(vin, command, life.ApplicationStopping); }
                 catch (OperationCanceledException) { return CommandResult.Failed("The bridge is stopping"); }
-                catch (Exception ex) { log.LogError(ex, "Fejl i {Command}", command); return CommandResult.Failed(ex.Message); }
+                catch (Exception ex) { log.LogError(ex, "{Command} failed", command); return CommandResult.Failed(ex.Message); }
             });
             // ?wait=true answers when the car has done it (woken first if needed) – like Teslemetry, so Home Assistant
             // shows the call as busy meanwhile and shows the car's error if it fails. Without it: 202 straight away.
@@ -170,24 +154,24 @@ public static class WebApi
             var result = await run;   // keeps running even if the caller gives up
             return result.IsSuccess
                 ? Results.Ok(new { command = command.Name, ok = true })
-                : Results.Json(new { command = command.Name, ok = false, error = result.Reason ?? result.Outcome.ToString() },
-                    statusCode: result.Outcome == CommandOutcome.Refused ? 409 : 502);
+                : ApiErrors.Problem(result.Outcome == CommandOutcome.Refused ? StatusCodes.Status409Conflict : StatusCodes.Status502BadGateway,
+                    result.Reason ?? result.Outcome.ToString(), new Dictionary<string, object?> { ["command"] = command.Name, ["ok"] = false });
         });
 
-        api.MapGet("/vehicles/{vin}/telemetry-config", async (string vin, TelemetryConfigService svc, CancellationToken ct) =>
+        vehicles.MapGet("/telemetry-config", async (string vin, TelemetryConfigService svc, CancellationToken ct) =>
             await Wrap(() => svc.GetStatusAsync(vin, ct)));
 
-        api.MapGet("/vehicles/{vin}/telemetry-errors", async (string vin, TelemetryConfigService svc, CancellationToken ct) =>
+        vehicles.MapGet("/telemetry-errors", async (string vin, TelemetryConfigService svc, CancellationToken ct) =>
             await Wrap(() => svc.GetErrorsAsync(vin, ct)));
 
-        api.MapPost("/vehicles/{vin}/telemetry-config", async (string vin, TelemetryConfigService svc, CancellationToken ct) =>
+        vehicles.MapPost("/telemetry-config", async (string vin, TelemetryConfigService svc, CancellationToken ct) =>
             await Wrap(() => svc.PushAsync([vin], ct)));
 
         if (opts.Web.Simulator)
         {
-            api.MapPost("/vehicles/{vin}/simulate", async (string vin, MqttConnection mqtt) =>
+            vehicles.MapPost("/simulate", async (string vin, MqttConnection mqtt) =>
             {
-                // Går gennem MQTT → ingest præcis som fleet-telemetry, så hele kæden testes.
+                // Through MQTT and the ingest exactly like fleet-telemetry, so the whole chain is tested.
                 var b = opts.Mqtt.TelemetryTopicBase;
                 var rnd = Random.Shared;
                 var samples = new (string Field, string Json)[]
@@ -202,10 +186,11 @@ public static class WebApi
                     ("ACChargingPower", "11.0"),
                     ("DoorState", "{\"DriverFront\":false,\"PassengerFront\":false,\"DriverRear\":false,\"PassengerRear\":false,\"TrunkFront\":false,\"TrunkRear\":false}"),
                 }.ToList();
-                // Every other press the car drives a little around Aarhus towards a destination; otherwise it is parked.
+                // Every second press the car drives a little around central Aarhus towards a destination; the first one
+                // parks it by the city hall.
                 var inv = System.Globalization.CultureInfo.InvariantCulture;
-                var driving = rnd.Next(2) == 0;
-                var (lat, lon) = (56.1185 + (driving ? (rnd.NextDouble() - .5) * .02 : 0), 10.1235 + (driving ? (rnd.NextDouble() - .5) * .03 : 0));
+                var driving = Interlocked.Increment(ref _simulatorPresses) % 2 == 0;
+                var (lat, lon) = (56.1530 + (driving ? (rnd.NextDouble() - .5) * .02 : 0), 10.2033 + (driving ? (rnd.NextDouble() - .5) * .03 : 0));
                 samples.Add(("Location", string.Format(inv, "{{\"latitude\":{0:0.000000},\"longitude\":{1:0.000000}}}", lat, lon)));
                 samples.Add(("GpsHeading", rnd.Next(0, 360).ToString(inv)));
                 samples.Add(("Gear", driving ? "\"ShiftStateD\"" : "\"ShiftStateP\""));
@@ -223,7 +208,7 @@ public static class WebApi
             });
 
             // Puts the pretend car to sleep, so the next command has to wake it first.
-            api.MapPost("/vehicles/{vin}/simulate/sleep", (string vin, IEnumerable<TeslaBridge.Commands.ICommandTransport> transports) =>
+            vehicles.MapPost("/simulate/sleep", (string vin, IEnumerable<TeslaBridge.Commands.ICommandTransport> transports) =>
             {
                 transports.OfType<TeslaBridge.Commands.SimulatorTransport>().FirstOrDefault()?.Sleep(vin);
                 return Results.Ok(new { asleep = true });
@@ -260,9 +245,9 @@ public static class WebApi
             var r = await call();
             return Results.Content(r?.ToJsonString(Json.Relaxed) ?? "null", "application/json");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || ex is TaskCanceledException)
         {
-            return Results.Json(new { error = ex.Message }, statusCode: StatusCodes.Status502BadGateway);
+            return ApiErrors.Upstream(ex);
         }
     }
 }

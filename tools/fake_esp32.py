@@ -8,12 +8,12 @@ It speaks the same web-server API as ESPHome: GET /events (Server-Sent Events) a
 POST /<domain>/<name>/<action>[?value=…|option=…]. Commands change its state, like the real car would,
 and are printed. Type "away" / "home" and Enter to move the car out of / into Bluetooth range.
 """
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import sys
 import threading
 import time
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8099
 
@@ -75,7 +75,8 @@ def set_state(eid, st, val):
         msg = event(eid).encode()
         for c in list(clients):
             try:
-                c.wfile.write(msg); c.wfile.flush()
+                c.wfile.write(msg)
+                c.wfile.flush()
             except OSError:
                 clients.remove(c)
 
@@ -128,7 +129,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.split("?")[0] != "/events":
-            self.send_error(404); return
+            self.send_error(404)
+            return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -143,7 +145,8 @@ class Handler(BaseHTTPRequestHandler):
             while True:
                 time.sleep(10)
                 with lock:
-                    self.wfile.write(b"event: ping\ndata: {}\n\n"); self.wfile.flush()
+                    self.wfile.write(b"event: ping\ndata: {}\n\n")
+                    self.wfile.flush()
         except OSError:
             with lock:
                 if self in clients:
@@ -162,9 +165,11 @@ def console():
     for line in sys.stdin:
         cmd = line.strip()
         if cmd == "away":
-            set_state("binary_sensor/BLE Status", "OFF", False); print("  car out of range")
+            set_state("binary_sensor/BLE Status", "OFF", False)
+            print("  car out of range")
         elif cmd == "home":
-            set_state("binary_sensor/BLE Status", "ON", True); print("  car in range")
+            set_state("binary_sensor/BLE Status", "ON", True)
+            print("  car in range")
 
 
 if __name__ == "__main__":

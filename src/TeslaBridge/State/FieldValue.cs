@@ -6,26 +6,26 @@ namespace TeslaBridge.State;
 [JsonConverter(typeof(JsonStringEnumConverter<ValueSource>))]
 public enum ValueSource
 {
-    /// <summary>Kom fra bilens telemetri-stream.</summary>
+    /// <summary>From the car's telemetry stream.</summary>
     Stream,
-    /// <summary>Sat af os efter en kommando; venter på bekræftelse fra streamen.</summary>
+    /// <summary>Set by us after a command; waiting for the stream to confirm it.</summary>
     Optimistic,
-    /// <summary>Indlæst fra disk ved opstart (sidst kendte værdi).</summary>
+    /// <summary>Loaded from disk at start (the last known value).</summary>
     Restored,
-    /// <summary>Afledt eller sat af bridgen selv (fx online/last_seen).</summary>
+    /// <summary>Derived or set by the bridge itself (e.g. online/last_seen).</summary>
     Bridge,
-    /// <summary>Hentet med vehicle_data, fordi streamen endnu ikke havde sendt feltet.</summary>
+    /// <summary>Fetched with vehicle_data, because the stream hadn't sent the field yet.</summary>
     Snapshot,
     /// <summary>Read over Bluetooth by the ESP32 next to the car (free, only when the car is in range).</summary>
     Ble,
 }
 
-/// <summary>Én værdi for ét felt, med hvornår og hvorfra den kom.</summary>
+/// <summary>One value for one field, with when and where it came from.</summary>
 public sealed record FieldValue(JsonNode? Value, DateTimeOffset UpdatedAt, ValueSource Source);
 
 /// <summary>
-/// En forventet værdi efter en kommando. Holdes indtil streamen bekræfter den,
-/// eller til den udløber – så en gammel "off" lige efter opvågning ikke overskriver "on".
+/// An expected value after a command. Kept until the stream confirms it, or until it expires – so an old "off" right
+/// after waking up doesn't overwrite "on".
 /// </summary>
 public sealed record PendingValue(
     JsonNode? Value,

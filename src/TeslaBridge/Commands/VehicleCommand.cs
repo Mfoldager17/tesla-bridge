@@ -2,25 +2,25 @@ using System.Text.Json.Nodes;
 
 namespace TeslaBridge.Commands;
 
-/// <summary>Hvad vi forventer at se i tilstanden, når en kommando er udført.</summary>
+/// <summary>What we expect to see in the state once a command is done.</summary>
 public sealed record Expectation(string Key, JsonNode? Value, Func<JsonNode?, bool>? ConfirmedBy = null);
 
 /// <summary>
-/// En kommando i bridgens eget sprog. Transporter (Fleet API i dag, BLE senere)
-/// oversætter selv til deres protokol – resten af koden kender kun disse typer.
+/// A command in the bridge's own terms. Each transport (Fleet API, Bluetooth) translates it to its own protocol –
+/// the rest of the code only knows these types.
 /// </summary>
 public abstract record VehicleCommand
 {
-    /// <summary>Navn på Fleet API-endpointet (…/command/{FleetEndpoint}).</summary>
+    /// <summary>The Fleet API endpoint name (…/command/{FleetEndpoint}).</summary>
     public abstract string FleetEndpoint { get; }
 
-    /// <summary>JSON-body til Fleet API, eller null for tom body.</summary>
+    /// <summary>The JSON body for the Fleet API, or null for an empty body.</summary>
     public virtual JsonObject? FleetBody => null;
 
-    /// <summary>Optimistiske værdier, der sættes med det samme.</summary>
+    /// <summary>Optimistic values, set straight away.</summary>
     public virtual IReadOnlyList<Expectation> Expectations => [];
 
-    /// <summary>Kort navn til logs og status (fx "ClimateOn").</summary>
+    /// <summary>A short name for logs and status (e.g. "ClimateOn").</summary>
     public string Name => GetType().Name;
 
     public sealed override string ToString() => Name;
@@ -87,7 +87,7 @@ public static class Cmd
         };
     }
 
-    /// <summary>Klimatilstand: 0 = fra, 1 = hold, 2 = hund, 3 = camp.</summary>
+    /// <summary>Climate mode: 0 = off, 1 = keep, 2 = dog, 3 = camp.</summary>
     public sealed record SetClimateKeeper(int Mode) : VehicleCommand
     {
         public static readonly string[] Names = ["off", "keep", "dog", "camp"];
@@ -99,7 +99,7 @@ public static class Cmd
                 : [new("climate_keeper_mode", JsonValue.Create(Names[Mode])), new("climate_on", B(true))];
     }
 
-    /// <summary>Beskyttelse mod overophedning af kabinen: off / on / fan_only.</summary>
+    /// <summary>Cabin overheat protection: off / on / fan_only.</summary>
     public sealed record SetCabinOverheatProtection(string Mode) : VehicleCommand
     {
         public override string FleetEndpoint => "set_cabin_overheat_protection";
@@ -181,7 +181,7 @@ public static class Cmd
         public override IReadOnlyList<Expectation> Expectations => [new("frunk_open", B(true))];
     }
 
-    /// <summary>Bagagerummet kan kun "skiftes". Kender vi retningen (HA's åbn/luk), forventer vi den.</summary>
+    /// <summary>The trunk can only be "toggled". When the direction is known (HA's open/close), that's what we expect.</summary>
     public sealed record ToggleTrunk(bool? Open = null) : VehicleCommand
     {
         public override string FleetEndpoint => "actuate_trunk";
@@ -203,7 +203,7 @@ public static class Cmd
         public override IReadOnlyList<Expectation> Expectations => [new("windows_open", B(false))];
     }
 
-    /// <summary>Automatisk sædeklima: position 1 = fører, 2 = passager.</summary>
+    /// <summary>Automatic seat climate: position 1 = driver, 2 = passenger.</summary>
     public sealed record SetAutoSeatClimate(int Position, bool On) : VehicleCommand
     {
         public override string FleetEndpoint => "remote_auto_seat_climate_request";
@@ -219,7 +219,7 @@ public static class Cmd
         public override IReadOnlyList<Expectation> Expectations => [new("auto_steering_wheel_heat", B(On))];
     }
 
-    /// <summary>Rattvarme: 0 = fra, 1 = lav, 3 = høj (Teslas niveauer).</summary>
+    /// <summary>Steering wheel heat: 0 = off, 1 = low, 3 = high (Tesla's levels).</summary>
     public sealed record SetSteeringWheelHeatLevel(int Level) : VehicleCommand
     {
         public override string FleetEndpoint => "remote_steering_wheel_heat_level_request";
@@ -241,7 +241,7 @@ public static class Cmd
         public override IReadOnlyList<Expectation> Expectations => [new("valet_mode", B(On))];
     }
 
-    /// <summary>Overophedningsbeskyttelsens grænse: 30, 35 eller 40 °C.</summary>
+    /// <summary>The cabin overheat protection limit: 30, 35 or 40 °C.</summary>
     public sealed record SetCopTemp(int Celsius) : VehicleCommand
     {
         public override string FleetEndpoint => "set_cop_temp";
@@ -276,7 +276,7 @@ public static class Cmd
         public override string FleetEndpoint => "honk_horn";
     }
 
-    /// <summary>Vækker bare bilen. Håndteres specielt af CommandService.</summary>
+    /// <summary>Just wakes the car. Handled specially by CommandService.</summary>
     public sealed record Wake : VehicleCommand
     {
         public override string FleetEndpoint => "wake_up";

@@ -187,7 +187,8 @@ public class BleRoutingTests
     private static CommandService Svc(params ICommandTransport[] t) =>
         new(new CommandRouter(t), new VehicleStateStore(),
             Microsoft.Extensions.Options.Options.Create(new BridgeOptions { Commands = new CommandOptions { WakeTimeoutSeconds = 2 } }),
-            TimeProvider.System, NullLogger<CommandService>.Instance) { RetryDelay = TimeSpan.FromMilliseconds(10) };
+            TimeProvider.System, NullLogger<CommandService>.Instance)
+        { RetryDelay = TimeSpan.FromMilliseconds(10) };
 
     [Fact]
     public async Task Bluetooth_first_then_fleet_for_what_it_cant_do()
@@ -253,7 +254,7 @@ public class CabinComfortTests
         var store = new VehicleStateStore();
         var svc = new CommandService(new CommandRouter([car]), store,
             Microsoft.Extensions.Options.Options.Create(new BridgeOptions()), TimeProvider.System, NullLogger<CommandService>.Instance)
-            { RetryDelay = TimeSpan.FromMilliseconds(5) };
+        { RetryDelay = TimeSpan.FromMilliseconds(5) };
         var notes = new List<CommandStatus>();
         svc.StatusChanged += notes.Add;
 
@@ -273,7 +274,7 @@ public class CabinComfortTests
         settings.Update(null, null, null, climateForSeatHeat: false);
         var svc = new CommandService(new CommandRouter([car]), new VehicleStateStore(),
             Microsoft.Extensions.Options.Options.Create(new BridgeOptions()), TimeProvider.System, NullLogger<CommandService>.Instance, settings)
-            { RetryDelay = TimeSpan.FromMilliseconds(5) };
+        { RetryDelay = TimeSpan.FromMilliseconds(5) };
         var notes = new List<CommandStatus>();
         svc.StatusChanged += notes.Add;
 
@@ -304,7 +305,7 @@ public class PendingTrackerTests
         var o = new BridgeOptions(); o.Vehicles.Add(new VehicleOptions { Vin = "V" });
         var svc = new CommandService(new CommandRouter([new SleepyCar()]), store,
             Microsoft.Extensions.Options.Options.Create(o), TimeProvider.System, NullLogger<CommandService>.Instance)
-            { RetryDelay = TimeSpan.FromMilliseconds(5) };
+        { RetryDelay = TimeSpan.FromMilliseconds(5) };
         var tracker = new PendingTracker(store, svc, Microsoft.Extensions.Options.Options.Create(o), TimeProvider.System);
         await tracker.StartAsync(default);
 
@@ -319,4 +320,22 @@ public class PendingTrackerTests
         store.Apply("V", "climate_on", System.Text.Json.Nodes.JsonValue.Create(true), DateTimeOffset.UtcNow);   // the car confirms
         Assert.Equal("""{"waking":false,"keys":[]}""", store.Get("V", PendingTracker.Key)!.Value!.ToJsonString());
     }
+}
+
+public class LocalAddressTests
+{
+    [Theory]
+    [InlineData("http://192.168.1.50", true)]
+    [InlineData("http://10.0.0.7", true)]
+    [InlineData("http://172.20.1.2", true)]
+    [InlineData("http://100.101.102.103", true)]
+    [InlineData("http://tesla-ble.local", true)]
+    [InlineData("http://tesla-ble", true)]
+    [InlineData("http://[fd00::12]", true)]
+    [InlineData("http://localhost:8099", true)]
+    [InlineData("http://8.8.8.8", false)]
+    [InlineData("http://172.32.0.1", false)]
+    [InlineData("http://[2001:4860::8888]", false)]
+    public void Only_addresses_on_your_own_network_are_allowed(string url, bool local) =>
+        Assert.Equal(local, TeslaBridge.Ble.LocalAddress.IsLocal(new Uri(url)));
 }

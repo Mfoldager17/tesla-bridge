@@ -12,11 +12,11 @@ A self-hosted replacement for Teslemetry. Your car streams directly to your own 
 
 <table>
 <tr>
-<td width="66%"><img src="docs/screenshots/car.png" alt="The car page: a 3D Model Y with an open rear window marked, 68 % battery charging at 10.8 kW towards an 80 % limit, quick actions and status"></td>
+<td width="66%"><img src="docs/screenshots/car.png" alt="The car page: a 3D Model Y with an open rear window marked, 68 % battery charging at 10.8 kW towards an 80 % limit, quick actions, and a map with the car parked at Rådhuspladsen in Aarhus"></td>
 <td><img src="docs/screenshots/phone-car.png" alt="The car page on a phone in light mode"></td>
 </tr>
 <tr>
-<td><b>Car</b> – the car in 3D with open doors, windows, frunk, trunk and charge port live; battery, range and charging; quick actions.</td>
+<td><b>Car</b> – the car in 3D with open doors, windows, frunk, trunk and charge port live; battery, range and charging; quick actions; where it is on a map, with the street address.</td>
 <td><b>On a phone</b></td>
 </tr>
 <tr>
@@ -83,8 +83,11 @@ curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/insta
 | [Entities](docs/entities.md) | Everything you get in Home Assistant |
 | [Switching](docs/switching.md) | From MQTT to the integration and back |
 | [Versions and updating](docs/updating.md) | Releases, what `latest`/`edge`/`v1` mean, updating and pinning |
+| [Security](docs/security.md) | What's exposed, the token, MQTT and ESP32 logins, which container sees which key |
 | [Troubleshooting](docs/troubleshooting.md) | Symptoms and what to check |
 | [MQTT API](docs/mqtt-api.md) · [HTTP API](docs/http-api.md) | For ESP32 panels, Node-RED and scripts |
 | [Development](docs/development.md) | Run it locally with the simulator, project layout, tests |
 
-Tesla and Model Y are trademarks of Tesla, Inc. This project is not affiliated with Tesla.
+## License
+
+[MIT](LICENSE), except the bundled 3D model of the Model Y ([CC BY-NC 4.0](src/TeslaBridge/wwwroot/models/NOTICE.md), non-commercial only). Tesla and Model Y are trademarks of Tesla, Inc. This project is not affiliated with Tesla.

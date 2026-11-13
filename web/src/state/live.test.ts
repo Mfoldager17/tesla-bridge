@@ -26,7 +26,7 @@ describe("applyEvent", () => {
 
   it("puts everything else in the raw log", () => {
     const s = empty();
-    applyEvent(s, { type: "telemetry", vin: "VIN1", at: "t", data: { BatteryLevel: 64 } });
+    applyEvent(s, { type: "raw", vin: "VIN1", at: "t", data: { field: "BatteryLevel", value: 64 } });
     expect(s.raw).toHaveLength(1);
   });
 });

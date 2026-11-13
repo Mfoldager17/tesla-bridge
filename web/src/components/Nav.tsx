@@ -6,7 +6,7 @@ import { theme, cycleTheme } from "../theme";
 import { connected, state } from "../state/live";
 import { vin, setVin, val } from "../state/selection";
 import { update } from "../state/update";
-import { setup, stepStates } from "../state/setup";
+import { openBroker, setup, stepStates } from "../state/setup";
 
 export const VIEWS = ["overview", "controls", "data", "usage", "settings", "setup"] as const;
 export type View = (typeof VIEWS)[number];
@@ -20,7 +20,10 @@ export function carStatus(): { cls: string; text: string } {
 
 export function Nav(props: { carName?: string }) {
   const cars = () => Object.entries(state.cars);
-  const missing = () => { const st = setup(); return st ? stepStates(st).filter((x) => x !== "done").length : 0; };
+  const missing = () => {
+    const st = setup();
+    return st ? stepStates(st).filter((x) => x !== "done").length + (openBroker(st) ? 1 : 0) : 0;
+  };
   const version = () => update()?.installed_display ?? state.info?.version_display ?? state.info?.version ?? "?";
   return (
     <nav class="side">

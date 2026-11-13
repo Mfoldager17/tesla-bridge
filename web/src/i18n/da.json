@@ -1,6 +1,6 @@
 {
   "login.title": "Log ind",
-  "login.text": "Skriv tokenet fra Bridge__Web__Token i din .env.",
+  "login.text": "Skriv dashboard-tokenet: Bridge__Web__Token i din .env, eller – hvis du ikke har sat et – det token bridgen selv lavede, som vises med: docker compose exec tesla-bridge cat /data/web-token",
   "login.button": "Log ind",
   "nav.overview": "Bil",
   "nav.controls": "Styring",
@@ -373,5 +373,8 @@
   "map.on": "Vis kort og adresse",
   "map.off": "Fra – kun koordinater",
   "map.saved": "Gemt",
-  "loc.status": "Status"
+  "loc.status": "Status",
+  "login.wrong": "Det token passer ikke",
+  "mqttOpen.title": "Din MQTT-broker lukker alle ind",
+  "mqttOpen.text": "Den tillader login uden kodeord, og bridgen tager imod kommandoer via MQTT – så enhver enhed på dit netværk kan sende <code>tesla/&lt;VIN&gt;/cmd/unlock</code>. Kræv login i brokeren (Mosquitto: <code>allow_anonymous false</code> og en <code>password_file</code>), eller sæt <code>Bridge__Mqtt__Commands=false</code> i .env, hvis du kun bruger Home Assistant-integrationen. Se docs/security.md."
 }

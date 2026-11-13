@@ -7,8 +7,8 @@ using TeslaBridge.Options;
 namespace TeslaBridge.Auth;
 
 /// <summary>
-/// Partner-kald med appens egne credentials (client_credentials) – bruges til at registrere
-/// partnerdomænet hos Tesla og tjekke hvilken offentlig nøgle Tesla har på det.
+/// Partner calls with the app's own credentials (client_credentials) – used to register the partner domain with
+/// Tesla and to check which public key Tesla has for it.
 /// </summary>
 public sealed class TeslaPartnerClient(HttpClient http, IOptions<BridgeOptions> options)
 {
@@ -16,14 +16,14 @@ public sealed class TeslaPartnerClient(HttpClient http, IOptions<BridgeOptions> 
 
     public async Task<JsonNode?> RegisterAsync(CancellationToken ct)
     {
-        // Tesla henter nu https://<domæne>/.well-known/... og gemmer nøglen.
+        // Tesla now fetches https://<domain>/.well-known/... and keeps the key.
         var (status, body, raw) = await SendAsync(HttpMethod.Post, "/api/1/partner_accounts",
             new JsonObject { ["domain"] = _opts.PartnerDomain }, ct);
-        if ((int)status >= 300) throw new InvalidOperationException($"Registrering svarede {(int)status}: {raw}");
+        if ((int)status >= 300) throw new InvalidOperationException($"Registration answered {(int)status}: {raw}");
         return body;
     }
 
-    /// <summary>Den nøgle Tesla har registreret på partnerdomænet (hex, uncompressed), eller null.</summary>
+    /// <summary>The key Tesla has registered for the partner domain (hex, uncompressed), or null.</summary>
     public async Task<string?> GetRegisteredPublicKeyAsync(CancellationToken ct)
     {
         var (status, body, raw) = await SendAsync(HttpMethod.Get,
@@ -49,7 +49,7 @@ public sealed class TeslaPartnerClient(HttpClient http, IOptions<BridgeOptions> 
     {
         var t = _opts.Tesla;
         if (string.IsNullOrWhiteSpace(t.ClientId) || string.IsNullOrWhiteSpace(t.ClientSecret))
-            throw new InvalidOperationException("Bridge__Tesla__ClientId og Bridge__Tesla__ClientSecret skal være sat i .env");
+            throw new InvalidOperationException("Bridge__Tesla__ClientId and Bridge__Tesla__ClientSecret must be set in .env");
 
         using var resp = await http.PostAsync(t.TokenUrl, new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -60,8 +60,8 @@ public sealed class TeslaPartnerClient(HttpClient http, IOptions<BridgeOptions> 
             ["audience"] = t.FleetApiAudience,
         }), ct);
         var raw = await resp.Content.ReadAsStringAsync(ct);
-        if (!resp.IsSuccessStatusCode) throw new InvalidOperationException($"Partner-token afvist ({(int)resp.StatusCode}): {raw}");
+        if (!resp.IsSuccessStatusCode) throw new InvalidOperationException($"Partner token refused ({(int)resp.StatusCode}): {raw}");
         return JsonNode.Parse(raw)?["access_token"]?.ToString()
-            ?? throw new InvalidOperationException("Intet access_token i svaret");
+            ?? throw new InvalidOperationException("No access_token in the answer");
     }
 }

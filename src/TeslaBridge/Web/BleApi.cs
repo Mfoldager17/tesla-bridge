@@ -22,7 +22,7 @@ public static class BleApi
 
         api.MapPut("/ble/{vin}", async (string vin, HttpRequest req, BleService ble, SettingsStore settings, CancellationToken ct) =>
         {
-            if (!Known(opts, vin)) return Results.Json(new { error = $"Unknown VIN {vin}" }, statusCode: 404);
+            if (!Known(opts, vin)) return ApiErrors.Problem(404, $"Unknown VIN {vin}");
             try
             {
                 var body = await JsonNode.ParseAsync(req.Body, cancellationToken: ct) as JsonObject
@@ -36,7 +36,7 @@ public static class BleApi
             }
             catch (Exception ex) when (ex is ArgumentException or System.Text.Json.JsonException)
             {
-                return Results.Json(new { error = ex.Message }, statusCode: 400);
+                return ApiErrors.Problem(400, ex.Message);
             }
             return Results.Json(Describe(opts, ble, settings));
         });
@@ -56,17 +56,20 @@ public static class BleApi
 
     private static async Task<IResult> Press(BleService ble, string vin, string button, CancellationToken ct)
     {
-        if (ble.Device(vin) is not { } d) return Results.Json(new { error = "No ESP32 set up for this car" }, statusCode: 404);
+        if (ble.Device(vin) is not { } d) return ApiErrors.Problem(404, "No ESP32 set up for this car");
         var error = await d.ActAsync("button", button, "press", null, ct);
-        return error is null ? Results.Json(new { ok = true }) : Results.Json(new { error }, statusCode: 502);
+        return error is null ? Results.Json(new { ok = true }) : ApiErrors.Problem(502, error);
     }
 
     /// <summary>
     /// The name the car advertises over Bluetooth: "S" + the first 8 bytes of SHA-1(VIN) in hex + "C".
     /// Helps find its MAC address in a Bluetooth scanner app.
     /// </summary>
+    // SHA-1 here isn't security: it's how Tesla derives the name the car advertises over Bluetooth.
+#pragma warning disable CA5350
     internal static string CarBleName(string vin) =>
         "S" + Convert.ToHexStringLower(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.ASCII.GetBytes(vin)))[..16] + "C";
+#pragma warning restore CA5350
 
     private static bool Known(BridgeOptions o, string vin) => o.Vehicles.Any(v => string.Equals(v.Vin, vin, StringComparison.OrdinalIgnoreCase));
 

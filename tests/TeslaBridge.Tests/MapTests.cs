@@ -19,17 +19,17 @@ public class MapTests
     }
 
     private const string House = """
-        { "name": "", "display_name": "12, Skanderborgvej, Hasselager, Aarhus Kommune, 8361, Danmark",
-          "address": { "house_number": "12", "road": "Skanderborgvej", "suburb": "Hasselager", "city": "Aarhus",
-                       "municipality": "Aarhus Kommune", "postcode": "8361", "country": "Danmark", "country_code": "dk" } }
+        { "name": "", "display_name": "2, Rådhuspladsen, Aarhus C, Aarhus Kommune, 8000, Danmark",
+          "address": { "house_number": "2", "road": "Rådhuspladsen", "suburb": "Aarhus C", "city": "Aarhus",
+                       "municipality": "Aarhus Kommune", "postcode": "8000", "country": "Danmark", "country_code": "dk" } }
         """;
 
     [Fact]
     public void A_house_becomes_street_and_number_over_postcode_and_city()
     {
         var a = ReverseGeocoder.Format(JsonNode.Parse(House))!;
-        Assert.Equal("Skanderborgvej 12", a.Line1);
-        Assert.Equal("8361 Aarhus", a.Line2);
+        Assert.Equal("Rådhuspladsen 2", a.Line1);
+        Assert.Equal("8000 Aarhus", a.Line2);
         Assert.Null(a.Place);
         Assert.Equal("dk", a.CountryCode);
     }
@@ -38,11 +38,11 @@ public class MapTests
     public void A_named_place_is_kept_next_to_the_street()
     {
         var a = ReverseGeocoder.Format(JsonNode.Parse("""
-            { "name": "Tesla Supercharger", "display_name": "Tesla Supercharger, Hasselager Allé, 8260 Viby J",
-              "address": { "amenity": "Tesla Supercharger", "road": "Hasselager Allé", "town": "Viby J", "postcode": "8260" } }
+            { "name": "Tesla Supercharger", "display_name": "Tesla Supercharger, Agro Food Park, 8200 Aarhus N",
+              "address": { "amenity": "Tesla Supercharger", "road": "Agro Food Park", "town": "Aarhus N", "postcode": "8200" } }
             """))!;
-        Assert.Equal("Hasselager Allé", a.Line1);
-        Assert.Equal("8260 Viby J", a.Line2);
+        Assert.Equal("Agro Food Park", a.Line1);
+        Assert.Equal("8200 Aarhus N", a.Line2);
         Assert.Equal("Tesla Supercharger", a.Place);
     }
 
@@ -61,14 +61,14 @@ public class MapTests
         var fake = new FakeNominatim(House);
         var g = new ReverseGeocoder(new HttpClient(fake), "https://geo.example.com/") { Spacing = TimeSpan.Zero };
 
-        var a = await g.LookupAsync(56.118501, 10.123499, "da", default);
-        var b = await g.LookupAsync(56.118504, 10.123502, "da", default);   // < 1 m away
-        await g.LookupAsync(56.118501, 10.123499, "en", default);          // another language is another answer
+        var a = await g.LookupAsync(56.153001, 10.203299, "da", default);
+        var b = await g.LookupAsync(56.153004, 10.203302, "da", default);   // < 1 m away
+        await g.LookupAsync(56.153001, 10.203299, "en", default);          // another language is another answer
 
         Assert.Same(a, b);
         Assert.Equal(2, g.Requests);
         Assert.StartsWith("https://geo.example.com/reverse?format=jsonv2", fake.Urls[0]);
-        Assert.Contains("lat=56.118501&lon=10.123499&accept-language=da", fake.Urls[0]);
+        Assert.Contains("lat=56.153001&lon=10.203299&accept-language=da", fake.Urls[0]);
     }
 
     [Fact]

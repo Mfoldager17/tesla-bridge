@@ -36,6 +36,7 @@ public sealed class EspHomeDevice : IAsyncDisposable
             // ESPHome's web_server uses digest (ESP32) or basic auth; NetworkCredential answers either challenge.
             Credentials = string.IsNullOrEmpty(username) ? null : new NetworkCredential(username, password ?? ""),
             ConnectTimeout = TimeSpan.FromSeconds(8),
+            AllowAutoRedirect = false,   // the password is for the ESP32 only
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         };
         _http = new HttpClient(handler) { BaseAddress = baseUrl, Timeout = Timeout.InfiniteTimeSpan };

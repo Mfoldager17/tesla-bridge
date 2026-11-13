@@ -1,0 +1,53 @@
+# Dependabot opens pull requests when something this project uses has a new version. Each one runs the full
+# checks (.github/workflows/checks.yml) before it can be merged. Minor and patch updates are grouped into one PR
+# per ecosystem a week; major versions come one by one, so their release notes can be read.
+#
+# Commit prefixes follow release-please: "fix(deps)" for what ships in the image or the HA integration (a patch
+# release), "chore(deps)" for CI and test tooling (no release).
+version: 2
+updates:
+  # The bridge (.NET packages)
+  - package-ecosystem: nuget
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: "fix(deps)" }
+    groups:
+      nuget-minor:
+        update-types: [minor, patch]
+
+  # The dashboard (web/)
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: "fix(deps)", prefix-development: "chore(deps)" }
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+
+  # Base images in the Dockerfile (.NET SDK/runtime, Node for the dashboard build)
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: "fix(deps)" }
+
+  # Tesla's fleet-telemetry and vehicle-command images in docker-compose.yml – pinned on purpose, so updates are
+  # reviewed here instead of arriving silently
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: "fix(deps)" }
+
+  # GitHub Actions used by the workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: "chore(ci)" }
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # The Home Assistant test harness (tests/ha/requirements.txt)
+  - package-ecosystem: pip
+    directory: /tests/ha
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: "chore(deps)" }

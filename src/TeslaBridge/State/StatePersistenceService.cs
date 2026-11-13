@@ -2,12 +2,13 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TeslaBridge.Options;
+using TeslaBridge.Storage;
 
 namespace TeslaBridge.State;
 
 /// <summary>
-/// Gemmer sidst kendte værdier på disk og indlæser dem ved opstart,
-/// så intet står "unknown" efter en genstart mens bilen sover.
+/// Saves the last known values to disk and loads them at start, so nothing shows "unknown" after a restart while
+/// the car sleeps.
 /// </summary>
 public sealed class StatePersistenceService(
     VehicleStateStore store,
@@ -24,11 +25,12 @@ public sealed class StatePersistenceService(
             try
             {
                 store.Restore(File.ReadAllText(_file));
-                log.LogInformation("Indlæste sidst kendte tilstand fra {File}", _file);
+                log.LogInformation("Loaded the last known state from {File}", _file);
             }
             catch (Exception ex)
             {
-                log.LogWarning(ex, "Kunne ikke læse {File} – starter uden gemt tilstand", _file);
+                var moved = AtomicFile.Quarantine(_file);
+                log.LogWarning(ex, "Can't read {File} – starting without saved state (the file was moved to {Moved})", _file, moved);
             }
         }
         store.ConfirmedChanged += MarkDirty;
@@ -59,14 +61,11 @@ public sealed class StatePersistenceService(
         _dirty = false;
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_file))!);
-            var tmp = _file + ".tmp";
-            File.WriteAllText(tmp, store.Serialize());
-            File.Move(tmp, _file, overwrite: true);
+            AtomicFile.WriteAllText(_file, store.Serialize());
         }
         catch (Exception ex)
         {
-            log.LogWarning(ex, "Kunne ikke gemme tilstand til {File}", _file);
+            log.LogWarning(ex, "Can't save the state to {File}", _file);
             _dirty = true;
         }
     }

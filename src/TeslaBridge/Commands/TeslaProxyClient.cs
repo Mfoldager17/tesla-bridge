@@ -9,8 +9,8 @@ using TeslaBridge.Usage;
 namespace TeslaBridge.Commands;
 
 /// <summary>
-/// HTTP-klient mod Teslas tesla-http-proxy (vehicle-command), som signerer kommandoer
-/// og telemetri-konfiguration med appens private nøgle og videresender til Fleet API.
+/// HTTP client for Tesla's tesla-http-proxy (vehicle-command), which signs commands and the telemetry configuration
+/// with the app's private key and forwards them to the Fleet API.
 /// </summary>
 public sealed class TeslaProxyClient(HttpClient http, TeslaTokenProvider tokens, UsageTracker usage)
 {
@@ -24,16 +24,16 @@ public sealed class TeslaProxyClient(HttpClient http, TeslaTokenProvider tokens,
 
         using var resp = await http.SendAsync(req, ct);
 
-        // Alt der nåede frem til Tesla tælles, som Tesla afregner det (også afviste forsøg mens bilen sover).
+        // Everything that reached Tesla is counted, the way Tesla bills it (also refused tries while the car sleeps).
         var (kind, name) = UsageTracker.Classify(path);
         usage.CountApiCall(kind, name);
         var raw = await resp.Content.ReadAsStringAsync(ct);
         JsonNode? parsed = null;
-        try { parsed = string.IsNullOrWhiteSpace(raw) ? null : JsonNode.Parse(raw); } catch { /* ikke JSON */ }
+        try { parsed = string.IsNullOrWhiteSpace(raw) ? null : JsonNode.Parse(raw); } catch { /* not JSON */ }
         return (resp.StatusCode, parsed, raw);
     }
 
-    /// <summary>Proxyens certifikat er selvsigneret, så vi pinner præcis det.</summary>
+    /// <summary>The proxy's certificate is self-signed, so exactly that one is pinned.</summary>
     public static HttpMessageHandler CreateHandler(string proxyCertFile)
     {
         var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(10) };

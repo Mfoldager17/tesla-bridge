@@ -41,7 +41,8 @@ public class CommandServiceTests
             Commands = new CommandOptions { OptimisticTimeoutSeconds = 45, WakeTimeoutSeconds = 5 },
         });
         var svc = new CommandService(new CommandRouter(transports), store, opts, TimeProvider.System,
-            NullLogger<CommandService>.Instance) { RetryDelay = TimeSpan.FromMilliseconds(10) };
+            NullLogger<CommandService>.Instance)
+        { RetryDelay = TimeSpan.FromMilliseconds(10) };
         var statuses = new List<CommandStatus>();
         svc.StatusChanged += statuses.Add;
         return (svc, store, statuses);
@@ -91,7 +92,7 @@ public class CommandServiceTests
     [Fact]
     public async Task Router_prefers_lowest_priority_and_falls_back_on_failure()
     {
-        // Sådan kommer BLE til at virke: prøv lokalt først, ellers cloud.
+        // Like Bluetooth: try the local way first, otherwise the cloud.
         var ble = new FakeTransport("ble", 0, CommandResult.Failed("timeout"));
         var cloud = new FakeTransport("cloud", 100);
         var (svc, _, statuses) = Create(cloud, ble);
@@ -135,7 +136,7 @@ public class CommandServiceExceptionTests
         public int Priority => 100;
         public ValueTask<bool> CanReachAsync(string vin, CancellationToken ct) => ValueTask.FromResult(true);
         public Task<CommandResult> SendAsync(string vin, VehicleCommand command, CancellationToken ct) =>
-            throw new InvalidOperationException("Ingen Tesla-tokens");
+            throw new InvalidOperationException("No Tesla tokens");
         public Task<CommandResult> WakeAsync(string vin, CancellationToken ct) => Task.FromResult(CommandResult.Ok());
     }
 
@@ -154,6 +155,6 @@ public class CommandServiceExceptionTests
 
         Assert.Equal(CommandOutcome.Failed, r.Outcome);
         Assert.False(store.Get("VIN1", "climate_on")!.Value!.GetValue<bool>());
-        Assert.Equal("Ingen Tesla-tokens", statuses[^1].Error);
+        Assert.Equal("No Tesla tokens", statuses[^1].Error);
     }
 }

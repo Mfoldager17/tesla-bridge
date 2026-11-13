@@ -8,14 +8,15 @@ using TeslaBridge.Options;
 namespace TeslaBridge.Setup;
 
 /// <summary>
-/// Laver alt det, der før krævede scripts og repo-filer, så serveren kun skal have docker-compose.yml + .env:
+/// Makes everything that used to need scripts and repository files, so the server only needs docker-compose.yml + .env:
 /// <list type="bullet">
-/// <item>appens nøglepar (P-256), hvis det mangler</item>
-/// <item>intern TLS mellem bridge og tesla-proxy, hvis den mangler</item>
-/// <item>fleet-telemetrys config.json ud fra MQTT-indstillingerne (skrives hver gang)</item>
+/// <item>the app's key pair (P-256), if missing, and its public key in /config/public</item>
+/// <item>the internal TLS between the bridge and tesla-proxy, if missing, and a copy of its certificate in /config/public</item>
+/// <item>a password for fleet-telemetry's MQTT login when the embedded broker is used and .env has none</item>
+/// <item>fleet-telemetry's config.json from the MQTT settings (written every time)</item>
 /// </list>
-/// Køres som "init" (root) før de andre containere starter, og igen ved almindelig opstart (ufarligt).
-/// Som root gives filerne til PUID:PGID, så tesla-proxy, fleet-telemetry og bridgen kan læse dem.
+/// Runs as "init" (root) before the other containers start. As root it hands the files to PUID:PGID, so tesla-proxy,
+/// fleet-telemetry and the bridge can read them.
 /// </summary>
 public static class Bootstrap
 {
@@ -26,20 +27,31 @@ public static class Bootstrap
         var created = new List<string>();
         var warnings = new List<string>();
 
-        // Appens nøgle: SEC1 "EC PRIVATE KEY", P-256 – samme format som openssl ecparam og tesla-proxy forventer.
+        // The app's key: SEC1 "EC PRIVATE KEY", P-256 – the format openssl ecparam makes and tesla-proxy expects.
         if (!File.Exists(o.Tesla.FleetKeyFile))
         {
             using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             WriteSecret(o.Tesla.FleetKeyFile, key.ExportECPrivateKeyPem() + "\n");
-            created.Add($"{o.Tesla.FleetKeyFile} (appens nøgle – tag den med i din backup)");
+            created.Add($"{o.Tesla.FleetKeyFile} (the app's key – keep it in your backup)");
         }
+        WriteIfChanged(o.Tesla.FleetPublicKeyFile, TeslaBridge.Auth.TeslaKey.FromPem(File.ReadAllText(o.Tesla.FleetKeyFile)).Pem);
 
         if (!File.Exists(o.Tesla.ProxyCertFile) || !File.Exists(o.Tesla.ProxyKeyFile))
         {
             var (cert, key) = CreateProxyTls();
             WriteSecret(o.Tesla.ProxyKeyFile, key);
             WriteFile(o.Tesla.ProxyCertFile, cert);
-            created.Add($"{o.Tesla.ProxyCertFile} + {Path.GetFileName(o.Tesla.ProxyKeyFile)} (intern TLS)");
+            created.Add($"{o.Tesla.ProxyCertFile} + {Path.GetFileName(o.Tesla.ProxyKeyFile)} (internal TLS)");
+        }
+        WriteIfChanged(o.Tesla.PublicProxyCertFile, File.ReadAllText(o.Tesla.ProxyCertFile));
+
+        // The embedded broker never accepts anonymous logins, so fleet-telemetry needs a password.
+        if (o.Mqtt.EmbeddedBroker && string.IsNullOrEmpty(o.Telemetry.MqttPassword))
+        {
+            o.Telemetry.MqttPassword = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(24));
+            WriteSecret(o.GeneratedTelemetryPasswordFile, o.Telemetry.MqttPassword + "\n");
+            created.Add($"{o.GeneratedTelemetryPasswordFile} (fleet-telemetry's MQTT password). If fleet-telemetry was " +
+                        "already running, restart it once: docker compose restart fleet-telemetry");
         }
 
         WriteSecret(o.Telemetry.ServerConfigFile, BuildServerConfig(o).ToJsonString(Json.Pretty) + "\n");
@@ -47,19 +59,25 @@ public static class Bootstrap
         var certDir = Path.Combine(Path.GetDirectoryName(o.Telemetry.ServerConfigFile)!, "certs");
         Directory.CreateDirectory(certDir);
         if (!File.Exists(Path.Combine(certDir, "fullchain.pem")) || !File.Exists(Path.Combine(certDir, "privkey.pem")))
-            warnings.Add($"Mangler fullchain.pem + privkey.pem i {certDir} – fleet-telemetry kan ikke starte uden certifikatet til dit domæne.");
+            warnings.Add($"fullchain.pem + privkey.pem are missing in {certDir} – fleet-telemetry can't start without the certificate for your domain.");
         if (string.IsNullOrWhiteSpace(o.Telemetry.Hostname))
-            warnings.Add("Bridge__Telemetry__Hostname er ikke sat i .env.");
+            warnings.Add("Bridge__Telemetry__Hostname isn't set in .env.");
         if (o.Vehicles.Count == 0)
-            warnings.Add("Ingen bil sat op – sæt Bridge__Vehicles__0__Vin i .env.");
+            warnings.Add("No car is set up – set Bridge__Vehicles__0__Vin in .env.");
         if (string.IsNullOrWhiteSpace(o.Tesla.ClientId))
-            warnings.Add("Bridge__Tesla__ClientId er ikke sat i .env.");
+            warnings.Add("Bridge__Tesla__ClientId isn't set in .env.");
 
         GiveToOwner(o);
         return new Result(created, warnings);
     }
 
-    /// <summary>fleet-telemetrys config: bilen → (mTLS :4443) → MQTT-brokeren.</summary>
+    private static void WriteIfChanged(string path, string content)
+    {
+        if (File.Exists(path) && File.ReadAllText(path) == content) return;
+        WriteFile(path, content);
+    }
+
+    /// <summary>fleet-telemetry's config: the car → (mTLS :4443) → the MQTT broker.</summary>
     public static JsonObject BuildServerConfig(BridgeOptions o)
     {
         var dir = "/etc/fleet-telemetry/certs";
@@ -110,25 +128,15 @@ public static class Bootstrap
         return (cert.ExportCertificatePem() + "\n", key.ExportECPrivateKeyPem() + "\n");
     }
 
-    private static void WriteFile(string path, string content)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        var tmp = path + ".tmp";
-        File.WriteAllText(tmp, content);
-        File.Move(tmp, path, overwrite: true);
-    }
+    private static void WriteFile(string path, string content) => TeslaBridge.Storage.AtomicFile.WriteAllText(path, content);
 
-    private static void WriteSecret(string path, string content)
-    {
-        WriteFile(path, content);
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-    }
+    private static void WriteSecret(string path, string content) => TeslaBridge.Storage.AtomicFile.WriteAllText(path, content, secret: true);
 
-    // ---- ejerskab: kun når vi kører som root (init-containeren) ----
+    // ---- ownership: only when running as root (the init container) ----
 
     [DllImport("libc", SetLastError = true)] private static extern uint geteuid();
-    [DllImport("libc", SetLastError = true)] private static extern int chown(string path, uint owner, uint group);
+    // lchown: a symlink someone put in /data or /config changes owner itself – the file it points to is left alone.
+    [DllImport("libc", SetLastError = true)] private static extern int lchown(string path, uint owner, uint group);
 
     private static void GiveToOwner(BridgeOptions o)
     {
@@ -139,6 +147,7 @@ public static class Bootstrap
         var roots = new[]
         {
             Path.GetDirectoryName(o.Tesla.FleetKeyFile)!,
+            Path.GetDirectoryName(o.Tesla.FleetPublicKeyFile)!,
             Path.GetDirectoryName(o.Telemetry.ServerConfigFile)!,
             Path.GetDirectoryName(o.StateFile)!,
         }.Distinct();
@@ -146,9 +155,17 @@ public static class Bootstrap
         foreach (var root in roots)
         {
             Directory.CreateDirectory(root);
-            chown(root, uid, gid);
-            foreach (var entry in Directory.EnumerateFileSystemEntries(root, "*", SearchOption.AllDirectories))
-                chown(entry, uid, gid);
+            Own(root, uid, gid);
         }
+    }
+
+    /// <summary>chown -R without following symlinks: a link changes owner itself, and isn't descended into.</summary>
+    private static void Own(string path, uint uid, uint gid)
+    {
+        if (lchown(path, uid, gid) != 0)
+            Console.WriteLine($"⚠ Couldn't hand {path} to {uid}:{gid} (errno {Marshal.GetLastPInvokeError()})");
+        if (new FileInfo(path).LinkTarget is not null || !Directory.Exists(path)) return;
+        foreach (var entry in Directory.EnumerateFileSystemEntries(path))
+            Own(entry, uid, gid);
     }
 }

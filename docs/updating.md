@@ -36,6 +36,15 @@ New versions keep working with your existing `.env`: new settings have defaults 
 
 Changes to `docker-compose.yml` itself are rare, and the release notes mention them. Fetch it with the same `curl` as in [install, step 3](2-install.md#step-3--download-the-compose-file-and-create-env), or run the [setup script](2-install.md#with-the-setup-script) again. Your `.env` is not overwritten.
 
+### Updating to 1.2
+
+1.2 tightens security (see [Security](security.md)). Check these once:
+
+1. **The dashboard always needs a token now.** If `Bridge__Web__Token` was empty in your `.env`, the bridge makes one at the first start and prints it in the log; show it with `docker compose exec tesla-bridge cat /data/web-token`. The dashboard asks for it once. The Home Assistant integration asks for it too (*Settings → Repairs* or a notification: *Reconfigure*).
+2. **Fetch the new `docker-compose.yml`** (as above). It gives the bridge container only what it needs – no private keys – and drops all Linux capabilities. The old file keeps working, without those protections.
+3. **Embedded MQTT broker without a password for fleet-telemetry?** The broker no longer accepts anonymous logins; the init container makes a password. Run `docker compose restart fleet-telemetry` once after the update.
+4. **ESP32:** `tesla-ble.yaml` now requires a web password. Add `web_username` and `web_password` to its `secrets.yaml`, flash it again, and type the same on the dashboard (*Settings → Bluetooth*).
+
 ## Choose what you run: `BRIDGE_TAG`
 
 `BRIDGE_TAG` in `.env` picks the image:

@@ -13,12 +13,12 @@ public enum CommandPhase { Pending, Waking, Succeeded, Failed }
 public sealed record CommandStatus(string Vin, string Command, CommandPhase Phase, string? Transport, string? Error, DateTimeOffset At, string? Note = null);
 
 /// <summary>
-/// Udfører en kommando:
-///  1. sætter forventede værdier med det samme (optimistisk – UI'et skifter straks)
-///  2. sender via første transport der kan nå bilen
-///  3. sover bilen: vækker den og prøver igen indtil WakeTimeout
-///  4. fejler det: ruller de forventede værdier tilbage
-/// Streamen bekræfter bagefter den rigtige tilstand.
+/// Runs a command:
+///  1. sets the expected values at once (optimistic – the UI changes straight away)
+///  2. sends it through the first transport that can reach the car
+///  3. if the car sleeps: wakes it and tries again until WakeTimeout
+///  4. if it fails: rolls the expected values back
+/// The stream confirms the real state afterwards.
 /// </summary>
 public sealed class CommandService(
     CommandRouter router,
@@ -33,7 +33,7 @@ public sealed class CommandService(
 
     public event Action<CommandStatus>? StatusChanged;
 
-    /// <summary>Tid mellem forsøg mens vi venter på at bilen vågner. Internal så tests kan skrue ned.</summary>
+    /// <summary>Time between tries while waiting for the car to wake up. Internal, so tests can turn it down.</summary>
     internal TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(4);
 
     public async Task<CommandResult> ExecuteAsync(string vin, VehicleCommand command, CancellationToken ct = default)
@@ -65,26 +65,26 @@ public sealed class CommandService(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // Fx manglende login eller proxy nede – skal stadig vises som fejl og rulles tilbage.
+                // E.g. not signed in, or the proxy is down – still shown as a failure and rolled back.
                 (result, transport) = (CommandResult.Failed(ex.Message), null);
             }
 
             if (result.IsSuccess)
             {
-                // Forventningen gælder nu kun OptimisticTimeout mere – så må streamen have bekræftet.
+                // The expectation now only holds for OptimisticTimeout more – by then the stream must have confirmed it.
                 // (Not if the car already confirmed it while we waited – over Bluetooth that is often instant.)
                 foreach (var e in command.Expectations)
                     if (store.HasPending(vin, e.Key))
                         store.SetPending(vin, e.Key, e.Value, TimeSpan.FromSeconds(_opts.OptimisticTimeoutSeconds), e.ConfirmedBy);
                 Report(vin, name, CommandPhase.Succeeded, transport, note: note);
-                log.LogInformation("{Command} til {Vin} lykkedes via {Transport}", name, vin, transport);
+                log.LogInformation("{Command} to {Vin} succeeded via {Transport}", name, vin, transport);
             }
             else
             {
                 foreach (var e in command.Expectations)
                     store.ClearPending(vin, e.Key);
                 Report(vin, name, CommandPhase.Failed, transport, result.Reason ?? result.Outcome.ToString());
-                log.LogWarning("{Command} til {Vin} fejlede: {Outcome} {Reason}", name, vin, result.Outcome, result.Reason);
+                log.LogWarning("{Command} to {Vin} failed: {Outcome} {Reason}", name, vin, result.Outcome, result.Reason);
             }
             return result;
         }
@@ -132,9 +132,9 @@ public sealed class CommandService(
     private async Task<(CommandResult, string?)> SendWithWakeAsync(string vin, VehicleCommand command, string name, CancellationToken ct)
     {
         var candidates = await router.CandidatesAsync(vin, ct);
-        if (candidates.Count == 0) return (CommandResult.Failed("Ingen transport kan nå bilen"), null);
+        if (candidates.Count == 0) return (CommandResult.Failed("No transport can reach the car"), null);
 
-        CommandResult last = CommandResult.Failed("ikke forsøgt");
+        CommandResult last = CommandResult.Failed("not tried");
         foreach (var transport in candidates)
         {
             if (command is Cmd.Wake)
@@ -161,11 +161,11 @@ public sealed class CommandService(
                     last = await transport.SendAsync(vin, command, ct);
                 }
                 if (last.Outcome == CommandOutcome.VehicleAsleep)
-                    last = CommandResult.Failed($"Bilen vågnede ikke inden for {_opts.WakeTimeoutSeconds} s");
+                    last = CommandResult.Failed($"The car didn't wake up within {_opts.WakeTimeoutSeconds} s");
             }
 
             if (last.IsSuccess || last.Outcome == CommandOutcome.Refused) return (last, transport.Name);
-            // Failed: prøv næste transport (fx cloud hvis BLE fejlede).
+            // Failed: try the next transport (e.g. the Fleet API when Bluetooth failed).
         }
         return (last, candidates[^1].Name);
     }
@@ -182,20 +182,20 @@ public sealed class CommandService(
             if (IsOnline(vin)) return CommandResult.Ok();
             await WaitForOnlineOrDelayAsync(vin, ct);
         }
-        // Wake-kaldet lykkedes; streamen har bare ikke meldt online endnu.
+        // The wake call succeeded; the stream just hasn't said online yet.
         return CommandResult.Ok();
     }
 
     private bool IsOnline(string vin) =>
-        store.GetConfirmed(vin, "online")?.Value is JsonValue v && v.TryGetValue(out bool b) && b;
+        store.GetConfirmed(vin, StateKeys.Online)?.Value is JsonValue v && v.TryGetValue(out bool b) && b;
 
-    /// <summary>Vent til streamen melder bilen online, eller RetryDelay – hvad der kommer først.</summary>
+    /// <summary>Waits until the stream says the car is online, or RetryDelay – whichever comes first.</summary>
     private async Task WaitForOnlineOrDelayAsync(string vin, CancellationToken ct)
     {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void Handler(StateChange c)
         {
-            if (c.Key == "online" && string.Equals(c.Vin, vin, StringComparison.OrdinalIgnoreCase) &&
+            if (c.Key == StateKeys.Online && string.Equals(c.Vin, vin, StringComparison.OrdinalIgnoreCase) &&
                 c.Effective?.Value is JsonValue v && v.TryGetValue(out bool b) && b)
                 tcs.TrySetResult();
         }
@@ -203,7 +203,7 @@ public sealed class CommandService(
         try
         {
             await Task.WhenAny(tcs.Task, Task.Delay(RetryDelay, time, ct));
-            // Når bilen lige er kommet online, giv den et øjeblik før næste forsøg.
+            // When the car has just come online, give it a moment before the next try.
             if (tcs.Task.IsCompleted) await Task.Delay(TimeSpan.FromSeconds(1), time, ct);
         }
         finally

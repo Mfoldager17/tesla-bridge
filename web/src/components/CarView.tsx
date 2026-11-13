@@ -56,7 +56,7 @@ export function CarView(props: { name?: string; onMode?: (threeD: boolean) => vo
     onCleanup(() => { cancelled = true; });
     (async () => {
       try {
-        const [buf, mod] = await Promise.all([(await api(url)).arrayBuffer(), import("../lib/car3d.js")]);
+        const [buf, mod] = await Promise.all([(await api(url)).arrayBuffer(), import("../lib/car3d")]);
         if (cancelled) return;
         setPalette({ paints: mod.PAINTS.map(([k, c]) => [k, c]), interiors: mod.INTERIORS });
         const c = await mod.mount(wrap, buf, { labels: labels(), onHotspot });
