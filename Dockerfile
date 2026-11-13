@@ -20,7 +20,7 @@ ARG GIT_SHA=""
 RUN dotnet publish src/TeslaBridge/TeslaBridge.csproj -c Release -a $TARGETARCH --no-restore --self-contained false -o /app \
     -p:SourceRevisionId=$GIT_SHA
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
+FROM mcr.microsoft.com/dotnet/aspnet:11.0
 LABEL org.opencontainers.image.source="https://github.com/Mfoldager17/tesla-bridge" \
       org.opencontainers.image.description="Self-hosted Tesla bridge: fleet-telemetry → MQTT/Home Assistant, commands via the Fleet API"
 ARG CHANNEL=dev
