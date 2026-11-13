@@ -107,7 +107,7 @@ public sealed class TeslaTokenProvider(
         if (!resp.IsSuccessStatusCode)
             throw new InvalidOperationException($"Tesla's token endpoint answered {(int)resp.StatusCode}: {body}");
 
-        var json = JsonDocument.Parse(body).RootElement;
+        var json = JsonElement.Parse(body);
         var access = json.GetProperty("access_token").GetString()!;
         var refresh = json.TryGetProperty("refresh_token", out var r) ? r.GetString()! : _tokens?.RefreshToken
             ?? throw new InvalidOperationException("No refresh_token in the answer – is the 'offline_access' scope missing?");
