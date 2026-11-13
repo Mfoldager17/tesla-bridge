@@ -96,7 +96,7 @@ public static class CliCommands
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Fejl: {ex.Message}");
+            Console.Error.WriteLine($"Error: {ex.Message}");
             return 1;
         }
     }

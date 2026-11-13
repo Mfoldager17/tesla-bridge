@@ -4,7 +4,7 @@ using TeslaBridge.Options;
 
 namespace TeslaBridge.Map;
 
-/// <summary>A street address for a position, ready to show: "Skanderborgvej 12" / "8361 Hasselager".</summary>
+/// <summary>A street address for a position, ready to show: "Rådhuspladsen 2" / "8000 Aarhus C".</summary>
 public sealed record StreetAddress(string Line1, string? Line2, string? Place, string? Country, string? CountryCode, string Full);
 
 /// <summary>

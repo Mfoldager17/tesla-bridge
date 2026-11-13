@@ -116,9 +116,9 @@ public sealed class UsageTracker(TimeProvider time)
             var data = c.Data.Values.Sum();
             var categories = new List<UsageCategory>
             {
-                new("signals", "Signaler (stream)", signals, signals / SignalsPerDollar, "$1 / 150.000"),
-                new("commands", "Kommandoer", commands, commands / CommandsPerDollar, "$1 / 1.000"),
-                new("wakes", "Wakes", c.Wakes, c.Wakes / WakesPerDollar, "$1 / 50"),
+                new("signals", "Signals (stream)", signals, signals / SignalsPerDollar, "$1 / 150,000"),
+                new("commands", "Commands", commands, commands / CommandsPerDollar, "$1 / 1,000"),
+                new("wakes", "Wake-ups", c.Wakes, c.Wakes / WakesPerDollar, "$1 / 50"),
                 new("data", "Data requests", data, data / DataPerDollar, "$1 / 500"),
             };
             var total = categories.Sum(x => x.CostUsd);

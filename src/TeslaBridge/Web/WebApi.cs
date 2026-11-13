@@ -186,10 +186,11 @@ public static class WebApi
                     ("ACChargingPower", "11.0"),
                     ("DoorState", "{\"DriverFront\":false,\"PassengerFront\":false,\"DriverRear\":false,\"PassengerRear\":false,\"TrunkFront\":false,\"TrunkRear\":false}"),
                 }.ToList();
-                // Every second press the car drives a little around Aarhus towards a destination; the first one parks it.
+                // Every second press the car drives a little around central Aarhus towards a destination; the first one
+                // parks it by the city hall.
                 var inv = System.Globalization.CultureInfo.InvariantCulture;
                 var driving = Interlocked.Increment(ref _simulatorPresses) % 2 == 0;
-                var (lat, lon) = (56.1185 + (driving ? (rnd.NextDouble() - .5) * .02 : 0), 10.1235 + (driving ? (rnd.NextDouble() - .5) * .03 : 0));
+                var (lat, lon) = (56.1530 + (driving ? (rnd.NextDouble() - .5) * .02 : 0), 10.2033 + (driving ? (rnd.NextDouble() - .5) * .03 : 0));
                 samples.Add(("Location", string.Format(inv, "{{\"latitude\":{0:0.000000},\"longitude\":{1:0.000000}}}", lat, lon)));
                 samples.Add(("GpsHeading", rnd.Next(0, 360).ToString(inv)));
                 samples.Add(("Gear", driving ? "\"ShiftStateD\"" : "\"ShiftStateP\""));

@@ -12,11 +12,11 @@ A self-hosted replacement for Teslemetry. Your car streams directly to your own 
 
 <table>
 <tr>
-<td width="66%"><img src="docs/screenshots/car.png" alt="The car page: a 3D Model Y with an open rear window marked, 68 % battery charging at 10.8 kW towards an 80 % limit, quick actions and status"></td>
+<td width="66%"><img src="docs/screenshots/car.png" alt="The car page: a 3D Model Y with an open rear window marked, 68 % battery charging at 10.8 kW towards an 80 % limit, quick actions, and a map with the car parked at Rådhuspladsen in Aarhus"></td>
 <td><img src="docs/screenshots/phone-car.png" alt="The car page on a phone in light mode"></td>
 </tr>
 <tr>
-<td><b>Car</b> – the car in 3D with open doors, windows, frunk, trunk and charge port live; battery, range and charging; quick actions.</td>
+<td><b>Car</b> – the car in 3D with open doors, windows, frunk, trunk and charge port live; battery, range and charging; quick actions; where it is on a map, with the street address.</td>
 <td><b>On a phone</b></td>
 </tr>
 <tr>

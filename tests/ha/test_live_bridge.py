@@ -48,7 +48,7 @@ async def test_entities_follow_the_bridge(hass: HomeAssistant, socket_enabled) -
     assert hass.states.get("lock.model_y_lock").state in ("locked", "unlocked")
     assert hass.states.get("cover.model_y_frunk").state == "closed"
     loc = hass.states.get("device_tracker.model_y_location")
-    assert abs(loc.attributes["latitude"] - 56.1185) < 0.02   # the simulator moves the car on every second press
+    assert abs(loc.attributes["latitude"] - 56.1530) < 0.02   # the simulator moves the car on every second press
     clim = hass.states.get("climate.model_y_climate")
     print("climate", clim.state, clim.attributes)
     assert clim.state in ("heat_cool", "off")
