@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using TeslaBridge.Commands;
+using TeslaBridge.Mcp;
 using TeslaBridge.Mqtt;
 using TeslaBridge.Options;
 using TeslaBridge.Publishing;
@@ -24,6 +25,7 @@ public static class WebApi
         var access = app.Services.GetRequiredService<WebAccess>();
         app.UseBridgeSecurity(access, opts);
 
+        app.MapMcpServer();   // /mcp – its own on/off and token
         app.UseDefaultFiles();
         app.UseStaticFiles();
 
@@ -33,6 +35,7 @@ public static class WebApi
         api.MapCarModelApi(opts);
         api.MapBleApi(opts);
         api.MapMapApi();
+        api.MapMcpTokenApi();
 
         var vehicles = api.MapGroup("/vehicles/{vin}").OnlyKnownVehicles(opts);
         api.MapSessionApi(access);

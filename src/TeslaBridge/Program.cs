@@ -124,6 +124,17 @@ services.AddHostedService(sp => sp.GetRequiredService<TelemetryConfigService>())
 // Dashboard and API
 services.AddSingleton<WebAccess>();
 services.AddSingleton<TeslaBridge.Setup.SetupStatusService>();
+// MCP for AI assistants (/mcp) – off until turned on under Settings; see Mcp/McpEndpoint.cs
+services.AddMcpServer(o =>
+    {
+        o.ServerInfo = new() { Name = "tesla-bridge", Title = "Tesla Bridge", Version = TeslaBridge.Versioning.BuildInfo.Version };
+        o.ServerInstructions =
+            "Tesla Bridge controls a Tesla through the owner's own server. get_car_status gives the car's state; run_command " +
+            "sends commands and waits for the car (waking it can take up to a minute). Tell the user what you are about " +
+            "to do before sending a command, and never retry a failed command on your own.";
+    })
+    .WithHttpTransport(o => o.Stateless = true)
+    .WithTools<TeslaBridge.Mcp.CarTools>();
 services.AddSingleton<LiveEvents>();
 services.AddHostedService<LiveEventsBridge>();
 services.AddHostedService<TeslaBridge.Auth.PartnerAutoRegistration>();

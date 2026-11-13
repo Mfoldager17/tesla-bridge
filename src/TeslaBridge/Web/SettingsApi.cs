@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using TeslaBridge.Options;
 using TeslaBridge.Settings;
@@ -126,6 +127,7 @@ public static class SettingsApi
             ["car_view"] = s.CarView,
             ["climate_for_seat_heat"] = s.ClimateForSeatHeat,
             ["map_enabled"] = s.MapEnabled,
+            ["mcp"] = JsonSerializer.SerializeToNode(TeslaBridge.Mcp.McpEndpoint.Describe(s.Mcp)),
             ["map_tile_url"] = string.IsNullOrWhiteSpace(opts?.Map.TileUrl) ? null : opts!.Map.TileUrl,
             ["map_tile_attribution"] = string.IsNullOrWhiteSpace(opts?.Map.TileAttribution) ? null : opts!.Map.TileAttribution,
             ["snapshot_default_minutes"] = SettingsStore.DefaultSnapshotMinutes,

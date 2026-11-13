@@ -17,6 +17,7 @@ Follow the steps in order – each page ends with a link to the next one. Prefer
 | | |
 |---|---|
 | [Bluetooth (ESP32)](ble.md) | Optional: free commands and wake-ups while the car is home |
+| [AI assistants (MCP)](mcp.md) | Optional: let Claude or another assistant read the car and send commands, with its own token |
 | [Entities](entities.md) | Everything you get in Home Assistant |
 | [Switching](switching.md) | From MQTT to the integration and back |
 | [Versions and updating](updating.md) | Releases, what `latest`/`edge`/`v1` mean, updating and pinning |
