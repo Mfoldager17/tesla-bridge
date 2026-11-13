@@ -6,6 +6,7 @@ import { toast } from "../components/Toast";
 import { createDraft, dur, Estimate, FieldGroups } from "./settings/TelemetryFields";
 import { CarModelPanel } from "./settings/CarModelPanel";
 import { BlePanel } from "./settings/BlePanel";
+import { McpPanel } from "./settings/McpPanel";
 
 const SNAPSHOTS = [0, 15, 30, 60, 120, 360, 720, 1440];
 
@@ -95,6 +96,8 @@ export function Settings() {
               <option value="off">{t("map.off")}</option>
             </select>
           </div>
+
+          <McpPanel />
 
           <div class="panel">
             <h2>{t("seatClimate.title")}</h2>

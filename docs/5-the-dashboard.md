@@ -10,7 +10,7 @@ The bridge has a built-in dashboard at `http://<server-IP>:8090` (`http://localh
 - **Controls**: everything you can do from Home Assistant – climate, Keep/Dog/Camp, seat and steering wheel heat, charging, locks, sentry, guest/valet mode, frunk, trunk, windows, HomeLink. Purple means the bridge is waiting for the car to confirm
 - **Data**: every value with its source (`stream`, `snapshot`, `optimistic`, `restored`, `bridge`) and age, the raw telemetry exactly as the car sent it, and the telemetry status on the car
 - **Usage**: the month's signals, commands, wakes and data requests, priced at Tesla's rates, with a projection to the end of the month
-- **Settings**: how often the car sends each value, and how often a snapshot is fetched – see [Fields and intervals](#fields-and-intervals)
+- **Settings**: how often the car sends each value, and how often a snapshot is fetched – see [Fields and intervals](#fields-and-intervals) – plus the car view, the map, Bluetooth and [AI assistants (MCP)](mcp.md)
 - **Setup**: domain, Tesla login, pairing and telemetry status, step by step
 
 ## Map and address

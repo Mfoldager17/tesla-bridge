@@ -80,6 +80,7 @@ curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/insta
 | | |
 |---|---|
 | [Bluetooth (ESP32)](docs/ble.md) | Optional: free commands and wake-ups while the car is home |
+| [AI assistants (MCP)](docs/mcp.md) | Optional: let Claude or another assistant read the car and send commands, with its own token |
 | [Entities](docs/entities.md) | Everything you get in Home Assistant |
 | [Switching](docs/switching.md) | From MQTT to the integration and back |
 | [Versions and updating](docs/updating.md) | Releases, what `latest`/`edge`/`v1` mean, updating and pinning |

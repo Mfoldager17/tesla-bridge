@@ -10,6 +10,21 @@ namespace TeslaBridge.Settings;
 public sealed record FieldSetting(bool Enabled, int IntervalSeconds);
 
 /// <summary>Settings changed from the dashboard. Saved in /data/settings.json and survive updates.</summary>
+/// <summary>
+/// MCP (Model Context Protocol): lets an AI assistant such as Claude read the car's state and send commands.
+/// It has its own token – only its SHA-256 is stored – so it can be revoked without touching the dashboard token.
+/// </summary>
+public sealed record McpSetting
+{
+    public bool Enabled { get; init; }
+
+    /// <summary>Unlock, frunk, trunk, windows, HomeLink, keyless driving, guest/valet mode, sentry off, charge cable.</summary>
+    public bool AllowSecurityCommands { get; init; }
+
+    /// <summary>SHA-256 of the MCP token (base64), or null when none has been made.</summary>
+    public string? TokenHash { get; init; }
+}
+
 public sealed class BridgeSettings
 {
     /// <summary>Only fields the user changed. Everything else follows the defaults shipped with the image.</summary>
@@ -32,6 +47,9 @@ public sealed class BridgeSettings
     /// it leaves your network.
     /// </summary>
     public bool MapEnabled { get; set; } = true;
+
+    /// <summary>The MCP server for AI assistants (/mcp). Off until you turn it on under Settings.</summary>
+    public McpSetting Mcp { get; set; } = new();
 
     /// <summary>ESP32 per VIN, set on the dashboard. Wins over Bridge__Vehicles__N__Ble__* from .env; an empty URL turns it off.</summary>
     public Dictionary<string, BleSetting> Ble { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -147,7 +165,7 @@ public sealed class SettingsStore
     {
         lock (_lock)
         {
-            _current = new BridgeSettings { CarView = _current.CarView, ClimateForSeatHeat = _current.ClimateForSeatHeat, MapEnabled = _current.MapEnabled, Ble = Clone(_current).Ble };
+            _current = new BridgeSettings { CarView = _current.CarView, ClimateForSeatHeat = _current.ClimateForSeatHeat, MapEnabled = _current.MapEnabled, Mcp = _current.Mcp, Ble = Clone(_current).Ble };
             Save(_file, _current);
         }
         Changed?.Invoke();
@@ -164,6 +182,7 @@ public sealed class SettingsStore
                 if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 var s = JsonSerializer.Deserialize<BridgeSettings>(File.ReadAllText(file), Json) ?? new BridgeSettings();
                 s.TelemetryFields = new Dictionary<string, FieldSetting>(s.TelemetryFields ?? [], StringComparer.Ordinal);
+                s.Mcp ??= new McpSetting();
                 s.Ble = new Dictionary<string, BleSetting>(s.Ble ?? [], StringComparer.OrdinalIgnoreCase);
                 return s;
             }
@@ -190,8 +209,23 @@ public sealed class SettingsStore
         CarView = CarViews.Contains(s.CarView) ? s.CarView : DefaultCarView,
         ClimateForSeatHeat = s.ClimateForSeatHeat,
         MapEnabled = s.MapEnabled,
+        Mcp = s.Mcp ?? new McpSetting(),
         Ble = new Dictionary<string, BleSetting>(s.Ble, StringComparer.OrdinalIgnoreCase),
     };
+
+    /// <summary>Changes the MCP settings (on/off, security commands, token).</summary>
+    public BridgeSettings SetMcp(Func<McpSetting, McpSetting> change)
+    {
+        lock (_lock)
+        {
+            var next = Clone(_current);
+            next.Mcp = change(next.Mcp);
+            Save(_file, next);
+            _current = next;
+        }
+        Changed?.Invoke();
+        return Current;
+    }
 
     /// <summary>Sets (or with null: forgets, so .env applies again) the ESP32 for one car.</summary>
     public BridgeSettings SetBle(string vin, BleSetting? ble)

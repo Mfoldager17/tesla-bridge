@@ -48,6 +48,10 @@ Anyone who may publish to `tesla/<VIN>/cmd/…` on your broker can send commands
 
 The ESP32 is a key to your car: its web server can unlock it over Bluetooth, without the internet and without the bridge. `esphome/tesla-ble.yaml` therefore always sets a username and password (`web_username` / `web_password` in `secrets.yaml`). Use a long random password, and if your router can, put the ESP32 on a separate network for smart-home devices. The firmware version is pinned (`ref:`), so a rebuild never pulls in code you haven't looked at. The bridge only talks to an ESP32 at a private address (`192.168.x.x`, `10.x.x.x`, `*.local` …).
 
+## AI assistants (MCP)
+
+[MCP](mcp.md) is off until you turn it on. It has its own token (only its SHA-256 is stored, and it can be revoked on its own), and commands that open the car – unlock, frunk, trunk, windows, charge port, sentry off, guest/valet mode, HomeLink, keyless driving – are refused unless you allow them.
+
 ## Keys and files
 
 | File | What it is | Who can read it |

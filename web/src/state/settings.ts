@@ -15,6 +15,14 @@ export interface FieldSettingInfo {
 }
 
 /** GET /api/settings */
+/** Settings → AI assistants (MCP) */
+export interface McpSettings {
+  enabled: boolean;
+  allow_security_commands: boolean;
+  token_set: boolean;
+  path: string;
+}
+
 export interface Settings {
   fields: FieldSettingInfo[];
   groups: string[];
@@ -23,6 +31,7 @@ export interface Settings {
   car_view: string;
   climate_for_seat_heat: boolean;
   map_enabled: boolean;
+  mcp: McpSettings;
   map_tile_url: string | null;
   map_tile_attribution: string | null;
   month_start: string;
