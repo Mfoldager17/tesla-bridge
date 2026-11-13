@@ -1,7 +1,7 @@
 # Built for both amd64 and arm64 (Raspberry Pi). The SDK runs on the build machine's own
 # architecture and cross-compiles, so nothing is emulated during the build.
 # The dashboard (web/, SolidJS + Vite) – plain static files, so it's built once on the build machine.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS web
+FROM --platform=$BUILDPLATFORM node:25-alpine AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
