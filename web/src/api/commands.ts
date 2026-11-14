@@ -4,7 +4,7 @@ import { toast } from "../components/Toast";
 import { t } from "../i18n";
 
 /**
- * Sends a command to the shown car, like MQTT's tesla/<VIN>/cmd/<name> (same names and payloads).
+ * Sends a command to the shown car, like MQTT's t-pitwall/<VIN>/cmd/<name> (same names and payloads).
  * Answers straight away; the result arrives as a "command" event and the state as field events.
  */
 export async function send(name: string, payload: string | number = "PRESS"): Promise<void> {

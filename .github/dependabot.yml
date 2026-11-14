@@ -8,7 +8,7 @@ version: 2
 updates:
   # The bridge
   - package-ecosystem: nuget
-    directory: /src/TeslaBridge
+    directory: /src/TPitwall
     schedule: { interval: monthly }
     commit-message: { prefix: "fix(deps)" }
     ignore:
@@ -20,7 +20,7 @@ updates:
 
   # The .NET tests
   - package-ecosystem: nuget
-    directory: /tests/TeslaBridge.Tests
+    directory: /tests/TPitwall.Tests
     schedule: { interval: monthly }
     commit-message: { prefix: "chore(deps)" }
     ignore:

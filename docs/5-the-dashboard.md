@@ -1,4 +1,4 @@
-<sub>[Tesla Bridge](../README.md) · [Guide](README.md) · [Before you start](1-before-you-start.md) → [Install](2-install.md) → [Connect the car](3-connect-the-car.md) → [Home Assistant](4-home-assistant.md) → **The dashboard**</sub>
+<sub>[T-Pitwall](../README.md) · [Guide](README.md) · [Before you start](1-before-you-start.md) → [Install](2-install.md) → [Connect the car](3-connect-the-car.md) → [Home Assistant](4-home-assistant.md) → **The dashboard**</sub>
 
 # 5. The dashboard
 
@@ -25,9 +25,9 @@ Both see the car's position. If you'd rather keep it at home, choose **Settings 
 Other map services can be set in `.env`:
 
 ```bash
-Bridge__Map__GeocoderUrl=https://nominatim.example.com          # your own Nominatim
-Bridge__Map__TileUrl=https://tiles.example.com/{z}/{x}/{y}.png   # your own map tiles
-Bridge__Map__TileAttribution=© OpenStreetMap contributors
+TPitwall__Map__GeocoderUrl=https://nominatim.example.com          # your own Nominatim
+TPitwall__Map__TileUrl=https://tiles.example.com/{z}/{x}/{y}.png   # your own map tiles
+TPitwall__Map__TileAttribution=© OpenStreetMap contributors
 ```
 
 ## Car view: 3D model or drawing
@@ -54,9 +54,9 @@ If a 3D model can't be loaded (or the device has no WebGL), the page shows the d
 
 Other `.glb` files are kept out of Git and out of images you build yourself (`.gitignore`, `.dockerignore`), so a model you bought can't end up public by accident. Check the licence before you share a model.
 
-<a id="credits"></a>**Credits.** The bundled model is [“2025 Tesla Model Y”](https://sketchfab.com/3d-models/2025-tesla-model-y-619601e7800d418da5922c4fa7833f74) by **BloxBloger**, licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), modified for Tesla Bridge (converted to `.glb`, simplified, doors, wheels and seats split into animatable parts, new materials). The model is **not** covered by the rest of this repository's licence and may only be used non-commercially – see [`NOTICE.md`](../src/TeslaBridge/wwwroot/models/NOTICE.md). The dashboard is built with [SolidJS](https://www.solidjs.com), the 3D view with [three.js](https://threejs.org) (both MIT) and the map with [Leaflet](https://leafletjs.com) (BSD-2-Clause), bundled in the image so it works without internet (apart from the map) – their licences are served at `/assets/THIRD-PARTY-LICENSES.txt`. Map data and addresses © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright). Tesla and Model Y are trademarks of Tesla, Inc.; this project is not affiliated with Tesla.
+<a id="credits"></a>**Credits.** The bundled model is [“2025 Tesla Model Y”](https://sketchfab.com/3d-models/2025-tesla-model-y-619601e7800d418da5922c4fa7833f74) by **BloxBloger**, licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), modified for T-Pitwall (converted to `.glb`, simplified, doors, wheels and seats split into animatable parts, new materials). The model is **not** covered by the rest of this repository's licence and may only be used non-commercially – see [`NOTICE.md`](../src/TPitwall/wwwroot/models/NOTICE.md). The dashboard is built with [SolidJS](https://www.solidjs.com), the 3D view with [three.js](https://threejs.org) (both MIT) and the map with [Leaflet](https://leafletjs.com) (BSD-2-Clause), bundled in the image so it works without internet (apart from the map) – their licences are served at `/assets/THIRD-PARTY-LICENSES.txt`. Map data and addresses © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright). Tesla and Model Y are trademarks of Tesla, Inc.; this project is not affiliated with Tesla.
 
-The dashboard can unlock your car. Always set `Bridge__Web__Token`, and **never forward port 8090**. The public port 8091 only answers with the public key and the login callback. `Bridge__Web__Enabled=false` turns off the dashboard and the HTTP API – way B then stops working.
+The dashboard can unlock your car. Always set `TPitwall__Web__Token`, and **never forward port 8090**. The public port 8091 only answers with the public key and the login callback. `TPitwall__Web__Enabled=false` turns off the dashboard and the HTTP API – way B then stops working.
 
 ## Fields and intervals
 

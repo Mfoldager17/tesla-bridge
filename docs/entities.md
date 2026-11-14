@@ -1,12 +1,12 @@
-<sub>[Tesla Bridge](../README.md) · [Guide](README.md) · Reference · Entities</sub>
+<sub>[T-Pitwall](../README.md) · [Guide](README.md) · Reference · Entities</sub>
 
 # Entities in Home Assistant
 
-In HA, the car is called whatever you put in `Bridge__Vehicles__0__Name` in `.env` (e.g. "Model Y", "My Car" or "Elsa"), and that name becomes the prefix of every entity id: "Model Y" → `sensor.model_y_battery_level`, "My Car" → `sensor.my_car_battery_level`. In the examples here, the car is called "Model Y".
+In HA, the car is called whatever you put in `TPitwall__Vehicles__0__Name` in `.env` (e.g. "Model Y", "My Car" or "Elsa"), and that name becomes the prefix of every entity id: "Model Y" → `sensor.model_y_battery_level`, "My Car" → `sensor.my_car_battery_level`. In the examples here, the car is called "Model Y".
 
-Same names and types as Teslemetry. The prefix comes from `Bridge__Vehicles__0__Name`: "Model Y" gives `model_y_`, "My Car" gives `my_car_`. Accented and Nordic letters are simplified (æ → ae, ø → oe, å → a, é → e). The table shows the names without the prefix.
+Same names and types as Teslemetry. The prefix comes from `TPitwall__Vehicles__0__Name`: "Model Y" gives `model_y_`, "My Car" gives `my_car_`. Accented and Nordic letters are simplified (æ → ae, ø → oe, å → a, é → e). The table shows the names without the prefix.
 
-For more cars, add `Bridge__Vehicles__1__Vin` and `Bridge__Vehicles__1__Name` and so on. Each car becomes its own device with its own prefix.
+For more cars, add `TPitwall__Vehicles__1__Vin` and `TPitwall__Vehicles__1__Name` and so on. Each car becomes its own device with its own prefix.
 
 | Type | Entities |
 |---|---|
@@ -21,7 +21,7 @@ For more cars, add `Bridge__Vehicles__1__Vin` and `Bridge__Vehicles__1__Name` an
 | `binary_sensor` | `status` (online), `charge_cable`, doors, windows, `driver_seat_occupied`, `driver_seat_belt`, `preconditioning_enabled`, `scheduled_charging_pending`, `fast_charger_present`, `bluetooth` (only with an [ESP32](ble.md): on while the car is in Bluetooth range) |
 | `device_tracker` | `location` (the car), `route` (destination from the navigation) |
 
-There is also a **Tesla Bridge** device with your Fleet API usage: `sensor.tesla_bridge_cost_month`, `…_cost_projected`, `…_credit_left`, plus counts of signals, commands, wakes and data requests for the month. Handy for an automation that warns you if the projected cost approaches $10.
+There is also a **T-Pitwall** device with your Fleet API usage: `sensor.t_pitwall_cost_month`, `…_cost_projected`, `…_credit_left`, plus counts of signals, commands, wakes and data requests for the month. Handy for an automation that warns you if the projected cost approaches $10.
 
 `sensor.<car>_command_status` shows the latest command (`pending` → `waking` → `succeeded`/`failed`) with the error as an attribute.
 
@@ -34,7 +34,7 @@ A sent command shows its new state straight away (optimistic), but the car may f
 | `pending` | `true` while the command waits for the car |
 | `waiting_for` | `car to wake up` while the car is being woken, then `car to confirm` until the car reports the new state. Empty when done |
 
-With the [integration](4-home-assistant.md#b-the-tesla-bridge-integration), it works like Teslemetry: the action keeps running until the car has woken and done it, so Home Assistant shows it as busy, and if the car refuses, you get its error as a message instead of a silent failure. The icon also changes meanwhile: 💤 `mdi:sleep` while the car wakes, ⏳ `mdi:timer-sand` until it confirms. That shows on tile cards and in the entity list without any setup. With MQTT the attributes are the same, but the icon can't change. Use them in a card, for example:
+With the [integration](4-home-assistant.md#b-the-t-pitwall-integration), it works like Teslemetry: the action keeps running until the car has woken and done it, so Home Assistant shows it as busy, and if the car refuses, you get its error as a message instead of a silent failure. The icon also changes meanwhile: 💤 `mdi:sleep` while the car wakes, ⏳ `mdi:timer-sand` until it confirms. That shows on tile cards and in the entity list without any setup. With MQTT the attributes are the same, but the icon can't change. Use them in a card, for example:
 
 ```yaml
 type: tile

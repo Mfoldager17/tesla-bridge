@@ -1,8 +1,10 @@
-# Tesla Bridge
+# T-Pitwall
 
-[![Release](https://img.shields.io/github/v/release/Mfoldager17/tesla-bridge?sort=semver)](https://github.com/Mfoldager17/tesla-bridge/releases) [![Build](https://github.com/Mfoldager17/tesla-bridge/actions/workflows/build.yml/badge.svg)](https://github.com/Mfoldager17/tesla-bridge/actions/workflows/build.yml)
+**Self-hosted live data and control for your Tesla.** Formerly *Tesla Bridge*.
 
-A self-hosted replacement for Teslemetry. Your car streams directly to your own server, and you control it through Tesla's official Fleet API – no middleman, no subscription. Fleet API usage for one car stays within Tesla's free monthly credit ($10), and the bridge tracks it for you.
+[![Release](https://img.shields.io/github/v/release/Mfoldager17/t-pitwall?sort=semver)](https://github.com/Mfoldager17/t-pitwall/releases) [![Build](https://github.com/Mfoldager17/t-pitwall/actions/workflows/build.yml/badge.svg)](https://github.com/Mfoldager17/t-pitwall/actions/workflows/build.yml)
+
+T-Pitwall is a self-hosted replacement for Teslemetry. Your car streams directly to your own server, and you control it through Tesla's official Fleet API – no middleman, no subscription. Fleet API usage for one car stays within Tesla's free monthly credit ($10), and the bridge tracks it for you.
 
 - **Home Assistant your way:** through your MQTT broker, or a real integration without one. Same entities either way, named like Teslemetry's.
 - **Feels instant:** commands show up straight away, locks and covers show *locking*/*opening*, a sleeping car is woken and the command resent.
@@ -41,7 +43,7 @@ A self-hosted replacement for Teslemetry. Your car streams directly to your own 
 
 ## Get started
 
-> **The easy way:** the **[interactive setup guide](https://mfoldager17.github.io/tesla-bridge/)** asks the three questions below and shows only the steps for your setup – with your own domain filled into every command.
+> **The easy way:** the **[interactive setup guide](https://mfoldager17.github.io/t-pitwall/)** asks the three questions below and shows only the steps for your setup – with your own domain filled into every command.
 
 ### Three choices
 
@@ -51,7 +53,7 @@ Each one is independent – any combination works. If you're unsure, take the fi
 |---|---|---|
 | **How do you install?** | **Setup script** – one command that asks and does the rest | **By hand** – every step explained |
 | **How does the internet reach your server?** | **Reverse proxy** – port 443 is open to Nginx Proxy Manager, Caddy, Traefik … | **Tunnel** – e.g. Cloudflare Tunnel, port 443 stays closed |
-| **How does Home Assistant get the data?** | **Integration** – [its own repository](https://github.com/Mfoldager17/ha-tesla-bridge), installed from the Marketplace in Home Assistant, no broker needed | **MQTT** – through the broker you already run |
+| **How does Home Assistant get the data?** | **Integration** – [its own repository](https://github.com/Mfoldager17/ha-t-pitwall), installed from the Marketplace in Home Assistant, no broker needed | **MQTT** – through the broker you already run |
 
 Whatever you pick, the car always needs **TCP 4443 forwarded** to your server, and a **certificate** for the name it connects to. Nginx Proxy Manager is *not* required – but you need to know which folder your certificate is in. [Why?](docs/1-before-you-start.md#choice-1-how-the-internet-reaches-you)
 
@@ -62,7 +64,7 @@ Whatever you pick, the car always needs **TCP 4443 forwarded** to your server, a
 | 1 | **[Before you start](docs/1-before-you-start.md)** | What you need and how it fits together | Reverse proxy: one domain · Tunnel: two |
 | 2 | **[Install](docs/2-install.md)** | Tesla app, DNS, `.env`, certificate, start | [Script](docs/2-install.md#with-the-setup-script) · [by hand](docs/2-install.md#by-hand) |
 | 3 | **[Connect the car](docs/3-connect-the-car.md)** | Sign in with Tesla, pair the key at the car | – |
-| 4 | **[Home Assistant](docs/4-home-assistant.md)** | Entities in Home Assistant | [MQTT](docs/4-home-assistant.md#a-mqtt) · [Integration](docs/4-home-assistant.md#b-the-tesla-bridge-integration) |
+| 4 | **[Home Assistant](docs/4-home-assistant.md)** | Entities in Home Assistant | [MQTT](docs/4-home-assistant.md#a-mqtt) · [Integration](docs/4-home-assistant.md#b-the-t-pitwall-integration) |
 | 5 | **[The dashboard](docs/5-the-dashboard.md)** | Controls, intervals per value, the 3D car | – |
 
 Each page ends with a link to the next one.
@@ -72,7 +74,7 @@ Each page ends with a link to the next one.
 On the server:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Mfoldager17/t-pitwall/main/install.sh | bash
 ```
 
 ## Reference
@@ -91,4 +93,4 @@ curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/insta
 
 ## License
 
-[MIT](LICENSE), except the bundled 3D model of the Model Y ([CC BY-NC 4.0](src/TeslaBridge/wwwroot/models/NOTICE.md), non-commercial only). Tesla and Model Y are trademarks of Tesla, Inc. This project is not affiliated with Tesla.
+[MIT](LICENSE), except the bundled 3D model of the Model Y ([CC BY-NC 4.0](src/TPitwall/wwwroot/models/NOTICE.md), non-commercial only). Tesla and Model Y are trademarks of Tesla, Inc. This project is not affiliated with Tesla.

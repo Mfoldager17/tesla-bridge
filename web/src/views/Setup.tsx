@@ -82,9 +82,9 @@ export function Setup() {
         );
       }}</Show>
       <p class="small muted" style={{ "margin-top": "22px" }}>
-        Tesla Bridge v{version()}
+        T-Pitwall v{version()}
         <Show when={update()?.update_available}>
-          {" · "}<a href={update()!.release_url ?? "https://github.com/Mfoldager17/tesla-bridge/releases"} target="_blank" rel="noopener">{t("ver.update", update()!.latest_version)}</a>
+          {" · "}<a href={update()!.release_url ?? "https://github.com/Mfoldager17/t-pitwall/releases"} target="_blank" rel="noopener">{t("ver.update", update()!.latest_version)}</a>
           {" – "}<code>docker compose pull && docker compose up -d</code>
         </Show>
       </p>

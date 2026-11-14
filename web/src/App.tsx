@@ -44,7 +44,7 @@ function Shell(props: ParentProps) {
       <Nav carName={carName()} />
       <div>
         <div class="mobile-top">
-          <b>{carName() ?? "Tesla Bridge"}</b>
+          <b>{carName() ?? "T-Pitwall"}</b>
           <div class="conn-mini"><span class={`dot ${connected() ? "ok" : "bad"}`} /><span>{carStatus().text}</span></div>
         </div>
         <main>{props.children}</main>
@@ -76,7 +76,7 @@ export function App() {
           <Login onDone={() => { void refetch(); }} />
         </Match>
         <Match when={ready.error}>
-          <div class="panel login"><h1>Tesla Bridge</h1><p class="muted">{String(ready.error?.message ?? ready.error)}</p></div>
+          <div class="panel login"><h1>T-Pitwall</h1><p class="muted">{String(ready.error?.message ?? ready.error)}</p></div>
         </Match>
         <Match when={ready()}>
           <HashRouter root={Shell}>

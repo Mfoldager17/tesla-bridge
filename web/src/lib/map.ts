@@ -9,7 +9,7 @@ export interface MapState {
 }
 export interface MapOptions {
   dark: boolean;
-  /** Your own tiles (Bridge__Map__TileUrl); otherwise OpenStreetMap's. */
+  /** Your own tiles (TPitwall__Map__TileUrl); otherwise OpenStreetMap's. */
   tileUrl?: string | null;
   attribution?: string | null;
   labels: { car: string; destination: string; recenter: string };

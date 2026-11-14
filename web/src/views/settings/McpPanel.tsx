@@ -125,9 +125,9 @@ export function McpPanel() {
           <h3>{t("mcp.connect")}</h3>
           <p class="small">{t("mcp.connectSub")}</p>
           <p class="small muted">Claude Code</p>
-          <pre>{`claude mcp add --transport http tesla-bridge ${url()} \\\n  --header "Authorization: Bearer ${shown()}"`}</pre>
+          <pre>{`claude mcp add --transport http t-pitwall ${url()} \\\n  --header "Authorization: Bearer ${shown()}"`}</pre>
           <p class="small muted">{t("mcp.desktop")}</p>
-          <pre>{JSON.stringify({ mcpServers: { "tesla-bridge": { command: "npx", args: ["-y", "mcp-remote", url(), "--header", `Authorization: Bearer ${shown()}`] } } }, null, 2)}</pre>
+          <pre>{JSON.stringify({ mcpServers: { "t-pitwall": { command: "npx", args: ["-y", "mcp-remote", url(), "--header", `Authorization: Bearer ${shown()}`] } } }, null, 2)}</pre>
         </Show>
       </div>
     )}</Show>
