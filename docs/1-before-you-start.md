@@ -78,7 +78,7 @@ Data can reach Home Assistant in **two ways**. Pick the one that suits you:
 |---|---|---|
 | For you if … | you already run an MQTT broker (Mosquitto, e.g. for Zigbee2MQTT) | you don't have or don't want a broker |
 | Extra software | your broker | none |
-| In Home Assistant | the MQTT integration (discovery, automatic) | **Tesla Bridge** from HACS |
+| In Home Assistant | the MQTT integration (discovery, automatic) | **[Tesla Bridge](https://github.com/Mfoldager17/ha-tesla-bridge)** from the Marketplace |
 | Other clients (ESP32, Node-RED, custom dashboards) | read and write MQTT topics | use the HTTP API |
 | Entities | ~80 under one device per car | exactly the same names, types and entity ids |
 
@@ -135,7 +135,7 @@ Way A only:
 - **An MQTT broker** that both the server and HA can reach. Your existing one works fine.
 
 Way B only:
-- **HACS** in Home Assistant (or copy the folder manually, see [step 4](4-home-assistant.md#b-the-tesla-bridge-integration)).
+- The **Marketplace** in Home Assistant (HACS before Home Assistant 2026.11), or copy the folder by hand – see [step 4](4-home-assistant.md#b-the-tesla-bridge-integration).
 
 Optional, any time later:
 - **An ESP32** near where the car parks, for free commands and wake-ups over Bluetooth while the car is home ([Bluetooth](ble.md)).

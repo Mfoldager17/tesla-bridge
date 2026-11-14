@@ -94,7 +94,7 @@ public static class WebApi
             return Results.Content(result.ToJsonString(Json.Relaxed), "application/json");
         });
 
-        // Entity definitions for the HA integration (custom_components/tesla_bridge)
+        // Entity definitions for the HA integration (Mfoldager17/ha-tesla-bridge)
         api.MapGet("/entities", () =>
             Results.Content(TeslaBridge.Publishing.HomeAssistantDiscovery.ApiDefinitions(opts).ToJsonString(Json.Relaxed), "application/json"));
 

@@ -2,7 +2,7 @@ name: Release
 
 # release-please keeps a "chore: release x.y.z" PR up to date from the commit messages (feat:, fix: …):
 # version number, CHANGELOG.md, manifest.json and the project file. Merging that PR makes the release:
-# tag vX.Y.Z, a GitHub Release (HACS offers it as an update) and the images v1.2.0 / v1.2 / v1 / latest.
+# tag vX.Y.Z, a GitHub Release (the bridge's update entity in HA shows it) and the images v1.2.0 / v1.2 / v1 / latest.
 on:
   push:
     branches: [main]

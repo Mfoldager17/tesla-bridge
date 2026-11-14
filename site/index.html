@@ -227,7 +227,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
           <li>A public IP address you can forward a port on. Behind CGNAT you need a VPS or a raw TCP tunnel for port 4443.</li>
           <li>A valid certificate for the name the car connects to (<span class="v-inline" data-v="cardomain"></span>) – and <strong>knowing which folder it's in</strong>. Nginx Proxy Manager is not required.</li>
           <li data-ha="mqtt">An MQTT broker that the server and Home Assistant can both reach, e.g. Mosquitto.</li>
-          <li data-ha="int">HACS in Home Assistant.</li>
+          <li data-ha="int">The Marketplace in Home Assistant (HACS before 2026.11).</li>
         </ul>
         <div class="box note">The name must not contain the word “tesla” – Tesla rejects it. <code>car.</code>, <code>ev.</code> or anything else is fine.</div>
 
@@ -420,7 +420,7 @@ docker compose logs tesla-init        <span class="c"># what was created, and an
         </div>
         <div data-ha="int">
           <ol>
-            <li>HACS → ⋮ → <strong>Custom repositories</strong> → <code>https://github.com/Mfoldager17/tesla-bridge</code>, type <em>Integration</em>.</li>
+            <li>Marketplace → <strong>Add from link</strong> → <code>https://github.com/Mfoldager17/ha-tesla-bridge</code> (HACS: ⋮ → <strong>Custom repositories</strong>, type <em>Integration</em>).</li>
             <li>Install <strong>Tesla Bridge</strong> and restart Home Assistant.</li>
             <li>Settings → Devices &amp; services → Add integration → <strong>Tesla Bridge</strong>, with URL <code>http://<span data-v="ip"></span>:8090</code> and the token from <code>.env</code>.</li>
           </ol>

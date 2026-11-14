@@ -72,7 +72,7 @@ public sealed class MqttOptions
     /// <summary>
     /// Run an MQTT broker inside the bridge (on Port) instead of using an external one (Mosquitto). fleet-telemetry
     /// then sends to the bridge directly, and Host is ignored (the bridge connects to itself). For those without a
-    /// broker of their own – e.g. together with the HA integration in custom_components/tesla_bridge.
+    /// broker of their own – e.g. together with the HA integration (Mfoldager17/ha-tesla-bridge).
     /// </summary>
     public bool EmbeddedBroker { get; set; }
 

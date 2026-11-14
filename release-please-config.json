@@ -18,7 +18,6 @@
         { "type": "refactor", "section": "Refactoring", "hidden": true }
       ],
       "extra-files": [
-        { "type": "json", "path": "custom_components/tesla_bridge/manifest.json", "jsonpath": "$.version" },
         { "type": "generic", "path": "src/TeslaBridge/TeslaBridge.csproj" }
       ]
     }

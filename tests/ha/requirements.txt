@@ -1,2 +1,0 @@
-# Pinned so the HA integration tests run against a known Home Assistant version (bump on purpose).
-pytest-homeassistant-custom-component==0.13.316

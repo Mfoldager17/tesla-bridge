@@ -51,7 +51,7 @@ Each one is independent – any combination works. If you're unsure, take the fi
 |---|---|---|
 | **How do you install?** | **Setup script** – one command that asks and does the rest | **By hand** – every step explained |
 | **How does the internet reach your server?** | **Reverse proxy** – port 443 is open to Nginx Proxy Manager, Caddy, Traefik … | **Tunnel** – e.g. Cloudflare Tunnel, port 443 stays closed |
-| **How does Home Assistant get the data?** | **Integration** – from HACS, no broker needed | **MQTT** – through the broker you already run |
+| **How does Home Assistant get the data?** | **Integration** – [its own repository](https://github.com/Mfoldager17/ha-tesla-bridge), installed from the Marketplace in Home Assistant, no broker needed | **MQTT** – through the broker you already run |
 
 Whatever you pick, the car always needs **TCP 4443 forwarded** to your server, and a **certificate** for the name it connects to. Nginx Proxy Manager is *not* required – but you need to know which folder your certificate is in. [Why?](docs/1-before-you-start.md#choice-1-how-the-internet-reaches-you)
 

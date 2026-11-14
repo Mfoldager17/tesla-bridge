@@ -12,15 +12,17 @@ If no entities appear, check that `Bridge__Mqtt__DiscoveryPrefix=homeassistant` 
 
 ## B) The Tesla Bridge integration
 
-**With HACS:**
-1. HACS → ⋮ (top right) → **Custom repositories**
-2. Repository: `https://github.com/Mfoldager17/tesla-bridge`, type: **Integration** → *Add*
-3. Search for **Tesla Bridge** in HACS → *Download*
-4. **Restart Home Assistant**
-5. *Settings → Devices & services → Add integration → Tesla Bridge*
-6. URL: `http://<server-IP>:8090`, token: `Bridge__Web__Token` from `.env` – or, if you didn't set one, the token the bridge made: `docker compose exec tesla-bridge cat /data/web-token`
+The integration has its own repository and its own releases: **[Mfoldager17/ha-tesla-bridge](https://github.com/Mfoldager17/ha-tesla-bridge)**.
 
-**Without HACS:** copy the folder `custom_components/tesla_bridge` from this repo to HA's `config/custom_components/tesla_bridge`, restart HA and continue from point 5.
+1. Home Assistant → **Marketplace** → **Add from link** → `https://github.com/Mfoldager17/ha-tesla-bridge` (before Home Assistant 2026.11: HACS → ⋮ → *Custom repositories*, type *Integration*)
+2. Install **Tesla Bridge**
+3. **Restart Home Assistant**
+4. *Settings → Devices & services → Add integration → Tesla Bridge*
+5. URL: `http://<server-IP>:8090`, token: `Bridge__Web__Token` from `.env` – or, if you didn't set one, the token the bridge made: `docker compose exec tesla-bridge cat /data/web-token`
+
+**Without the Marketplace:** copy the folder `custom_components/tesla_bridge` from [ha-tesla-bridge](https://github.com/Mfoldager17/ha-tesla-bridge) to HA's `config/custom_components/tesla_bridge`, restart HA and continue from point 4.
+
+**Installed it from this repository (tesla-bridge) before 2.0?** Remove that entry in the Marketplace, add the new link above and restart. Devices, entities and automations stay as they are. [How](updating.md#the-integration-way-b)
 
 The integration:
 - fetches the entities from the bridge (`/api/entities`), so new entities in a new bridge version show up when the integration is reloaded
