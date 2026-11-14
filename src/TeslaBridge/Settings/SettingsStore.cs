@@ -184,7 +184,7 @@ public sealed class SettingsStore
         {
             if (file is not null && File.Exists(file))
             {
-                // Files from before 1.2 were readable by everyone; this one can hold the ESP32's password.
+                // Files from before 2.0 were readable by everyone; this one can hold the ESP32's password.
                 if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 var s = JsonSerializer.Deserialize<BridgeSettings>(File.ReadAllText(file), Json) ?? new BridgeSettings();
                 s.TelemetryFields = new Dictionary<string, FieldSetting>(s.TelemetryFields ?? [], StringComparer.Ordinal);
