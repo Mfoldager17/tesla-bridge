@@ -20,7 +20,7 @@ jobs:
       - run: dotnet format TeslaBridge.sln --verify-no-changes
       - run: dotnet test TeslaBridge.sln -c Release
 
-  # Python (the HA integration, its tests, tools/) and the shell scripts
+  # Python (tools/) and the shell scripts
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -45,30 +45,3 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
-
-  # The HA integration (custom_components/tesla_bridge) against a real, running bridge with the simulator
-  ha-integration:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install -r tests/ha/requirements.txt
-      - name: Start the bridge (Development, embedded broker, simulator, with a token)
-        working-directory: src/TeslaBridge
-        env:
-          Bridge__Web__Token: ci-test-token-0123456789abcdef
-          Bridge__Web__AllowAnonymous: "false"
-        run: |
-          dotnet build
-          ASPNETCORE_ENVIRONMENT=Development nohup dotnet run --no-build > /tmp/bridge.log 2>&1 &
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8080/api/info && break; sleep 1; done
-      - run: python -m pytest tests/ha -v
-        env:
-          BRIDGE_TOKEN: ci-test-token-0123456789abcdef
-      - if: failure()
-        run: cat /tmp/bridge.log

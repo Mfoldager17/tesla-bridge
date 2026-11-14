@@ -1,4 +1,4 @@
-# Python: the Home Assistant integration, its tests and tools/. `ruff check .` runs in CI.
+# Python: tools/. `ruff check .` runs in CI.
 line-length = 120
 target-version = "py313"
 
@@ -10,6 +10,5 @@ ignore = [
 ]
 
 [lint.isort]
-known-first-party = ["custom_components"]
 force-sort-within-sections = true
 combine-as-imports = true

@@ -10,7 +10,7 @@ Tesla Bridge has version numbers like `1.2.0` ([semantic versioning](https://sem
 | **minor** | 1.**2**.0 → 1.**3**.0 | new features. Your `.env`, entities and automations keep working |
 | **major** | **1**.3.0 → **2**.0.0 | something you have to act on. The release notes say exactly what |
 
-The bridge (Docker image) and the integration (HACS) are released together with the same number. They don't have to match, though: the integration only needs a *minimum* bridge version, and a newer bridge always works with an older integration.
+The bridge (Docker image, this repository) and the Home Assistant integration ([ha-tesla-bridge](https://github.com/Mfoldager17/ha-tesla-bridge), from the Marketplace) have their own version numbers and are updated separately. They don't have to match: the integration only needs a *minimum* bridge version, and a newer bridge always works with an older integration.
 
 What changed in each version: [CHANGELOG.md](../CHANGELOG.md) and [Releases](https://github.com/Mfoldager17/tesla-bridge/releases).
 
@@ -18,7 +18,7 @@ What changed in each version: [CHANGELOG.md](../CHANGELOG.md) and [Releases](htt
 
 You don't have to check yourself. The bridge looks up the newest release on GitHub every 6 hours (one anonymous request) and shows it:
 
-- **Home Assistant:** *Settings → Updates* lists **Tesla Bridge 1.3.0** with the release notes, both with MQTT and with the integration (`update.tesla_bridge`). There is no install button: the bridge runs in Docker, so you update it as shown below.
+- **Home Assistant:** *Settings → Updates* lists **Tesla Bridge (server) 1.3.0** with the release notes, both with MQTT and with the integration (`update.tesla_bridge`). There is no install button: the bridge runs in Docker, so you update it as shown below.
 - **Dashboard:** the version sits at the bottom of the menu (and under *Setup* on a phone), with a link when a new one is out.
 - **The devices in HA** show the running version as *Firmware*.
 
@@ -64,8 +64,18 @@ After changing it: `docker compose pull && docker compose up -d`.
 
 ## The integration (way B)
 
-HACS shows a new release under *Settings → Updates* with its release notes. Install it and restart Home Assistant. To go back, use HACS → Tesla Bridge → ⋮ → *Redownload* and pick a version.
+The integration is updated in Home Assistant, not on the server: the Marketplace shows a new release under *Settings → Updates* with its release notes. Install it and restart Home Assistant. Its changes are in [its own changelog](https://github.com/Mfoldager17/ha-tesla-bridge/blob/main/CHANGELOG.md).
 
 If the integration ever needs a newer bridge than you run, Home Assistant shows a **repair** (*Settings → Repairs*) saying which version is needed. Update the bridge as above.
 
-New entities from a newer bridge appear when the integration is reloaded (*⋮ → Reload*).
+New entities from a newer bridge appear when the integration is reloaded (*⋮ → Reload*) – no new integration needed.
+
+### Moving the integration to its own repository
+
+Up to bridge 2.0, the integration was installed from this repository. It now lives in [ha-tesla-bridge](https://github.com/Mfoldager17/ha-tesla-bridge). Move it once:
+
+1. In the Marketplace (or HACS), remove **Tesla Bridge** – the entry for `Mfoldager17/tesla-bridge`.
+2. Add `https://github.com/Mfoldager17/ha-tesla-bridge` (*Add from link*; in HACS: *Custom repositories*, type *Integration*) and install **Tesla Bridge**.
+3. Restart Home Assistant.
+
+The integration keeps its name (`tesla_bridge`), so your devices, entities, automations and dashboards stay as they are. Until you move, the old one keeps working; it just gets no more updates.

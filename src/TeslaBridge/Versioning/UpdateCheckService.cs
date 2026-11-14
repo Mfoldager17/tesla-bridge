@@ -100,16 +100,18 @@ public sealed class UpdateCheckService(
         ["installed_version"] = BuildInfo.Version,
         // No known release (yet, or checking is off): the same as installed, so HA shows "up to date".
         ["latest_version"] = _info.Latest ?? BuildInfo.Version,
-        ["title"] = "Tesla Bridge",
+        ["title"] = "Tesla Bridge (server)",
         ["release_url"] = _info.ReleaseUrl,
         ["release_summary"] = Summary(_info.ReleaseNotes),
     };
 
-    private static string? Summary(string? notes)
+    /// <summary>The bridge runs in Docker, so HA can't install it – the summary says where it's updated.</summary>
+    public const string HowToUpdate = "Updated on the server, not in Home Assistant: docker compose pull && docker compose up -d. ";
+
+    private static string Summary(string? notes)
     {
-        if (string.IsNullOrWhiteSpace(notes)) return null;
-        var text = notes.Trim();
-        return text.Length <= 250 ? text : text[..247] + "…";   // HA allows 255 characters
+        var text = HowToUpdate + (notes?.Trim() ?? "");
+        return text.Length <= 250 ? text.TrimEnd() : text[..247] + "…";   // HA allows 255 characters
     }
 
     private async Task PublishAsync(CancellationToken ct)

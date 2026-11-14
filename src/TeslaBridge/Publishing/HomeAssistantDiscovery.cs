@@ -67,7 +67,7 @@ public sealed class HomeAssistantDiscovery(
     private const string ApiBase = "__bridge__";
 
     /// <summary>
-    /// The entities as JSON for custom_components/tesla_bridge (GET /api/entities). They are the same discovery
+    /// The entities as JSON for the HA integration, Mfoldager17/ha-tesla-bridge (GET /api/entities). They are the same discovery
     /// configs the MQTT way uses, with the topics swapped for keys: "state:&lt;key&gt;" (a field in /api/state),
     /// "cmd:&lt;name&gt;" (POST /api/vehicles/{vin}/cmd/&lt;name&gt;) and "usage". So the two ways can't drift apart:
     /// names, types, icons and templates are identical.

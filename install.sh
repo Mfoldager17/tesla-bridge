@@ -175,7 +175,7 @@ fi
 step "MQTT and Home Assistant"
 MOSQ=$(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($2) ~ /mosquitto/ {print $1; exit}')
 CUR_EMB=$(env_get Bridge__Mqtt__EmbeddedBroker)
-info "1) No broker – the bridge's built-in one. Home Assistant uses the ${B}Tesla Bridge${N} integration (HACS)."
+info "1) No broker – the bridge's built-in one. Home Assistant uses the ${B}Tesla Bridge${N} integration (Marketplace)."
 if [[ -n "$MOSQ" ]]; then info "2) Your Mosquitto container ${B}$MOSQ${N} – Home Assistant gets the entities via MQTT. Users are created for you."
 else info "2) (no Mosquitto container found)"; fi
 info "3) Another MQTT broker (you type host, port and users)"
@@ -433,7 +433,7 @@ info "Open the dashboard (only on your own network):"
 info "  ${C}$DASH${N}"
 info "Under ${B}Setup${N}: 1) Sign in with Tesla  2) scan the QR code with your phone at the car to pair the key."
 if [[ "$EMBEDDED" == true ]]; then
-  info "Home Assistant: HACS → Custom repositories → https://github.com/Mfoldager17/tesla-bridge (Integration),"
+  info "Home Assistant: Marketplace → Add from link → https://github.com/Mfoldager17/ha-tesla-bridge,"
   info "install ${B}Tesla Bridge${N}, restart, add the integration with URL http://$(lan_ip):8090 and the token from .env."
 else
   info "Home Assistant: the car shows up by itself under MQTT (if HA uses the same broker)."
