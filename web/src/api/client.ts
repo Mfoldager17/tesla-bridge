@@ -24,7 +24,7 @@ export async function logout(): Promise<void> {
 }
 
 /**
- * Before 1.2 the token came in the address (?token=… from install.sh) and was kept in localStorage. Either is traded
+ * Before 2.0 the token came in the address (?token=… from install.sh) and was kept in localStorage. Either is traded
  * for a session cookie once, and then removed.
  */
 export async function migrateOldToken(): Promise<void> {
