@@ -16,13 +16,13 @@ __pycache__/
 # Your own 3D car model – never commit it (usually licensed per person)
 *.glb
 # …except the bundled Model Y (CC BY-NC 4.0, see its NOTICE.md)
-!src/TeslaBridge/wwwroot/models/model-y.glb
+!src/TPitwall/wwwroot/models/model-y.glb
 
 # ESPHome secrets for the optional Bluetooth ESP32
 esphome/secrets.yaml
 esphome/.esphome/
 
 # The dashboard: built from web/ (npm run build) – never committed
-src/TeslaBridge/wwwroot/index.html
-src/TeslaBridge/wwwroot/assets/
+src/TPitwall/wwwroot/index.html
+src/TPitwall/wwwroot/assets/
 web/node_modules/

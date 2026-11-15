@@ -1,8 +1,8 @@
-<sub>[Tesla Bridge](../README.md) · [Guide](README.md) · Reference · Security</sub>
+<sub>[T-Pitwall](../README.md) · [Guide](README.md) · Reference · Security</sub>
 
 # Security
 
-Tesla Bridge can unlock your car and open its doors. This page lists what reaches it, what protects each part, and what you should check on your own network.
+T-Pitwall can unlock your car and open its doors. This page lists what reaches it, what protects each part, and what you should check on your own network.
 
 ## What is exposed where
 
@@ -15,34 +15,34 @@ Tesla Bridge can unlock your car and open its doors. This page lists what reache
 
 ## The dashboard and API token
 
-- **Always on.** Without `Bridge__Web__Token` in `.env`, the bridge makes a token on first start, saves it in `data/web-token` (readable by you only) and prints it once in the log. Show it again with `docker compose exec tesla-bridge cat /data/web-token`.
+- **Always on.** Without `TPitwall__Web__Token` in `.env`, the bridge makes a token on first start, saves it in `data/web-token` (readable by you only) and prints it once in the log. Show it again with `docker compose exec t-pitwall cat /data/web-token`.
 - **Home Assistant and scripts** send it as `Authorization: Bearer <token>`. It is never accepted in the URL.
 - **The dashboard** trades it once for a session cookie (`HttpOnly`, `SameSite=Strict`), so the token isn't kept in the browser or put in links.
 - **Other web sites can't use your browser against it:** state-changing requests from another site (`Sec-Fetch-Site: cross-site`, or an `Origin` that isn't the bridge) are refused.
 - **Browser protections:** a Content-Security-Policy, `X-Frame-Options: DENY` (no clickjacking) and `nosniff` on every response.
 - Wrong sign-ins are slowed down. Only VINs from `.env` are accepted.
-- `Bridge__Web__AllowAnonymous=true` turns the token off, for a network you fully trust. The bridge then only answers requests addressed to an IP address, `localhost`, `*.local` or a name in `Bridge__Web__AllowedHosts`, which stops web pages from reaching it through DNS rebinding.
+- `TPitwall__Web__AllowAnonymous=true` turns the token off, for a network you fully trust. The bridge then only answers requests addressed to an IP address, `localhost`, `*.local` or a name in `TPitwall__Web__AllowedHosts`, which stops web pages from reaching it through DNS rebinding.
 - The dashboard is plain HTTP. On a LAN you share with others, put it behind your reverse proxy with a certificate, or set `DASHBOARD_BIND=<the server's LAN IP>` in `.env` so it isn't reachable on other interfaces (VPN, second network card).
 
 ## MQTT
 
-Anyone who may publish to `tesla/<VIN>/cmd/…` on your broker can send commands. So:
+Anyone who may publish to `t-pitwall/<VIN>/cmd/…` on your broker can send commands. So:
 
-- **The embedded broker** (`Bridge__Mqtt__EmbeddedBroker=true`) never accepts anonymous logins. fleet-telemetry gets a password made by the init container (`data/mqtt-telemetry-password`) and may **only publish raw data under `telemetry/`** – it can't send commands or read anything. `Bridge__Mqtt__Username`/`Password` (e.g. for Home Assistant, if you publish the port) may do everything.
+- **The embedded broker** (`TPitwall__Mqtt__EmbeddedBroker=true`) never accepts anonymous logins. fleet-telemetry gets a password made by the init container (`data/mqtt-telemetry-password`) and may **only publish raw data under `telemetry/`** – it can't send commands or read anything. `TPitwall__Mqtt__Username`/`Password` (e.g. for Home Assistant, if you publish the port) may do everything.
 - **Your own Mosquitto** must require logins (`allow_anonymous false`), and should limit fleet-telemetry the same way. In Mosquitto's `acl_file`:
 
   ```
   user fleet-telemetry
   topic write telemetry/#
 
-  user tesla-bridge
+  user t-pitwall
   topic readwrite #
 
   user homeassistant
   topic readwrite #
   ```
 - **The bridge checks this for you.** Shortly after it starts, and then every six hours, it tries to log in to your broker without a username or password. If that works, it warns in the log and at the top of the dashboard's **Setup** page (and counts it in the menu).
-- **Not using MQTT commands?** If Home Assistant uses the integration (HTTP), set `Bridge__Mqtt__Commands=false`: then only the HTTP API, with its token, can send commands.
+- **Not using MQTT commands?** If Home Assistant uses the integration (HTTP), set `TPitwall__Mqtt__Commands=false`: then only the HTTP API, with its token, can send commands.
 
 ## The ESP32 (Bluetooth)
 
@@ -68,7 +68,7 @@ The bridge container gets only `config/public` and `config/bridge` (read-only) a
 
 ## Reporting a problem
 
-Found a security problem? Please open a [GitHub security advisory](https://github.com/Mfoldager17/tesla-bridge/security/advisories/new) instead of a public issue.
+Found a security problem? Please open a [GitHub security advisory](https://github.com/Mfoldager17/t-pitwall/security/advisories/new) instead of a public issue.
 
 ---
 

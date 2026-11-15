@@ -1,15 +1,15 @@
-<sub>[Tesla Bridge](../README.md) · Guide</sub>
+<sub>[T-Pitwall](../README.md) · Guide</sub>
 
 # Guide
 
-Follow the steps in order – each page ends with a link to the next one. Prefer a guide that shows only the steps for your setup? Use the [interactive setup guide](https://mfoldager17.github.io/tesla-bridge/).
+Follow the steps in order – each page ends with a link to the next one. Prefer a guide that shows only the steps for your setup? Use the [interactive setup guide](https://mfoldager17.github.io/t-pitwall/).
 
 | Step | |
 |---|---|
 | [1. Before you start](1-before-you-start.md) | What you need, how it fits together, MQTT or integration |
 | [2. Install](2-install.md) | With the setup script, or by hand |
 | [3. Connect the car](3-connect-the-car.md) | Sign in with Tesla, pair the key, first data |
-| [4. Home Assistant](4-home-assistant.md) | MQTT or the Tesla Bridge integration |
+| [4. Home Assistant](4-home-assistant.md) | MQTT or the T-Pitwall integration |
 | [5. The dashboard](5-the-dashboard.md) | Controls, settings, intervals and the 3D car |
 
 **Reference**

@@ -1,8 +1,8 @@
 {
-  "name": "tesla-bridge-web",
+  "name": "t-pitwall-web",
   "private": true,
   "type": "module",
-  "description": "The Tesla Bridge dashboard (SolidJS + Vite + TypeScript). Built into src/TeslaBridge/wwwroot.",
+  "description": "The T-Pitwall dashboard (SolidJS + Vite + TypeScript). Built into src/TPitwall/wwwroot.",
   "scripts": {
     "dev": "vite",
     "build": "node scripts/clean.mjs && vite build && node scripts/licenses.mjs",

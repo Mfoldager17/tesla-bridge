@@ -1,9 +1,9 @@
 # Build the bridge locally instead of pulling it from ghcr.io (requires the repo):
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 services:
-  tesla-init:
+  t-pitwall-init:
     build: .
-    image: tesla-bridge:local
-  tesla-bridge:
+    image: t-pitwall:local
+  t-pitwall:
     build: .
-    image: tesla-bridge:local
+    image: t-pitwall:local

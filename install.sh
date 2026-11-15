@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Tesla Bridge – guided setup for a Linux server with Docker (e.g. a Raspberry Pi).
+# T-Pitwall – guided setup for a Linux server with Docker (e.g. a Raspberry Pi).
 #
-#   curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Mfoldager17/t-pitwall/main/install.sh | bash
 #
 # Run it again at any time: it remembers your answers (from .env), so Enter keeps the current value.
 # It does everything that can be done from the server:
@@ -12,11 +12,11 @@
 # What only you can do: create the Tesla app, the DNS record, the reverse proxy host, the router
 # port forward, and sign in + pair the key in the dashboard. The script tells you when and how.
 #
-# Options:  --dir <folder>   where to install (default: where it already runs, else ~/tesla-bridge)
+# Options:  --dir <folder>   where to install (default: where it already runs, else ~/t-pitwall)
 #           --dry-run        show what would happen, change nothing
 set -euo pipefail
 
-REPO_RAW="https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main"
+REPO_RAW="https://raw.githubusercontent.com/Mfoldager17/t-pitwall/main"
 DIR=""
 DRY_RUN=0
 while [[ $# -gt 0 ]]; do
@@ -76,10 +76,10 @@ ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo '
 step "Folder"
 if [[ -z "$DIR" ]]; then
   # already installed? use the folder docker compose runs it from – everyone's folders are different
-  DIR=$(docker ps -a --filter "label=com.docker.compose.service=tesla-bridge" \
+  DIR=$(docker ps -a --filter "label=com.docker.compose.service=t-pitwall" \
         --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null | head -n1)
-  [[ -z "$DIR" && -f docker-compose.yml ]] && grep -q tesla-init docker-compose.yml && DIR=$PWD
-  DIR=${DIR:-$HOME/tesla-bridge}
+  [[ -z "$DIR" && -f docker-compose.yml ]] && grep -q t-pitwall-init docker-compose.yml && DIR=$PWD
+  DIR=${DIR:-$HOME/t-pitwall}
 fi
 DIR=$(ask "Install in" "$DIR")
 run mkdir -p "$DIR"
@@ -97,7 +97,7 @@ info "1) Reverse proxy – port 443 is forwarded to a reverse proxy (Nginx Proxy
 info "   One domain for both, e.g. car.example.com."
 info "2) Tunnel – the website part goes through a tunnel (e.g. Cloudflare Tunnel), no port 443 open."
 info "   Two domains: one through the tunnel (car.example.com) and one DNS only for the car (car-data.example.com)."
-CUR_TEL=$(env_get Bridge__Telemetry__Hostname); CUR_PARTNER=$(env_get Bridge__Tesla__PartnerDomain)
+CUR_TEL=$(env_get TPitwall__Telemetry__Hostname); CUR_PARTNER=$(env_get TPitwall__Tesla__PartnerDomain)
 [[ "$CUR_TEL" == *ditdomaene* || "$CUR_TEL" == *example* ]] && CUR_TEL=""
 [[ "$CUR_PARTNER" == *example* ]] && CUR_PARTNER=""
 DEF=1; [[ -n "$CUR_PARTNER" && "$CUR_PARTNER" != "$CUR_TEL" ]] && DEF=2
@@ -140,7 +140,7 @@ fi
 
 # ---------------------------------------------------------------- 4. Tesla app
 step "Tesla app"
-CLIENT_ID=$(env_get Bridge__Tesla__ClientId); CLIENT_SECRET=$(env_get Bridge__Tesla__ClientSecret)
+CLIENT_ID=$(env_get TPitwall__Tesla__ClientId); CLIENT_SECRET=$(env_get TPitwall__Tesla__ClientSecret)
 if [[ -z "$CLIENT_ID" ]]; then
   info "Create a new app at ${C}https://developer.tesla.com${N} → Create application, with:"
   info "  Name                  anything without \"tesla\", e.g. ${B}My Car${N}"
@@ -155,27 +155,27 @@ CLIENT_SECRET=$(ask_secret "Client Secret" "$CLIENT_SECRET")
 
 # ---------------------------------------------------------------- 5. car
 step "Your car"
-VIN=$(env_get Bridge__Vehicles__0__Vin)
+VIN=$(env_get TPitwall__Vehicles__0__Vin)
 while :; do
   VIN=$(ask "VIN (17 characters, in the Tesla app under Software)" "$VIN"); VIN="${VIN^^}"; VIN="${VIN// /}"
   [[ ${#VIN} == 17 ]] && break; warn "A VIN is 17 characters."
 done
-NAME=$(env_get Bridge__Vehicles__0__Name); NAME=$(ask "Name in Home Assistant (becomes the entity ids, e.g. model_y_*)" "${NAME:-Model Y}")
+NAME=$(env_get TPitwall__Vehicles__0__Name); NAME=$(ask "Name in Home Assistant (becomes the entity ids, e.g. model_y_*)" "${NAME:-Model Y}")
 info "Optional: an ESP32 with Bluetooth where the car parks makes commands and wake-ups free while the car is home"
 info "(see docs/ble.md). You can also add it later on the dashboard under Settings → Bluetooth."
-BLE_URL=$(ask "ESP32 address, e.g. http://192.168.1.50 (empty = none)" "$(env_get Bridge__Vehicles__0__Ble__Url)")
+BLE_URL=$(ask "ESP32 address, e.g. http://192.168.1.50 (empty = none)" "$(env_get TPitwall__Vehicles__0__Ble__Url)")
 [[ -n "$BLE_URL" && "$BLE_URL" != http* ]] && BLE_URL="http://$BLE_URL"
 BLE_USER=""; BLE_PASS=""
 if [[ -n "$BLE_URL" ]]; then
-  BLE_USER=$(ask "The ESP32's web_username (from its secrets.yaml)" "$(env_get Bridge__Vehicles__0__Ble__Username)")
-  BLE_PASS=$(ask_secret "The ESP32's web_password" "$(env_get Bridge__Vehicles__0__Ble__Password)")
+  BLE_USER=$(ask "The ESP32's web_username (from its secrets.yaml)" "$(env_get TPitwall__Vehicles__0__Ble__Username)")
+  BLE_PASS=$(ask_secret "The ESP32's web_password" "$(env_get TPitwall__Vehicles__0__Ble__Password)")
 fi
 
 # ---------------------------------------------------------------- 6. MQTT
 step "MQTT and Home Assistant"
 MOSQ=$(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($2) ~ /mosquitto/ {print $1; exit}')
-CUR_EMB=$(env_get Bridge__Mqtt__EmbeddedBroker)
-info "1) No broker – the bridge's built-in one. Home Assistant uses the ${B}Tesla Bridge${N} integration (HACS)."
+CUR_EMB=$(env_get TPitwall__Mqtt__EmbeddedBroker)
+info "1) No broker – the bridge's built-in one. Home Assistant uses the ${B}T-Pitwall${N} integration (Marketplace)."
 if [[ -n "$MOSQ" ]]; then info "2) Your Mosquitto container ${B}$MOSQ${N} – Home Assistant gets the entities via MQTT. Users are created for you."
 else info "2) (no Mosquitto container found)"; fi
 info "3) Another MQTT broker (you type host, port and users)"
@@ -187,7 +187,7 @@ case "$MODE" in
   2)
     [[ -n "$MOSQ" ]] || fail "No Mosquitto container found."
     EMBEDDED=false; DISCOVERY=homeassistant
-    MQTT_HOST=$(lan_ip); MQTT_HOST=$(ask "IP the containers use to reach $MOSQ (not localhost)" "$(env_get Bridge__Mqtt__Host | grep -v 'x$' || echo "$MQTT_HOST")")
+    MQTT_HOST=$(lan_ip); MQTT_HOST=$(ask "IP the containers use to reach $MOSQ (not localhost)" "$(env_get TPitwall__Mqtt__Host | grep -v 'x$' || echo "$MQTT_HOST")")
     HOSTPORT=$(docker port "$MOSQ" 1883/tcp 2>/dev/null | awk -F: 'NR==1{print $NF}')
     MQTT_PORT=${HOSTPORT:-1883}
     [[ -z "$HOSTPORT" ]] && warn "$MOSQ doesn't publish port 1883 – if it uses host networking that's fine."
@@ -197,10 +197,10 @@ case "$MODE" in
     if [[ -z "$PWFILE" ]]; then
       ok "$MOSQ allows anonymous clients – no users needed"
     else
-      MQTT_USER=$(env_get Bridge__Mqtt__Username); MQTT_USER=${MQTT_USER:-tesla-bridge}
-      FT_USER=$(env_get Bridge__Telemetry__MqttUsername); FT_USER=${FT_USER:-fleet-telemetry}
-      MQTT_PASS=$(env_get Bridge__Mqtt__Password); MQTT_PASS=${MQTT_PASS:-$(rand 24)}
-      FT_PASS=$(env_get Bridge__Telemetry__MqttPassword); FT_PASS=${FT_PASS:-$(rand 24)}
+      MQTT_USER=$(env_get TPitwall__Mqtt__Username); MQTT_USER=${MQTT_USER:-t-pitwall}
+      FT_USER=$(env_get TPitwall__Telemetry__MqttUsername); FT_USER=${FT_USER:-fleet-telemetry}
+      MQTT_PASS=$(env_get TPitwall__Mqtt__Password); MQTT_PASS=${MQTT_PASS:-$(rand 24)}
+      FT_PASS=$(env_get TPitwall__Telemetry__MqttPassword); FT_PASS=${FT_PASS:-$(rand 24)}
       run docker exec "$MOSQ" mosquitto_passwd -b "$PWFILE" "$MQTT_USER" "$MQTT_PASS"
       run docker exec "$MOSQ" mosquitto_passwd -b "$PWFILE" "$FT_USER" "$FT_PASS"
       run docker kill -s HUP "$MOSQ" >/dev/null   # re-reads the password file, no restart
@@ -208,49 +208,49 @@ case "$MODE" in
     fi ;;
   3)
     EMBEDDED=false; DISCOVERY=homeassistant
-    MQTT_HOST=$(ask "Broker IP (not localhost)" "$(env_get Bridge__Mqtt__Host)")
-    P0=$(env_get Bridge__Mqtt__Port); MQTT_PORT=$(ask "Port" "${P0:-1883}")
-    MQTT_USER=$(ask "Username for the bridge (empty = anonymous)" "$(env_get Bridge__Mqtt__Username)")
-    MQTT_PASS=$(ask_secret "Password" "$(env_get Bridge__Mqtt__Password)")
-    FT_USER=$(ask "Username for fleet-telemetry" "$(env_get Bridge__Telemetry__MqttUsername)")
-    FT_PASS=$(ask_secret "Password" "$(env_get Bridge__Telemetry__MqttPassword)") ;;
+    MQTT_HOST=$(ask "Broker IP (not localhost)" "$(env_get TPitwall__Mqtt__Host)")
+    P0=$(env_get TPitwall__Mqtt__Port); MQTT_PORT=$(ask "Port" "${P0:-1883}")
+    MQTT_USER=$(ask "Username for the bridge (empty = anonymous)" "$(env_get TPitwall__Mqtt__Username)")
+    MQTT_PASS=$(ask_secret "Password" "$(env_get TPitwall__Mqtt__Password)")
+    FT_USER=$(ask "Username for fleet-telemetry" "$(env_get TPitwall__Telemetry__MqttUsername)")
+    FT_PASS=$(ask_secret "Password" "$(env_get TPitwall__Telemetry__MqttPassword)") ;;
   *)
     ok "Built-in broker – nothing to set up" ;;
 esac
 
 # ---------------------------------------------------------------- 7. .env
 step "Writing .env"
-TOKEN=$(env_get Bridge__Web__Token); TOKEN=${TOKEN:-$(rand 40)}
-TAG=$(env_get BRIDGE_TAG); TAG=${TAG:-latest}
+TOKEN=$(env_get TPitwall__Web__Token); TOKEN=${TOKEN:-$(rand 40)}
+TAG=$(env_get TPITWALL_TAG); TAG=${TAG:-latest}
 NEW_ENV=$(cat <<EOF
 # Written by install.sh $(date '+%Y-%m-%d %H:%M'). Run it again to change answers, or edit by hand.
 TZ=$(T=$(env_get TZ); echo "${T:-$(cat /etc/timezone 2>/dev/null || echo Europe/Copenhagen)}")
 PUID=$(id -u)
 PGID=$(id -g)
 
-Bridge__Telemetry__Hostname=$TELEMETRY
-# Only set when the website part has its own name (tunnel); empty = same as Bridge__Telemetry__Hostname
-Bridge__Tesla__PartnerDomain=$([[ "$PARTNER" != "$TELEMETRY" ]] && echo "$PARTNER")
-Bridge__Telemetry__Port=4443
-Bridge__Vehicles__0__Vin=$VIN
-Bridge__Vehicles__0__Name=$NAME
-Bridge__Vehicles__0__Ble__Url=$BLE_URL
-Bridge__Vehicles__0__Ble__Username=$BLE_USER
-Bridge__Vehicles__0__Ble__Password=$BLE_PASS
-Bridge__Tesla__ClientId=$CLIENT_ID
-Bridge__Tesla__ClientSecret=$CLIENT_SECRET
+TPitwall__Telemetry__Hostname=$TELEMETRY
+# Only set when the website part has its own name (tunnel); empty = same as TPitwall__Telemetry__Hostname
+TPitwall__Tesla__PartnerDomain=$([[ "$PARTNER" != "$TELEMETRY" ]] && echo "$PARTNER")
+TPitwall__Telemetry__Port=4443
+TPitwall__Vehicles__0__Vin=$VIN
+TPitwall__Vehicles__0__Name=$NAME
+TPitwall__Vehicles__0__Ble__Url=$BLE_URL
+TPitwall__Vehicles__0__Ble__Username=$BLE_USER
+TPitwall__Vehicles__0__Ble__Password=$BLE_PASS
+TPitwall__Tesla__ClientId=$CLIENT_ID
+TPitwall__Tesla__ClientSecret=$CLIENT_SECRET
 
-Bridge__Mqtt__EmbeddedBroker=$EMBEDDED
-Bridge__Mqtt__Host=$MQTT_HOST
-Bridge__Mqtt__Port=$MQTT_PORT
-Bridge__Mqtt__Username=$MQTT_USER
-Bridge__Mqtt__Password=$MQTT_PASS
-Bridge__Telemetry__MqttUsername=$FT_USER
-Bridge__Telemetry__MqttPassword=$FT_PASS
-Bridge__Mqtt__DiscoveryPrefix=$DISCOVERY
+TPitwall__Mqtt__EmbeddedBroker=$EMBEDDED
+TPitwall__Mqtt__Host=$MQTT_HOST
+TPitwall__Mqtt__Port=$MQTT_PORT
+TPitwall__Mqtt__Username=$MQTT_USER
+TPitwall__Mqtt__Password=$MQTT_PASS
+TPitwall__Telemetry__MqttUsername=$FT_USER
+TPitwall__Telemetry__MqttPassword=$FT_PASS
+TPitwall__Mqtt__DiscoveryPrefix=$DISCOVERY
 
-Bridge__Web__Token=$TOKEN
-BRIDGE_TAG=$TAG
+TPitwall__Web__Token=$TOKEN
+TPITWALL_TAG=$TAG
 EOF
 )
 # keep any other settings you added yourself
@@ -360,7 +360,7 @@ else
     # Let's Encrypt renews about every 60 days – copy again weekly and restart fleet-telemetry when it changed.
     # The script runs as root (it reads the certificate folder), so it lives root-owned in /usr/local/sbin where
     # nothing else can change it.
-    RENEW="/usr/local/sbin/tesla-bridge-renew-cert"
+    RENEW="/usr/local/sbin/t-pitwall-renew-cert"
     if [[ $DRY_RUN == 0 ]]; then
       sudo install -m 755 -o root -g root /dev/stdin "$RENEW" <<EOF
 #!/bin/sh
@@ -377,9 +377,9 @@ fi
 EOF
       rm -f "$DIR/renew-cert.sh"   # the old location (before 1.2)
     fi
-    LINE="17 4 * * 1 $RENEW # tesla-bridge-cert"
+    LINE="17 4 * * 1 $RENEW # t-pitwall-cert"
     if [[ $DRY_RUN == 1 ]]; then info "[dry-run] root crontab += $LINE"
-    else (sudo crontab -l 2>/dev/null | grep -v 'tesla-bridge-cert'; echo "$LINE") | sudo crontab -; fi
+    else (sudo crontab -l 2>/dev/null | grep -v 't-pitwall-cert'; echo "$LINE") | sudo crontab -; fi
     ok "Kept up to date every Monday 04:17 (root's crontab, $RENEW)"
   fi
 fi
@@ -391,8 +391,8 @@ run docker compose up -d
 if [[ $DRY_RUN == 0 ]]; then
   for _ in $(seq 1 60); do curl -fsS http://localhost:8090/api/info >/dev/null 2>&1 && break; sleep 2; done
   if curl -fsS http://localhost:8090/api/info >/dev/null 2>&1; then ok "Bridge is running"
-  else warn "The bridge doesn't answer yet: docker compose logs tesla-bridge"; fi
-  docker compose logs tesla-init 2>/dev/null | grep -iE 'advarsel|warning|mangler|missing' | sed 's/^/    /' || true
+  else warn "The bridge doesn't answer yet: docker compose logs t-pitwall"; fi
+  docker compose logs t-pitwall-init 2>/dev/null | grep -iE 'advarsel|warning|mangler|missing' | sed 's/^/    /' || true
 fi
 
 # ---------------------------------------------------------------- 10. reachable from the internet?
@@ -411,7 +411,7 @@ else
   else
     info "Add a public hostname to your tunnel (Cloudflare: Zero Trust → Networks → Tunnels → your tunnel → Public Hostname):"
     info "  Hostname     ${B}$PARTNER${N}"
-    info "  Service      ${B}http://$(lan_ip):8091${N}   (or http://tesla-bridge:8091 if cloudflared is on the same Docker network)"
+    info "  Service      ${B}http://$(lan_ip):8091${N}   (or http://t-pitwall:8091 if cloudflared is on the same Docker network)"
     info "Or in cloudflared's config.yml:"
     info "  ingress:"
     info "    - hostname: $PARTNER"
@@ -433,8 +433,8 @@ info "Open the dashboard (only on your own network):"
 info "  ${C}$DASH${N}"
 info "Under ${B}Setup${N}: 1) Sign in with Tesla  2) scan the QR code with your phone at the car to pair the key."
 if [[ "$EMBEDDED" == true ]]; then
-  info "Home Assistant: HACS → Custom repositories → https://github.com/Mfoldager17/tesla-bridge (Integration),"
-  info "install ${B}Tesla Bridge${N}, restart, add the integration with URL http://$(lan_ip):8090 and the token from .env."
+  info "Home Assistant: Marketplace → Add from link → https://github.com/Mfoldager17/ha-t-pitwall,"
+  info "install ${B}T-Pitwall${N}, restart, add the integration with URL http://$(lan_ip):8090 and the token from .env."
 else
   info "Home Assistant: the car shows up by itself under MQTT (if HA uses the same broker)."
 fi

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tesla Bridge setup guide</title>
-<meta name="description" content="Step-by-step guide to self-hosting Tesla Bridge: your car streams to your own server and Home Assistant, without Teslemetry.">
+<title>T-Pitwall setup guide</title>
+<meta name="description" content="Step-by-step guide to self-hosting T-Pitwall: your car streams to your own server and Home Assistant, without Teslemetry.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -148,11 +148,11 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 <header class="hero">
   <div class="wrap">
     <div class="top">
-      <a href="#">Tesla Bridge</a>
+      <a href="#">T-Pitwall</a>
       <nav aria-label="Links">
-        <a href="https://github.com/Mfoldager17/tesla-bridge">GitHub</a>
-        <a href="https://github.com/Mfoldager17/tesla-bridge/tree/main/docs">Full docs</a>
-        <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/troubleshooting.md">Troubleshooting</a>
+        <a href="https://github.com/Mfoldager17/t-pitwall">GitHub</a>
+        <a href="https://github.com/Mfoldager17/t-pitwall/tree/main/docs">Full docs</a>
+        <a href="https://github.com/Mfoldager17/t-pitwall/blob/main/docs/troubleshooting.md">Troubleshooting</a>
       </nav>
     </div>
     <div>
@@ -227,7 +227,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
           <li>A public IP address you can forward a port on. Behind CGNAT you need a VPS or a raw TCP tunnel for port 4443.</li>
           <li>A valid certificate for the name the car connects to (<span class="v-inline" data-v="cardomain"></span>) – and <strong>knowing which folder it's in</strong>. Nginx Proxy Manager is not required.</li>
           <li data-ha="mqtt">An MQTT broker that the server and Home Assistant can both reach, e.g. Mosquitto.</li>
-          <li data-ha="int">HACS in Home Assistant.</li>
+          <li data-ha="int">The Marketplace in Home Assistant (HACS before 2026.11).</li>
         </ul>
         <div class="box note">The name must not contain the word “tesla” – Tesla rejects it. <code>car.</code>, <code>ev.</code> or anything else is fine.</div>
 
@@ -277,7 +277,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <h3>Run the setup script</h3>
       <p class="who">On the server, in a terminal</p>
       <div class="step">
-        <pre><code>curl -fsSL https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/install.sh | bash</code></pre>
+        <pre><code>curl -fsSL https://raw.githubusercontent.com/Mfoldager17/t-pitwall/main/install.sh | bash</code></pre>
         <p>It asks a few questions – answer with what you picked above:</p>
         <ul>
           <li><strong>Folder</strong> – anywhere you like. An existing install is found by itself.</li>
@@ -298,9 +298,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <h3>Download two files</h3>
       <p class="who">On the server – no source code, no git</p>
       <div class="step">
-        <pre><code>mkdir -p ~/tesla-bridge &amp;&amp; cd ~/tesla-bridge     <span class="c"># any folder you like</span>
-curl -fsSLO https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/docker-compose.yml
-curl -fsSL  https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/.env.example -o .env
+        <pre><code>mkdir -p ~/t-pitwall &amp;&amp; cd ~/t-pitwall     <span class="c"># any folder you like</span>
+curl -fsSLO https://raw.githubusercontent.com/Mfoldager17/t-pitwall/main/docker-compose.yml
+curl -fsSL  https://raw.githubusercontent.com/Mfoldager17/t-pitwall/main/.env.example -o .env
 chmod 600 .env</code></pre>
       </div>
     </li>
@@ -322,7 +322,7 @@ chmod 600 .env</code></pre>
         <pre><code><span class="c"># where is the password file?</span>
 docker exec mosquitto sh -c 'grep -h password_file /mosquitto/config/*.conf /etc/mosquitto/*.conf 2&gt;/dev/null'
 
-docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd tesla-bridge
+docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd t-pitwall
 docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwd fleet-telemetry
 docker kill -s HUP mosquitto      <span class="c"># re-read users, no restart</span></code></pre>
         <p>Anonymous broker? Skip this and leave usernames and passwords empty.</p>
@@ -345,7 +345,7 @@ sudo chown -R $(id -u):$(id -g) config/fleet-telemetry/certs</code></pre>
           <tr><td>Caddy</td><td><code>&lt;caddy data&gt;/caddy/certificates/&lt;ca&gt;/<span data-v="cardomain"></span></code> – files are <code>.crt</code> and <code>.key</code></td></tr>
           <tr><td>acme.sh</td><td><code>~/.acme.sh/<span data-v="cardomain"></span></code> – <code>fullchain.cer</code> and <code>.key</code></td></tr>
         </table></div>
-        <p data-net="tunnel">No certificate for <code data-v="cardomain"></code> yet? The <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/2-install.md#step-5--the-certificate-for-fleet-telemetry">install guide</a> shows how to get one with certbot and Cloudflare DNS – or let the setup script do it.</p>
+        <p data-net="tunnel">No certificate for <code data-v="cardomain"></code> yet? The <a href="https://github.com/Mfoldager17/t-pitwall/blob/main/docs/2-install.md#step-5--the-certificate-for-fleet-telemetry">install guide</a> shows how to get one with certbot and Cloudflare DNS – or let the setup script do it.</p>
         <p>Let's Encrypt renews about every 60 days: copy again weekly with a root cron job and run <code>docker compose restart fleet-telemetry</code>.</p>
       </div>
     </li>
@@ -354,7 +354,7 @@ sudo chown -R $(id -u):$(id -g) config/fleet-telemetry/certs</code></pre>
       <h3>Start it</h3>
       <div class="step">
         <pre><code>docker compose up -d
-docker compose logs tesla-init        <span class="c"># what was created, and any warnings</span></code></pre>
+docker compose logs t-pitwall-init        <span class="c"># what was created, and any warnings</span></code></pre>
         <p>Back up <code>config/</code> and <code>data/</code>. If the app key is lost, it must be paired with the car again.</p>
       </div>
     </li>
@@ -380,7 +380,7 @@ docker compose logs tesla-init        <span class="c"># what was created, and an
         <div data-net="tunnel">
           <div class="tbl"><table>
             <tr><th>Hostname</th><td><code data-v="domain"></code></td></tr>
-            <tr><th>Service</th><td><code>http://<span data-v="ip"></span>:8091</code> – or <code>http://tesla-bridge:8091</code> if cloudflared runs on the same Docker network</td></tr>
+            <tr><th>Service</th><td><code>http://<span data-v="ip"></span>:8091</code> – or <code>http://t-pitwall:8091</code> if cloudflared runs on the same Docker network</td></tr>
           </table></div>
           <p>Or in cloudflared's <code>config.yml</code>:</p>
           <pre><code>ingress:
@@ -420,12 +420,12 @@ docker compose logs tesla-init        <span class="c"># what was created, and an
         </div>
         <div data-ha="int">
           <ol>
-            <li>HACS → ⋮ → <strong>Custom repositories</strong> → <code>https://github.com/Mfoldager17/tesla-bridge</code>, type <em>Integration</em>.</li>
-            <li>Install <strong>Tesla Bridge</strong> and restart Home Assistant.</li>
-            <li>Settings → Devices &amp; services → Add integration → <strong>Tesla Bridge</strong>, with URL <code>http://<span data-v="ip"></span>:8090</code> and the token from <code>.env</code>.</li>
+            <li>Marketplace → <strong>Add from link</strong> → <code>https://github.com/Mfoldager17/ha-t-pitwall</code> (HACS: ⋮ → <strong>Custom repositories</strong>, type <em>Integration</em>).</li>
+            <li>Install <strong>T-Pitwall</strong> and restart Home Assistant.</li>
+            <li>Settings → Devices &amp; services → Add integration → <strong>T-Pitwall</strong>, with URL <code>http://<span data-v="ip"></span>:8090</code> and the token from <code>.env</code>.</li>
           </ol>
         </div>
-        <p>You get about 80 entities under <strong data-v="name"></strong>, e.g. <code>sensor.<span data-v="slug"></span>_battery_level</code>. <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/entities.md">All entities</a></p>
+        <p>You get about 80 entities under <strong data-v="name"></strong>, e.g. <code>sensor.<span data-v="slug"></span>_battery_level</code>. <a href="https://github.com/Mfoldager17/t-pitwall/blob/main/docs/entities.md">All entities</a></p>
       </div>
     </li>
 
@@ -435,11 +435,11 @@ docker compose logs tesla-init        <span class="c"># what was created, and an
       <div class="step">
         <p>While the car is within Bluetooth range of an ESP32, commands and wake-ups go over Bluetooth instead of the Fleet API – free, and without the internet. Away from home nothing changes.</p>
         <ol>
-          <li>Flash an ESP32 with <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/esphome/tesla-ble.yaml"><code>esphome/tesla-ble.yaml</code></a> (ESPHome, ready-made).</li>
+          <li>Flash an ESP32 with <a href="https://github.com/Mfoldager17/t-pitwall/blob/main/esphome/tesla-ble.yaml"><code>esphome/tesla-ble.yaml</code></a> (ESPHome, ready-made).</li>
           <li>Dashboard → Settings → <strong>Bluetooth</strong>: type its address, e.g. <code>http://192.168.1.50</code>.</li>
           <li>Sit in the car, press <strong>Pair key</strong> and tap your key card.</li>
         </ol>
-        <p><a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/ble.md">Bluetooth guide</a></p>
+        <p><a href="https://github.com/Mfoldager17/t-pitwall/blob/main/docs/ble.md">Bluetooth guide</a></p>
       </div>
     </li>
   </ol>
@@ -447,8 +447,8 @@ docker compose logs tesla-init        <span class="c"># what was created, and an
 
 <footer>
   <div class="wrap">
-    <span>Stuck? <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/troubleshooting.md">Troubleshooting</a> · <a href="https://github.com/Mfoldager17/tesla-bridge/issues">Open an issue</a></span>
-    <span>Screenshot: test data from the built-in simulator. 3D model “2025 Tesla Model Y” by BloxBloger, <a href="https://creativecommons.org/licenses/by-nc/4.0/">CC BY-NC 4.0</a>, modified – <a href="https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/5-the-dashboard.md#credits">credits</a>.<br>Tesla and Model Y are trademarks of Tesla, Inc. This project is not affiliated with Tesla.</span>
+    <span>Stuck? <a href="https://github.com/Mfoldager17/t-pitwall/blob/main/docs/troubleshooting.md">Troubleshooting</a> · <a href="https://github.com/Mfoldager17/t-pitwall/issues">Open an issue</a></span>
+    <span>Screenshot: test data from the built-in simulator. 3D model “2025 Tesla Model Y” by BloxBloger, <a href="https://creativecommons.org/licenses/by-nc/4.0/">CC BY-NC 4.0</a>, modified – <a href="https://github.com/Mfoldager17/t-pitwall/blob/main/docs/5-the-dashboard.md#credits">credits</a>.<br>Tesla and Model Y are trademarks of Tesla, Inc. This project is not affiliated with Tesla.</span>
   </div>
 </footer>
 
@@ -474,20 +474,20 @@ docker compose logs tesla-init        <span class="c"># what was created, and an
     const lines = [
       ["TZ=Europe/Copenhagen", "your time zone"],
       ["PUID=1000", "from `id`"], ["PGID=1000", ""], ["", ""],
-      [`Bridge__Telemetry__Hostname=${c.net === "tunnel" ? val("cardomain") : val("domain")}`, "the name the car connects to"],
-      ...(c.net === "tunnel" ? [[`Bridge__Tesla__PartnerDomain=${val("domain")}`, "the name through the tunnel"]] : []),
-      ["Bridge__Vehicles__0__Vin=<VIN>", "17 characters, Tesla app → Software"],
-      [`Bridge__Vehicles__0__Name=${val("name")}`, "your choice"],
-      ["Bridge__Tesla__ClientId=<Client ID>", ""], ["Bridge__Tesla__ClientSecret=<Client Secret>", ""], ["", ""],
+      [`TPitwall__Telemetry__Hostname=${c.net === "tunnel" ? val("cardomain") : val("domain")}`, "the name the car connects to"],
+      ...(c.net === "tunnel" ? [[`TPitwall__Tesla__PartnerDomain=${val("domain")}`, "the name through the tunnel"]] : []),
+      ["TPitwall__Vehicles__0__Vin=<VIN>", "17 characters, Tesla app → Software"],
+      [`TPitwall__Vehicles__0__Name=${val("name")}`, "your choice"],
+      ["TPitwall__Tesla__ClientId=<Client ID>", ""], ["TPitwall__Tesla__ClientSecret=<Client Secret>", ""], ["", ""],
       ...(c.ha === "mqtt" ? [
-        ["Bridge__Mqtt__EmbeddedBroker=false", ""], [`Bridge__Mqtt__Host=${val("broker")}`, "an IP, not localhost"], ["Bridge__Mqtt__Port=1883", ""],
-        ["Bridge__Mqtt__Username=tesla-bridge", ""], ["Bridge__Mqtt__Password=<password 1>", ""],
-        ["Bridge__Telemetry__MqttUsername=fleet-telemetry", ""], ["Bridge__Telemetry__MqttPassword=<password 2>", ""],
-        ["Bridge__Mqtt__DiscoveryPrefix=homeassistant", ""],
+        ["TPitwall__Mqtt__EmbeddedBroker=false", ""], [`TPitwall__Mqtt__Host=${val("broker")}`, "an IP, not localhost"], ["TPitwall__Mqtt__Port=1883", ""],
+        ["TPitwall__Mqtt__Username=t-pitwall", ""], ["TPitwall__Mqtt__Password=<password 1>", ""],
+        ["TPitwall__Telemetry__MqttUsername=fleet-telemetry", ""], ["TPitwall__Telemetry__MqttPassword=<password 2>", ""],
+        ["TPitwall__Mqtt__DiscoveryPrefix=homeassistant", ""],
       ] : [
-        ["Bridge__Mqtt__EmbeddedBroker=true", "no broker needed"], ["Bridge__Mqtt__DiscoveryPrefix=", ""],
+        ["TPitwall__Mqtt__EmbeddedBroker=true", "no broker needed"], ["TPitwall__Mqtt__DiscoveryPrefix=", ""],
       ]),
-      ["", ""], ["Bridge__Web__Token=<token>", "openssl rand -hex 24"], ["BRIDGE_TAG=latest", ""],
+      ["", ""], ["TPitwall__Web__Token=<token>", "openssl rand -hex 24"], ["TPITWALL_TAG=latest", ""],
     ];
     const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
     // comments on their own line: an inline "# …" would become part of the value in some .env readers

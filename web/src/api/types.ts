@@ -1,4 +1,4 @@
-// What the bridge's HTTP API returns (src/TeslaBridge/Web/*Api.cs). Keep in step with the backend.
+// What the bridge's HTTP API returns (src/TPitwall/Web/*Api.cs). Keep in step with the backend.
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 

@@ -1,4 +1,4 @@
-<sub>[Tesla Bridge](../README.md) · [Guide](README.md) · Optional · Bluetooth (ESP32)</sub>
+<sub>[T-Pitwall](../README.md) · [Guide](README.md) · Optional · Bluetooth (ESP32)</sub>
 
 # Bluetooth with an ESP32 – free commands at home
 
@@ -64,8 +64,8 @@ Get the two files from this repository into your ESPHome folder (in the Device B
 
 ```bash
 mkdir tesla-ble && cd tesla-ble
-curl -fsSLO https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/esphome/tesla-ble.yaml
-curl -fsSL  https://raw.githubusercontent.com/Mfoldager17/tesla-bridge/main/esphome/secrets.yaml.example -o secrets.yaml
+curl -fsSLO https://raw.githubusercontent.com/Mfoldager17/t-pitwall/main/esphome/tesla-ble.yaml
+curl -fsSL  https://raw.githubusercontent.com/Mfoldager17/t-pitwall/main/esphome/secrets.yaml.example -o secrets.yaml
 nano secrets.yaml          # Wi-Fi, VIN, MAC address, an API key (openssl rand -base64 32), a web password (openssl rand -hex 16)
 ```
 
@@ -108,7 +108,7 @@ Within a few seconds the status shows one of these:
 | 🔴 *Can't reach the ESP32* | Wrong address, ESP32 off, or a different network. The reason is shown underneath |
 | 🟡 *…doesn't have the Tesla BLE entities* | It is an ESPHome device, but not flashed with `tesla-ble.yaml` |
 
-You can also put it in `.env` instead (`Bridge__Vehicles__0__Ble__Url=http://192.168.1.50` plus `…__Ble__Username` and `…__Ble__Password`), and the setup script asks for it too. If both are set, the dashboard's setting wins.
+You can also put it in `.env` instead (`TPitwall__Vehicles__0__Ble__Url=http://192.168.1.50` plus `…__Ble__Username` and `…__Ble__Password`), and the setup script asks for it too. If both are set, the dashboard's setting wins.
 
 ## Step 4 – Pair the ESP32 with the car (once)
 
@@ -126,7 +126,7 @@ Then press **Test: wake the car**. If the car wakes, you're done.
 - **Out of range** is detected within ~30 seconds. A command sent in that window falls back to the Fleet API by itself.
 - **Errors fall back too.** If the ESP32 doesn't answer, the bridge sends the command through the Fleet API instead, so a broken ESP32 never stops commands from working.
 - **Removing the ESP32:** clear the address on the dashboard (or in `.env`), and delete its key in the car under *Controls → Locks*.
-- **Several cars:** one ESP32 per car (`Bridge__Vehicles__1__Ble__Url` …). Each car has its own row on the dashboard.
+- **Several cars:** one ESP32 per car (`TPitwall__Vehicles__1__Ble__Url` …). Each car has its own row on the dashboard.
 - **Updating the firmware:** `esphome run tesla-ble.yaml` again (over Wi-Fi). The configuration follows the component's newest version.
 - **Without hardware:** `python3 tools/fake_esp32.py` pretends to be an ESP32, for trying it out. See [Development](development.md).
 

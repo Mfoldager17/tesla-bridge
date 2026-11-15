@@ -5,11 +5,11 @@ import { fileURLToPath } from "node:url";
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const pkg = JSON.parse(readFileSync(here("../package.json"), "utf8"));
-let out = "Third-party software bundled in the Tesla Bridge dashboard\n";
+let out = "Third-party software bundled in the T-Pitwall dashboard\n";
 for (const name of Object.keys(pkg.dependencies ?? {}).sort()) {
   const dir = here(`../node_modules/${name}/`);
   const meta = JSON.parse(readFileSync(dir + "package.json", "utf8"));
   const file = ["LICENSE", "LICENSE.md", "LICENSE.txt", "license"].map((f) => dir + f).find(existsSync);
   out += `\n${"=".repeat(72)}\n${name} ${meta.version} – ${meta.license}\n${meta.homepage ?? ""}\n\n${file ? readFileSync(file, "utf8").trim() : `License: ${meta.license}`}\n`;
 }
-writeFileSync(here("../../src/TeslaBridge/wwwroot/assets/THIRD-PARTY-LICENSES.txt"), out);
+writeFileSync(here("../../src/TPitwall/wwwroot/assets/THIRD-PARTY-LICENSES.txt"), out);

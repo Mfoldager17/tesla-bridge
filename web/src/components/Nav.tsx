@@ -28,7 +28,7 @@ export function Nav(props: { carName?: string }) {
   return (
     <nav class="side">
       <div class="brand">
-        <b>Tesla Bridge</b>
+        <b>T-Pitwall</b>
         <span>{props.carName}</span>
         <Show when={cars().length > 1}>
           <select value={vin()?.toUpperCase()} onChange={(e) => setVin(e.currentTarget.value)}>
@@ -63,7 +63,7 @@ export function Nav(props: { carName?: string }) {
       <div class="ver">
         <span>v{version()}</span>
         <Show when={update()?.update_available}>
-          <a href={update()!.release_url ?? "https://github.com/Mfoldager17/tesla-bridge/releases"} target="_blank" rel="noopener" title={t("ver.how")}>
+          <a href={update()!.release_url ?? "https://github.com/Mfoldager17/t-pitwall/releases"} target="_blank" rel="noopener" title={t("ver.how")}>
             {t("ver.update", update()!.latest_version)}
           </a>
         </Show>

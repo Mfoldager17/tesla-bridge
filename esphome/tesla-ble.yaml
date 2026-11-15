@@ -1,7 +1,7 @@
-# Tesla Bridge – Bluetooth through an ESP32 (optional)
+# T-Pitwall – Bluetooth through an ESP32 (optional)
 #
 # An ESP32 near where the car parks (carport, garage) talks to the car over Bluetooth. While the car is in
-# range, Tesla Bridge sends commands and wake-ups this way: free (no Fleet API cost) and without the internet.
+# range, T-Pitwall sends commands and wake-ups this way: free (no Fleet API cost) and without the internet.
 # When the car is away, the bridge uses the Fleet API as usual. Nothing else changes.
 #
 # This file uses the ESPHome Tesla BLE component by PedroKTFC (AGPL-3.0, not part of this repository):
@@ -9,7 +9,7 @@
 # and adds the two things the bridge needs: the web server (the bridge talks to it) and no reboot when
 # Home Assistant isn't connected to the ESP32.
 #
-# Guide: https://github.com/Mfoldager17/tesla-bridge/blob/main/docs/ble.md
+# Guide: https://github.com/Mfoldager17/t-pitwall/blob/main/docs/ble.md
 #   1. Copy this file and secrets.yaml.example (→ secrets.yaml) to your ESPHome folder and fill in secrets.yaml
 #   2. Flash it: ESPHome Device Builder in Home Assistant, `esphome run tesla-ble.yaml`, or https://web.esphome.io
 #   3. Dashboard → Settings → Bluetooth: type the ESP32's address and press "Pair key" while you sit in the car
@@ -42,11 +42,11 @@ packages:
 api:
   encryption:
     key: !secret api_encryption_key
-  # ESPHome reboots after 15 min when no Home Assistant is connected to its API. Tesla Bridge uses the
+  # ESPHome reboots after 15 min when no Home Assistant is connected to its API. T-Pitwall uses the
   # web server instead, so turn that off – also fine if Home Assistant *is* connected.
   reboot_timeout: 0s
 
-# What Tesla Bridge talks to: http://<ESP32>/events (live states) and POST /<domain>/<name>/<action>.
+# What T-Pitwall talks to: http://<ESP32>/events (live states) and POST /<domain>/<name>/<action>.
 # The web server can unlock the car, so it always needs a password: type the same username and password on the
 # bridge's dashboard (Settings → Bluetooth).
 web_server:

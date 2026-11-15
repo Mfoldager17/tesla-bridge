@@ -24,9 +24,9 @@ SOFTWARE.
 
 Not covered by this license:
 
-- The 3D model src/TeslaBridge/wwwroot/models/model-y.glb – "2025 Tesla Model Y" by
+- The 3D model src/TPitwall/wwwroot/models/model-y.glb – "2025 Tesla Model Y" by
   BloxBloger, CC BY-NC 4.0 (non-commercial use only, with attribution). See
-  src/TeslaBridge/wwwroot/models/NOTICE.md.
+  src/TPitwall/wwwroot/models/NOTICE.md.
 - Third-party software bundled into the dashboard (SolidJS, three.js, Leaflet) keeps its
   own licenses, listed in the built dashboard at /assets/THIRD-PARTY-LICENSES.txt.
 - The ESPHome Tesla BLE firmware (AGPL-3.0) that esphome/tesla-ble.yaml refers to is not

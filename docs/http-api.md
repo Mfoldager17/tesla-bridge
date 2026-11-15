@@ -1,10 +1,10 @@
-<sub>[Tesla Bridge](../README.md) · [Guide](README.md) · Reference · HTTP API</sub>
+<sub>[T-Pitwall](../README.md) · [Guide](README.md) · Reference · HTTP API</sub>
 
 # HTTP API
 
 This is the API the integration and the dashboard use. It runs on port 8090 in both ways, so ESP32 panels, Node-RED etc. can use it without MQTT too.
 
-**Token:** every endpoint except `/api/info` and `/api/session` needs `Authorization: Bearer <token>` – `Bridge__Web__Token` from `.env`, or the one the bridge made in `data/web-token` (see [Security](security.md)). The dashboard signs in once with `POST /api/session` and then uses a session cookie. State-changing requests from another web site are refused (`403`).
+**Token:** every endpoint except `/api/info` and `/api/session` needs `Authorization: Bearer <token>` – `TPitwall__Web__Token` from `.env`, or the one the bridge made in `data/web-token` (see [Security](security.md)). The dashboard signs in once with `POST /api/session` and then uses a session cookie. State-changing requests from another web site are refused (`403`).
 
 **Errors** are [problem details](https://www.rfc-editor.org/rfc/rfc9457) (`application/problem+json`) with the message in both `detail` and `error`: `401` no or wrong token, `403` refused (cross-site, map turned off), `404` unknown VIN or path, `409` not signed in with Tesla yet or the car said no, `502` Tesla or the ESP32 failed, `504` timeout.
 

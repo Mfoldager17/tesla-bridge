@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [solid()],
   base: "/",
   build: {
-    outDir: "../src/TeslaBridge/wwwroot",
+    outDir: "../src/TPitwall/wwwroot",
     emptyOutDir: false,
     target: "es2022",
     // three.js is its own chunk, only loaded when the 3D car is shown

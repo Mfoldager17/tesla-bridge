@@ -3,5 +3,5 @@
 import { rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const root = fileURLToPath(new URL("../../src/TeslaBridge/wwwroot/", import.meta.url));
+const root = fileURLToPath(new URL("../../src/TPitwall/wwwroot/", import.meta.url));
 for (const p of ["index.html", "assets"]) rmSync(root + p, { recursive: true, force: true });

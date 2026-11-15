@@ -1,7 +1,7 @@
 name: Guide website
 
 # Publishes site/ (the step-by-step setup guide) to GitHub Pages:
-# https://mfoldager17.github.io/tesla-bridge/
+# https://mfoldager17.github.io/t-pitwall/
 on:
   push:
     branches: [main]

@@ -1,6 +1,6 @@
 name: Image
 
-# Builds and pushes ghcr.io/<owner>/tesla-bridge. Called by the other workflows:
+# Builds and pushes ghcr.io/<owner>/t-pitwall. Called by the other workflows:
 #   build.yml   on every push to main → edge, sha-abc1234
 #   release.yml when a release is made → v1.2.0, v1.2, v1, latest
 on:
@@ -34,7 +34,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ steps.owner.outputs.name }}/tesla-bridge
+          images: ghcr.io/${{ steps.owner.outputs.name }}/t-pitwall
           tags: |
             type=raw,value=edge,enable=${{ inputs.version == '' }}
             type=sha,format=short

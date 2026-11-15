@@ -1,4 +1,4 @@
-<sub>[Tesla Bridge](../README.md) · [Guide](README.md) · Optional · AI assistants (MCP)</sub>
+<sub>[T-Pitwall](../README.md) · [Guide](README.md) · Optional · AI assistants (MCP)</sub>
 
 # AI assistants (MCP)
 
@@ -14,7 +14,7 @@
 **Claude Code** (the terminal)
 
 ```bash
-claude mcp add --transport http tesla-bridge http://<server-IP>:8090/mcp \
+claude mcp add --transport http t-pitwall http://<server-IP>:8090/mcp \
   --header "Authorization: Bearer <token>"
 ```
 
@@ -23,7 +23,7 @@ claude mcp add --transport http tesla-bridge http://<server-IP>:8090/mcp \
 ```json
 {
   "mcpServers": {
-    "tesla-bridge": {
+    "t-pitwall": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "http://<server-IP>:8090/mcp", "--header", "Authorization: Bearer <token>"]
     }
